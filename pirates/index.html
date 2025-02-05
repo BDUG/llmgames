@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pirate Game – Cities, Trading, Cannons & Boarding</title>
+  <style>
+    /* Basic CSS for layout and styling */
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #87ceeb; /* Light sky blue */
+      font-family: Arial, sans-serif;
+      user-select: none;
+      overflow: hidden; /* Hide scrollbars for a neat game display */
+    }
+
+    /* The main canvas for the game */
+    #gameCanvas {
+      display: block;
+      background-color: #add8e6; /* Light blue for water */
+      margin: 0 auto;
+      border: 2px solid #000;
+    }
+
+    /* Floating div that shows the key commands in the top-left corner */
+    #keyCommands {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background-color: rgba(255,255,255,0.8);
+      padding: 5px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      z-index: 9999;
+      width: 220px;
+      font-size: 13px;
+    }
+
+    /* The on-screen console area at the bottom */
+    #gameConsole {
+      position: absolute;
+      top: 620px; /* place below the canvas (600px + border) */
+      left: 50%;
+      transform: translateX(-50%);
+      width: 800px;
+      height: 100px;
+      overflow-y: auto;
+      background-color: #000;
+      color: #0f0;
+      font-family: monospace;
+      font-size: 12px;
+      padding: 5px;
+      box-sizing: border-box;
+      border: 2px solid #333;
+    }
+
+    /* Semi-transparent overlay for menu or pause states */
+    .overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 800px;
+      height: 600px;
+      background-color: rgba(0, 0, 0, 0.5);
+      color: #fff;
+      display: none; /* hidden by default */
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      flex-direction: column;
+      z-index: 1000;
+    }
+
+    /* Trading overlay: similar style but separate ID */
+    #tradingOverlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 800px;
+      height: 600px;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      display: none;
+      padding: 20px;
+      z-index: 2000;
+    }
+
+    /* The minimap in the corner (for normal play mode) */
+    #minimap {
+      position: absolute;
+      width: 200px;
+      height: 200px;
+      bottom: 110px; /* above the console */
+      right: 10px;
+      background-color: #eee;
+      border: 1px solid #000;
+      z-index: 999;
+      pointer-events: none; /* Don't let the user click it */
+    }
+  </style>
+</head>
+<body>
+  
+  <!-- Key Commands Help Box -->
+  <div id="keyCommands">
+    <strong>Key Commands:</strong>
+    <ul style="margin-top:5px;padding-left:15px;">
+      <li>Enter: Start Game (from Menu)</li>
+      <li>Left/Right: Rotate Ship</li>
+      <li>Up: Move Forward</li>
+      <li>Space: Fire Cannons</li>
+      <li>P: Pause/Unpause</li>
+      <li>M: Toggle Map</li>
+      <li>S: Save Game</li>
+      <li>L: Load Game</li>
+      <li>T: Initiate/End Trading (near city)</li>
+      <li>C: Capture Ship (low HP, close)</li>
+      <li><em>While Trading:</em></li>
+      <ul>
+        <li>1/2/3: Buy Goods</li>
+        <li>Q/W/E: Sell Goods</li>
+        <li>4: Buy Cannon</li>
+        <li>Y: Sell Cannon</li>
+        <li>R: Recruit Crew</li>
+        <li>V: Sell Captured Ship</li>
+        <li>T: End Trading</li>
+      </ul>
+    </ul>
+  </div>
+
+  <!-- Main Game Canvas -->
+  <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+  <!-- Trading Overlay (hidden until T is pressed near a city) -->
+  <div id="tradingOverlay"></div>
+
+  <!-- Overlays for Menu and Pause -->
+  <div id="menuOverlay" class="overlay" style="display:flex;">
+    <div>
+      <h1>Sid Meier's Pirates Clone</h1>
+      <p>Press Enter to Start</p>
+    </div>
+  </div>
+  <div id="pauseOverlay" class="overlay" style="display:none;">
+    <h1>PAUSED</h1>
+    <p>Press P to Resume</p>
+  </div>
+  <div id="mapOverlay" class="overlay" style="display:none;">
+    <h1>WORLD MAP</h1>
+    <p>(Press M to return)</p>
+  </div>
+
+  <!-- Minimap Canvas -->
+  <canvas id="minimap"></canvas>
+
+  <!-- On-Screen Console for logs -->
+  <div id="gameConsole"></div>
+
+  <script>
+    /*******************************************************
+     * Pirate Game – All-in-one HTML/JS Example
+     * 
+     * This script implements:
+     *   - A 2D world with islands, cities
+     *   - Nations, war/peace relationships
+     *   - Player ship with movement, cannons, capturing
+     *   - Enemy ships with AI behavior
+     *   - Trading system (buy/sell goods, cannons, crew)
+     *   - Save/Load to localStorage
+     *   - Menu, Pause, Map overlays
+     *   - On-screen console that overrides console.log
+     *
+     * NOTE: This is a simplified demo that meets the 
+     * requested requirements in a single file.
+     *******************************************************/
+
+    /* ========== Global DOM References ========== */
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const minimapCanvas = document.getElementById('minimap');
+    const minimapCtx = minimapCanvas.getContext('2d');
+
+    const gameConsole = document.getElementById('gameConsole');
+    const menuOverlay = document.getElementById('menuOverlay');
+    const pauseOverlay = document.getElementById('pauseOverlay');
+    const mapOverlay = document.getElementById('mapOverlay');
+    const tradingOverlay = document.getElementById('tradingOverlay');
+
+    /* ========== Override console.log ========== */
+    (function(){
+      const originalLog = console.log;
+      console.log = function(...args){
+        // Print to real console
+        originalLog.apply(console, args);
+        // Also append to on-screen console
+        const msg = args.join(' ');
+        const line = document.createElement('div');
+        line.textContent = msg;
+        gameConsole.appendChild(line);
+        // Auto-scroll to bottom
+        gameConsole.scrollTop = gameConsole.scrollHeight;
+      };
+    })();
+
+    /* ========== Game State Variables ========== */
+    const GAME_STATE = {
+      MENU: 'menu',
+      PLAYING: 'playing',
+      PAUSED: 'paused',
+      MAP: 'map',
+      // We'll treat "trading" as a sub-state inside PLAYING for logic
+    };
+
+    let currentState = GAME_STATE.MENU; // Start at menu
+
+    let tradingMode = false; // whether the trading overlay is active
+
+    // Large world dimensions
+    const WORLD_WIDTH = 2400;
+    const WORLD_HEIGHT = 1600;
+
+    // Camera offset
+    let cameraX = 0;
+    let cameraY = 0;
+
+    // Nations and relationships
+    const NATIONS = ["Holland", "Spanien", "Frankreich", "England"];
+    // relationships[a][b] = "peace" or "war"
+    let relationships = {};
+
+    // We'll store them as an object keyed by pairs, or a 2D map
+    // For simplicity, let's do a small function-based approach:
+    function initRelationships() {
+      relationships = {};
+      for (let i = 0; i < NATIONS.length; i++){
+        for (let j = 0; j < NATIONS.length; j++){
+          if (i === j) continue;
+          const pair = getNationKey(NATIONS[i], NATIONS[j]);
+          relationships[pair] = "peace"; // default
+        }
+      }
+    }
+    function getNationKey(n1, n2) {
+      // create a unique key for a pair of nations
+      return n1 + "_" + n2;
+    }
+    function toggleRandomRelationship() {
+      // pick two random distinct nations
+      const n1Index = Math.floor(Math.random() * NATIONS.length);
+      let n2Index = Math.floor(Math.random() * NATIONS.length);
+      while (n2Index === n1Index) {
+        n2Index = Math.floor(Math.random() * NATIONS.length);
+      }
+      const n1 = NATIONS[n1Index];
+      const n2 = NATIONS[n2Index];
+      const key12 = getNationKey(n1, n2);
+      const key21 = getNationKey(n2, n1);
+      // flip from "peace" to "war" or "war" to "peace"
+      relationships[key12] = (relationships[key12] === "peace") ? "war" : "peace";
+      relationships[key21] = (relationships[key21] === "peace") ? "war" : "peace";
+      console.log(`Relationship toggled between ${n1} and ${n2}: now ${relationships[key12]}`);
+    }
+    function areNationsAtWar(n1, n2) {
+      if (n1 === n2) return false;
+      const key = getNationKey(n1, n2);
+      return relationships[key] === "war";
+    }
+
+    // Initialize them at start
+    initRelationships();
+
+    // We'll toggle the relationship randomly every ~20 seconds:
+    setInterval(toggleRandomRelationship, 20000);
+
+    /* ========== Islands & Cities Generation ========== */
+    let islands = [];
+    let cities = [];
+
+    function generateIslandsAndCities() {
+      islands = [];
+      cities = [];
+
+      const islandCount = 20;
+      let cityIndex = 1;
+      // We'll ensure each of the 4 nations is used at least once
+      let usedNations = [...NATIONS];
+
+      for (let i = 0; i < islandCount; i++) {
+        const centerX = Math.random() * (WORLD_WIDTH - 200) + 100;
+        const centerY = Math.random() * (WORLD_HEIGHT - 200) + 100;
+        const radius = 80 + Math.random() * 50;
+
+        // Create a random polygon
+        let vertices = [];
+        const vertexCount = 6 + Math.floor(Math.random()*3); // e.g. 6-8 vertices
+        for (let v = 0; v < vertexCount; v++) {
+          const angle = (Math.PI * 2) * (v / vertexCount);
+          const r = radius + Math.random() * 30 - 15;
+          const x = centerX + r * Math.cos(angle);
+          const y = centerY + r * Math.sin(angle);
+          vertices.push({x, y});
+        }
+
+        islands.push({ centerX, centerY, radius, vertices });
+
+        // Generate 2 cities on each island at random vertex positions
+        for (let c = 0; c < 2; c++) {
+          const vert = vertices[Math.floor(Math.random() * vertices.length)];
+          // Build a city at or near that vertex
+          let cityNation;
+          if (usedNations.length > 0) {
+            // assign one from the list so each gets used
+            cityNation = usedNations.shift();
+          } else {
+            // or random if we've already assigned each nation at least once
+            cityNation = NATIONS[Math.floor(Math.random()*NATIONS.length)];
+          }
+          const cityName = "Stadt " + (cityIndex++);
+          const population = 100 + Math.floor(Math.random()*400);
+
+          // Each city has dynamic goods: let's define them
+          const goods = {
+            Rum: { price: 5 + Math.floor(Math.random()*3), stock: 100 },
+            Spices: { price: 10 + Math.floor(Math.random()*4), stock: 50 },
+            Gold: { price: 50 + Math.floor(Math.random()*20), stock: 10 }
+          };
+
+          cities.push({
+            name: cityName,
+            nation: cityNation,
+            x: vert.x,
+            y: vert.y,
+            population: population,
+            goods: goods,
+            birthRate: 0.01,   // small growth
+            deathRate: 0.005,  // small decrease
+            productionRate: 0.05, // produce goods slowly
+            tradingActivity: 0.03, // random fluctuations
+          });
+        }
+      }
+    }
+
+    generateIslandsAndCities();
+
+    /* ========== Player Ship Setup ========== */
+    // We'll define a few ship type properties
+    const SHIP_TYPES = {
+      Sloop:    { maxHP: 100, maxCrew: 20, maxCannons: 4 },
+      Brig:     { maxHP: 150, maxCrew: 40, maxCannons: 8 },
+      Galleon:  { maxHP: 200, maxCrew: 60, maxCannons: 12 },
+    };
+
+    let player = {
+      x: 100, 
+      y: 100,
+      angle: 0,
+      speed: 0,
+      hp: 100,
+      gold: 500,
+      nation: "England", // default
+      shipType: "Sloop",
+      crew: 10,
+      cannons: 2,
+      inventory: {
+        Rum: 0,
+        Spices: 0,
+        Gold: 0,
+      },
+      capturedShips: [], // array of ships the player has captured
+      size: 15, // collision radius
+    };
+
+    // We'll place the player near the first English city if it exists
+    function placePlayerAtEnglishCityOrRandom() {
+      const englishCity = cities.find(c => c.nation === "England");
+      if (englishCity) {
+        player.x = englishCity.x + 50; // offset slightly
+        player.y = englishCity.y + 50;
+      } else {
+        // random water position
+        player.x = Math.random() * WORLD_WIDTH;
+        player.y = Math.random() * WORLD_HEIGHT;
+      }
+      player.angle = 0;
+      player.hp = SHIP_TYPES[player.shipType].maxHP;
+    }
+    placePlayerAtEnglishCityOrRandom();
+
+    /* ========== Enemy Ships ========== */
+    let enemyShips = [];
+
+    function generateEnemyShips() {
+      enemyShips = [];
+      const count = 10;
+      for (let i = 0; i < count; i++){
+        // pick a random nation, random ship type
+        const enation = NATIONS[Math.floor(Math.random()*NATIONS.length)];
+        const stypes = ["Sloop", "Brig", "Galleon"];
+        const etype = stypes[Math.floor(Math.random()*stypes.length)];
+        const tasks = ["Kriegsschiff", "Handelsschiff", "Colonialschiff"];
+        const task = tasks[Math.floor(Math.random()*tasks.length)];
+
+        const ex = Math.random() * WORLD_WIDTH;
+        const ey = Math.random() * WORLD_HEIGHT;
+        const angle = Math.random() * 2 * Math.PI;
+
+        enemyShips.push({
+          x: ex,
+          y: ey,
+          angle: angle,
+          speed: 0,
+          hp: SHIP_TYPES[etype].maxHP,
+          nation: enation,
+          shipType: etype,
+          task: task,
+          size: 15,
+          gold: 100 + Math.floor(Math.random()*300),
+          cannons: Math.floor(Math.random() * (SHIP_TYPES[etype].maxCannons / 2)) + 1,
+          crew: Math.floor(Math.random() * (SHIP_TYPES[etype].maxCrew / 2)) + 5,
+          defendTarget: null,
+          tradeDestination: null,
+          cooldown: 0, // for firing
+        });
+      }
+    }
+
+    generateEnemyShips();
+
+    /* ========== Combat Projectiles ========== */
+    let cannonballs = [];
+
+    // Simple structure for cannonballs:
+    // { x, y, angle, speed, damage, range, distanceTraveled, owner }
+
+    /* ========== Utility Functions ========== */
+    function distance(ax, ay, bx, by){
+      return Math.sqrt((ax-bx)*(ax-bx) + (ay-by)*(ay-by));
+    }
+
+    function angleTo(ax, ay, bx, by){
+      return Math.atan2(by - ay, bx - ax);
+    }
+
+    /* ========== Key Handling ========== */
+    let keysDown = {};
+
+    window.addEventListener('keydown', (e) => {
+      keysDown[e.key] = true;
+
+      // Global key commands:
+      if (currentState === GAME_STATE.MENU) {
+        if (e.key === "Enter") {
+          startGame();
+        }
+      } 
+      else if (currentState === GAME_STATE.PAUSED) {
+        if (e.key === "p" || e.key === "P") {
+          togglePause();
+        }
+      }
+      else if (currentState === GAME_STATE.MAP) {
+        if (e.key === "m" || e.key === "M") {
+          toggleMapView();
+        }
+      }
+      else if (currentState === GAME_STATE.PLAYING) {
+        // special keys only if not in trading
+        if (!tradingMode) {
+          if (e.key === "p" || e.key === "P") {
+            togglePause();
+          }
+          if (e.key === "m" || e.key === "M") {
+            toggleMapView();
+          }
+          if (e.key === " ") {
+            // Fire cannons
+            fireCannon();
+          }
+          if (e.key === "t" || e.key === "T") {
+            // initiate trading if near city
+            tryStartTrading();
+          }
+          if (e.key === "c" || e.key === "C") {
+            // capture ship
+            tryCaptureShip();
+          }
+          if (e.key === "s" || e.key === "S") {
+            // save game
+            saveGame();
+          }
+          if (e.key === "l" || e.key === "L") {
+            // load game
+            loadGame();
+          }
+        } else {
+          // Trading keys
+          handleTradingKeys(e.key);
+        }
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      keysDown[e.key] = false;
+    });
+
+    /* ========== State Change Functions ========== */
+    function startGame(){
+      console.log("Game started.");
+      menuOverlay.style.display = "none";
+      currentState = GAME_STATE.PLAYING;
+    }
+
+    function togglePause(){
+      if (currentState === GAME_STATE.PAUSED) {
+        pauseOverlay.style.display = "none";
+        currentState = GAME_STATE.PLAYING;
+      } else if (currentState === GAME_STATE.PLAYING) {
+        pauseOverlay.style.display = "flex";
+        currentState = GAME_STATE.PAUSED;
+      }
+    }
+
+    function toggleMapView(){
+      if (currentState === GAME_STATE.MAP) {
+        mapOverlay.style.display = "none";
+        currentState = GAME_STATE.PLAYING;
+      } else if (currentState === GAME_STATE.PLAYING) {
+        mapOverlay.style.display = "flex";
+        currentState = GAME_STATE.MAP;
+      }
+    }
+
+    function tryStartTrading(){
+      // check if near a city
+      const city = findNearestCity(player.x, player.y, 30);
+      if (city) {
+        // begin trading
+        tradingMode = true;
+        tradingOverlay.style.display = "block";
+        updateTradingOverlay(city);
+        console.log("Entering trading mode with " + city.name);
+      } else {
+        console.log("No city nearby to trade.");
+      }
+    }
+
+    function endTrading(){
+      tradingMode = false;
+      tradingOverlay.style.display = "none";
+      console.log("Trade ended.");
+      // Place the player back near the city
+      const city = findNearestCity(player.x, player.y, 99999); 
+      // (We assume the last city we traded with is the nearest)
+      if (city) {
+        player.x = city.x + 50;
+        player.y = city.y + 50;
+      }
+    }
+
+    function handleTradingKeys(key){
+      // We have: 1,2,3 buy goods; Q,W,E sell goods
+      // 4 buy cannon, Y sell cannon, R recruit crew
+      // V sell captured ship, T end trading
+      const city = findNearestCity(player.x, player.y, 99999);
+      if (!city) return;
+
+      // For convenience, define arrays to map these keys
+      const buyMap = { '1': "Rum", '2': "Spices", '3': "Gold" };
+      const sellMap = { 'q': "Rum", 'w': "Spices", 'e': "Gold",
+                        'Q': "Rum", 'W': "Spices", 'E': "Gold" };
+
+      if (buyMap[key]) {
+        buyGood(city, buyMap[key]);
+      } else if (sellMap[key]) {
+        sellGood(city, sellMap[key]);
+      } else if (key === '4') {
+        buyCannon(city);
+      } else if (key === 'y' || key === 'Y') {
+        sellCannon(city);
+      } else if (key === 'r' || key === 'R') {
+        recruitCrew(city);
+      } else if (key === 'v' || key === 'V') {
+        sellCapturedShip(city);
+      } else if (key === 't' || key === 'T') {
+        endTrading();
+      }
+
+      updateTradingOverlay(city);
+    }
+
+    /* ========== Trading System ========== */
+    function updateTradingOverlay(city){
+      tradingOverlay.innerHTML = `
+        <h2>Trading with ${city.name} (${city.nation})</h2>
+        <p>Population: ${Math.floor(city.population)}</p>
+        <p>Your Gold: ${player.gold}</p>
+        <hr>
+        <h3>Goods in City:</h3>
+        <ul>
+          <li>Rum: Price ${city.goods.Rum.price}, Stock ${city.goods.Rum.stock}</li>
+          <li>Spices: Price ${city.goods.Spices.price}, Stock ${city.goods.Spices.stock}</li>
+          <li>Gold: Price ${city.goods.Gold.price}, Stock ${city.goods.Gold.stock}</li>
+        </ul>
+        <h3>Your Cargo:</h3>
+        <ul>
+          <li>Rum: ${player.inventory.Rum}</li>
+          <li>Spices: ${player.inventory.Spices}</li>
+          <li>Gold: ${player.inventory.Gold}</li>
+        </ul>
+        <hr>
+        <p>Cannons: ${player.cannons}, Crew: ${player.crew}/${SHIP_TYPES[player.shipType].maxCrew}</p>
+        <hr>
+        <p><strong>Keys:</strong> 
+        Buy goods: 1/2/3, Sell goods: Q/W/E, 
+        Buy Cannon: 4, Sell Cannon: Y, 
+        Recruit Crew: R, 
+        Sell Captured Ship: V, 
+        End Trading: T</p>
+      `;
+    }
+
+    function buyGood(city, goodName){
+      const good = city.goods[goodName];
+      if (player.gold >= good.price && good.stock > 0) {
+        player.gold -= good.price;
+        player.inventory[goodName]++;
+        good.stock--;
+        console.log(`Bought 1 unit of ${goodName}.`);
+      } else {
+        console.log(`Cannot buy ${goodName}. Not enough gold or city is out of stock.`);
+      }
+    }
+
+    function sellGood(city, goodName){
+      if (player.inventory[goodName] > 0) {
+        city.goods[goodName].stock++;
+        player.inventory[goodName]--;
+        player.gold += city.goods[goodName].price;
+        console.log(`Sold 1 unit of ${goodName}.`);
+      } else {
+        console.log(`No ${goodName} to sell.`);
+      }
+    }
+
+    function buyCannon(city){
+      const cannonPrice = 50; 
+      if (player.cannons < SHIP_TYPES[player.shipType].maxCannons && player.gold >= cannonPrice) {
+        player.cannons++;
+        player.gold -= cannonPrice;
+        console.log(`Bought 1 cannon for ${cannonPrice} gold.`);
+      } else {
+        console.log(`Cannot buy more cannons (limit) or not enough gold.`);
+      }
+    }
+
+    function sellCannon(city){
+      const cannonSellPrice = 25;
+      if (player.cannons > 0) {
+        player.cannons--;
+        player.gold += cannonSellPrice;
+        console.log(`Sold 1 cannon for ${cannonSellPrice} gold.`);
+      } else {
+        console.log(`No cannons to sell.`);
+      }
+    }
+
+    function recruitCrew(city){
+      // let's say each new crew costs 10 gold
+      const costPerCrew = 10;
+      if (player.crew < SHIP_TYPES[player.shipType].maxCrew && player.gold >= costPerCrew && city.population > 0) {
+        player.crew++;
+        player.gold -= costPerCrew;
+        city.population--; // one citizen joined the ship
+        console.log(`Recruited 1 crew member for ${costPerCrew} gold.`);
+      } else {
+        console.log(`Cannot recruit crew (limit reached, not enough gold, or no population).`);
+      }
+    }
+
+    function sellCapturedShip(city){
+      if (player.capturedShips.length === 0) {
+        console.log(`No captured ships to sell.`);
+        return;
+      }
+      // sell the first captured ship
+      const soldShip = player.capturedShips.shift();
+      let price = 0;
+      switch (soldShip.shipType) {
+        case "Sloop": price = 200; break;
+        case "Brig": price = 400; break;
+        case "Galleon": price = 600; break;
+      }
+      player.gold += price;
+      console.log(`Sold a captured ${soldShip.shipType} for ${price} gold.`);
+    }
+
+    /* ========== Find Nearest City ========== */
+    function findNearestCity(x, y, maxDist){
+      let bestCity = null;
+      let bestDist = Infinity;
+      for (let c of cities) {
+        const d = distance(x, y, c.x, c.y);
+        if (d < bestDist && d <= maxDist) {
+          bestDist = d;
+          bestCity = c;
+        }
+      }
+      return bestCity;
+    }
+
+    /* ========== Capturing Ships ========== */
+    function tryCaptureShip(){
+      // find an enemy ship with HP < 15 near the player
+      let candidate = null;
+      for (let es of enemyShips) {
+        const d = distance(player.x, player.y, es.x, es.y);
+        if (d < 50 && es.hp < 15 && es.hp > 0) {
+          candidate = es;
+          break;
+        }
+      }
+      if (!candidate) {
+        console.log("No vulnerable ship to capture nearby.");
+        return;
+      }
+      // Prompt (for simplicity, just confirm in console or auto-capture)
+      const choice = window.prompt("Ship HP < 15! Enter 'take' to capture, 'sink' to sink:");
+      if (choice === null) return; // canceled
+      if (choice.toLowerCase() === "take") {
+        // add to capturedShips
+        player.capturedShips.push({
+          shipType: candidate.shipType,
+          hp: Math.max(10, candidate.hp),  // partial HP
+          crew: Math.floor(candidate.crew / 2),
+        });
+        player.gold += candidate.gold; // take the gold
+        console.log(`Captured ${candidate.shipType}! Gained ${candidate.gold} gold. Added to your fleet.`);
+        // remove from enemyShips
+        enemyShips.splice(enemyShips.indexOf(candidate), 1);
+      } else {
+        // sink
+        player.gold += candidate.gold;
+        console.log(`Sank the ${candidate.shipType}! Looted ${candidate.gold} gold.`);
+        enemyShips.splice(enemyShips.indexOf(candidate), 1);
+      }
+    }
+
+    /* ========== Firing Cannons ========== */
+    function fireCannon(){
+      if (player.cannons <= 0) {
+        console.log("No cannons to fire!");
+        return;
+      }
+      // create two cannonballs, one on each side, or just one if you prefer
+      // For simplicity, let's do a single forward shot
+      const speed = 6;
+      const damage = 10;
+      const range = 300;
+      cannonballs.push({
+        x: player.x,
+        y: player.y,
+        angle: player.angle,
+        speed,
+        damage,
+        range,
+        distanceTraveled: 0,
+        owner: 'player'
+      });
+      console.log("Fired cannons!");
+    }
+
+    /* ========== Enemy AI / Combat ========== */
+    function updateEnemyShips(dt){
+      for (let es of enemyShips){
+        // If war with player, warships or if attacked -> chase player
+        if (es.task === "Kriegsschiff" || es.defendTarget === player) {
+          if (areNationsAtWar(es.nation, player.nation)) {
+            // chase the player
+            const d = distance(es.x, es.y, player.x, player.y);
+            if (d < 500) {
+              const angleToPlayer = angleTo(es.x, es.y, player.x, player.y);
+              es.angle = angleToPlayer;
+              es.speed = 2;
+              // Attack if in range
+              if (d < 300 && !tradingMode) {
+                // fire if cooldown is ready
+                if (es.cooldown <= 0) {
+                  es.cooldown = 100; // frames or ms?
+                  // fire cannonball
+                  cannonballs.push({
+                    x: es.x,
+                    y: es.y,
+                    angle: es.angle,
+                    speed: 6,
+                    damage: 8,
+                    range: 300,
+                    distanceTraveled: 0,
+                    owner: 'enemy'
+                  });
+                  console.log(`Enemy ship fires!`);
+                }
+              }
+            } else {
+              es.speed = 0; 
+            }
+          }
+        }
+        else if (es.task === "Handelsschiff") {
+          // move randomly or toward a city of same nation
+          if (!es.tradeDestination) {
+            // find a city of same nation
+            const friendlyCities = cities.filter(c => c.nation === es.nation);
+            if (friendlyCities.length > 0) {
+              es.tradeDestination = friendlyCities[Math.floor(Math.random() * friendlyCities.length)];
+            }
+          } else {
+            // move toward tradeDestination
+            const d = distance(es.x, es.y, es.tradeDestination.x, es.tradeDestination.y);
+            if (d < 50) {
+              // arrived
+              es.tradeDestination = null; // pick another city eventually
+              es.speed = 0;
+            } else {
+              const angleToCity = angleTo(es.x, es.y, es.tradeDestination.x, es.tradeDestination.y);
+              es.angle = angleToCity;
+              es.speed = 1;
+            }
+          }
+        }
+        else if (es.task === "Colonialschiff") {
+          // just wander around
+          es.speed = 1;
+          es.angle += 0.01;
+        }
+
+        // if stuck or out of bounds, reposition
+        if (es.x < 0 || es.y < 0 || es.x > WORLD_WIDTH || es.y > WORLD_HEIGHT) {
+          es.x = Math.random()*WORLD_WIDTH;
+          es.y = Math.random()*WORLD_HEIGHT;
+        }
+
+        // apply velocity
+        es.x += Math.cos(es.angle)*es.speed;
+        es.y += Math.sin(es.angle)*es.speed;
+
+        // reduce cooldown
+        if (es.cooldown > 0) es.cooldown -= 1 * dt;
+      }
+    }
+
+    /* ========== Cannonball Updates ========== */
+    function updateCannonballs(dt){
+      const removeList = [];
+      for (let i = 0; i < cannonballs.length; i++){
+        const cb = cannonballs[i];
+        // move
+        cb.x += Math.cos(cb.angle)*cb.speed;
+        cb.y += Math.sin(cb.angle)*cb.speed;
+        cb.distanceTraveled += cb.speed;
+
+        // check collision with player or enemies (depending on owner)
+        if (cb.owner === "player") {
+          // check enemies
+          for (let es of enemyShips) {
+            if (distance(cb.x, cb.y, es.x, es.y) < es.size) {
+              es.hp -= cb.damage;
+              console.log(`Hit enemy ship for ${cb.damage} damage! HP now ${es.hp}.`);
+              removeList.push(i);
+              if (es.hp <= 0) {
+                console.log(`Enemy ship sunk! Looted ${es.gold} gold.`);
+                player.gold += es.gold;
+                enemyShips.splice(enemyShips.indexOf(es), 1);
+              }
+              break;
+            }
+          }
+        } else {
+          // check player
+          if (distance(cb.x, cb.y, player.x, player.y) < player.size) {
+            player.hp -= cb.damage;
+            console.log(`Player hit for ${cb.damage} damage! HP now ${player.hp}.`);
+            removeList.push(i);
+            if (player.hp <= 0) {
+              // player dies
+              respawnPlayer();
+            }
+          }
+        }
+
+        // or if out of range
+        if (cb.distanceTraveled > cb.range) {
+          removeList.push(i);
+        }
+
+        // or out of world bounds
+        if (cb.x < 0 || cb.y < 0 || cb.x > WORLD_WIDTH || cb.y > WORLD_HEIGHT) {
+          removeList.push(i);
+        }
+      }
+      // remove duplicates
+      removeList.sort((a,b) => b-a);
+      for (let index of removeList) {
+        cannonballs.splice(index, 1);
+      }
+    }
+
+    /* ========== Respawn Logic ========== */
+    function respawnPlayer(){
+      console.log("You have been sunk! Respawning...");
+      // find nearest city
+      const city = findNearestCity(player.x, player.y, 999999);
+      if (city) {
+        player.x = city.x + 50;
+        player.y = city.y + 50;
+      } else {
+        player.x = WORLD_WIDTH/2;
+        player.y = WORLD_HEIGHT/2;
+      }
+      player.shipType = "Sloop";
+      player.hp = 100;
+      player.gold = 100;
+      player.crew = 10;
+    }
+
+    /* ========== Update City Populations & Prices ========== */
+    function updateCities(dt){
+      for (let c of cities) {
+        // adjust population
+        c.population += c.birthRate * dt;
+        c.population -= c.deathRate * dt;
+        if (c.population < 0) c.population = 0;
+
+        // produce some goods
+        c.goods.Rum.stock += c.productionRate * dt;
+        c.goods.Spices.stock += c.productionRate * dt;
+        c.goods.Gold.stock += (c.productionRate * dt)/2; // gold is slower to produce
+
+        // random trading fluctuation in price
+        if (Math.random() < c.tradingActivity * 0.01) {
+          c.goods.Rum.price += (Math.random()*2 - 1);
+          c.goods.Spices.price += (Math.random()*2 - 1);
+          c.goods.Gold.price += (Math.random()*4 - 2);
+          // clamp
+          if (c.goods.Rum.price < 1) c.goods.Rum.price = 1;
+          if (c.goods.Spices.price < 1) c.goods.Spices.price = 1;
+          if (c.goods.Gold.price < 10) c.goods.Gold.price = 10;
+        }
+      }
+    }
+
+    /* ========== Map & Camera ========== */
+    function updateCamera(){
+      // center on player
+      cameraX = player.x - canvas.width/2;
+      cameraY = player.y - canvas.height/2;
+      // clamp
+      if (cameraX < 0) cameraX = 0;
+      if (cameraY < 0) cameraY = 0;
+      if (cameraX > WORLD_WIDTH - canvas.width) cameraX = WORLD_WIDTH - canvas.width;
+      if (cameraY > WORLD_HEIGHT - canvas.height) cameraY = WORLD_HEIGHT - canvas.height;
+    }
+
+    /* ========== Movement & Collisions ========== */
+    function updatePlayer(dt){
+      // rotate
+      if (keysDown["ArrowLeft"]) {
+        player.angle -= 0.05 * dt;
+      }
+      if (keysDown["ArrowRight"]) {
+        player.angle += 0.05 * dt;
+      }
+      // accelerate
+      if (keysDown["ArrowUp"]) {
+        // basic speed
+        player.speed = 3;
+      } else {
+        player.speed = 0;
+      }
+
+      // apply movement
+      const newX = player.x + Math.cos(player.angle)*player.speed;
+      const newY = player.y + Math.sin(player.angle)*player.speed;
+
+      // check land collision (very rough check: each island bounding circle)
+      let collides = false;
+      for (let isl of islands) {
+        const d = distance(newX, newY, isl.centerX, isl.centerY);
+        if (d < isl.radius) {
+          collides = true;
+          break;
+        }
+      }
+
+      if (!collides) {
+        player.x = newX;
+        player.y = newY;
+      }
+    }
+
+    /* ========== Rendering ========== */
+    function render() {
+      // clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // If in menu or pause or map, we still may want to show the background scene
+      // but let's keep it simple: we always render the scene, and overlays show if needed.
+
+      // draw islands
+      for (let isl of islands) {
+        ctx.beginPath();
+        // shift to camera
+        ctx.moveTo(isl.vertices[0].x - cameraX, isl.vertices[0].y - cameraY);
+        for (let v=1; v<isl.vertices.length; v++){
+          ctx.lineTo(isl.vertices[v].x - cameraX, isl.vertices[v].y - cameraY);
+        }
+        ctx.closePath();
+        ctx.fillStyle = "#228b22"; // forest green
+        ctx.fill();
+        ctx.strokeStyle = "#006400"; // darker green
+        ctx.stroke();
+      }
+
+      // draw cities
+      for (let c of cities) {
+        const screenX = c.x - cameraX;
+        const screenY = c.y - cameraY;
+        // small house
+        ctx.fillStyle = "#888";
+        ctx.fillRect(screenX - 5, screenY - 5, 10, 10);
+        // roof
+        ctx.beginPath();
+        ctx.moveTo(screenX - 6, screenY - 5);
+        ctx.lineTo(screenX, screenY - 10);
+        ctx.lineTo(screenX + 6, screenY - 5);
+        ctx.closePath();
+        ctx.fillStyle = "#a52a2a"; 
+        ctx.fill();
+
+        // small flag
+        switch(c.nation){
+          case "Holland":    ctx.fillStyle = "orange"; break;
+          case "Spanien":    ctx.fillStyle = "red"; break;
+          case "Frankreich": ctx.fillStyle = "blue"; break;
+          case "England":    ctx.fillStyle = "white"; break;
+        }
+        ctx.fillRect(screenX + 6, screenY - 5, 3, 8);
+      }
+
+      // draw player
+      ctx.save();
+      ctx.translate(player.x - cameraX, player.y - cameraY);
+      ctx.rotate(player.angle);
+      ctx.fillStyle = "#000";
+      ctx.beginPath();
+      ctx.moveTo(-10, -5);
+      ctx.lineTo(10, 0);
+      ctx.lineTo(-10, 5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      // draw enemy ships
+      for (let es of enemyShips) {
+        ctx.save();
+        ctx.translate(es.x - cameraX, es.y - cameraY);
+        ctx.rotate(es.angle);
+        // color depends on nation
+        switch(es.nation){
+          case "Holland":    ctx.fillStyle = "orange"; break;
+          case "Spanien":    ctx.fillStyle = "red"; break;
+          case "Frankreich": ctx.fillStyle = "blue"; break;
+          case "England":    ctx.fillStyle = "white"; break;
+        }
+        ctx.beginPath();
+        ctx.moveTo(-10, -5);
+        ctx.lineTo(10, 0);
+        ctx.lineTo(-10, 5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // draw cannonballs
+      ctx.fillStyle = "#000";
+      for (let cb of cannonballs){
+        ctx.beginPath();
+        ctx.arc(cb.x - cameraX, cb.y - cameraY, 2, 0, Math.PI*2);
+        ctx.fill();
+      }
+
+      // draw HUD
+      const hudText = `
+HP: ${player.hp}
+Gold: ${player.gold}
+Crew: ${player.crew}/${SHIP_TYPES[player.shipType].maxCrew}
+Ship: ${player.shipType}
+Nation: ${player.nation}
+Cannons: ${player.cannons}
+`;
+      ctx.fillStyle = "black";
+      ctx.font = "14px Arial";
+      const lines = hudText.split('\n');
+      let yOff = 20;
+      for (let line of lines) {
+        ctx.fillText(line, 10, yOff);
+        yOff += 18;
+      }
+
+      // draw minimap
+      renderMinimap();
+    }
+
+    function renderMinimap(){
+      minimapCtx.clearRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+      // scale factor
+      const scaleX = minimapCanvas.width / WORLD_WIDTH;
+      const scaleY = minimapCanvas.height / WORLD_HEIGHT;
+
+      // draw islands
+      minimapCtx.fillStyle = "#228b22";
+      for (let isl of islands) {
+        minimapCtx.beginPath();
+        minimapCtx.moveTo(isl.vertices[0].x * scaleX, isl.vertices[0].y * scaleY);
+        for (let v=1; v<isl.vertices.length; v++){
+          minimapCtx.lineTo(isl.vertices[v].x * scaleX, isl.vertices[v].y * scaleY);
+        }
+        minimapCtx.closePath();
+        minimapCtx.fill();
+      }
+
+      // draw cities
+      for (let c of cities) {
+        minimapCtx.fillStyle = "#888";
+        minimapCtx.fillRect(c.x*scaleX - 2, c.y*scaleY - 2, 4, 4);
+      }
+
+      // draw player
+      minimapCtx.fillStyle = "#000";
+      minimapCtx.fillRect(player.x*scaleX - 2, player.y*scaleY - 2, 4, 4);
+    }
+
+    /* ========== MAP View Rendering ========== */
+    // We'll rely on the overlay to say "WORLD MAP"
+    // The background is still the same. You could show a big map if you wanted.
+
+    /* ========== Save/Load ========== */
+    function saveGame(){
+      const saveName = prompt("Enter save name:");
+      if (!saveName) return;
+      // gather data
+      const saveData = {
+        player,
+        enemyShips,
+        islands,
+        cities,
+        relationships
+      };
+      localStorage.setItem("PirateGameSave_" + saveName, JSON.stringify(saveData));
+      console.log(`Saved game as '${saveName}'.`);
+    }
+
+    function loadGame(){
+      const keys = Object.keys(localStorage).filter(k => k.startsWith("PirateGameSave_"));
+      if (keys.length === 0) {
+        console.log("No saved games found in localStorage.");
+        return;
+      }
+      const choice = prompt("Enter save name to load. Available:\n" + keys.map(k=>k.replace("PirateGameSave_","")).join(", "));
+      if (!choice) return;
+      const dataStr = localStorage.getItem("PirateGameSave_" + choice);
+      if (!dataStr) {
+        console.log("Invalid save name.");
+        return;
+      }
+      try {
+        const data = JSON.parse(dataStr);
+        player = data.player;
+        enemyShips = data.enemyShips;
+        islands = data.islands;
+        cities = data.cities;
+        relationships = data.relationships;
+        console.log(`Loaded game '${choice}' successfully.`);
+      } catch(e) {
+        console.log("Error loading save: ", e);
+      }
+    }
+
+    /* ========== Main Game Loop ========== */
+    let lastTime = performance.now();
+
+    function gameLoop(time){
+      requestAnimationFrame(gameLoop);
+      const dt = (time - lastTime) * 0.06; // scale dt a bit
+      lastTime = time;
+
+      if (currentState === GAME_STATE.PLAYING) {
+        if (!tradingMode) {
+          // update logic
+          updatePlayer(dt);
+          updateEnemyShips(dt);
+          updateCannonballs(dt);
+        }
+        updateCamera();
+        updateCities(dt);
+      }
+      // Render all
+      render();
+    }
+
+    requestAnimationFrame(gameLoop);
+
+  </script>
+</body>
+</html>
