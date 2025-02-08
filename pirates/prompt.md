@@ -156,3 +156,15 @@ Game Mechanics:
       - The shortest route will be choosen. 
       - Ships not cross island (land).
 
+
+>==<
+
+make that ships always move
+
+>==<
+
+players ship only move on key pressed
+
+>==<
+
+if enemy ship stuck at island (land) set it to the water close to the island

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Pirate Game</title>
+  <title>Pirate Game – Sophisticated Routing & Rehydration Fix</title>
   <style>
     /* Page & Canvas styling */
     body {
@@ -97,24 +97,24 @@
     let inTradeMode = false;
     let showMinimap = true;
     
-    // Arrays to hold game objects
+    // Arrays to hold game objects.
     let islands = [];
     let cities = [];
     let ships = [];
     let cannonballs = [];
     
-    // Key tracking
+    // Key tracking.
     const keys = {};
     
-    // Define nations and their Unicode flags
+    // Define nations and their Unicode flags.
     const nations = {
-      "Netherlands": "🇳🇱", // (U+1F1F3 U+1F1F1)
-      "Spain":      "🇪🇸", // (U+1F1EA U+1F1F8)
-      "France":     "🇫🇷", // (U+1F1EB U+1F1F7)
-      "England":    "🇬🇧"  // (U+1F1EC U+1F1E7)
+      "Netherlands": "🇳🇱",
+      "Spain":      "🇪🇸",
+      "France":     "🇫🇷",
+      "England":    "🇬🇧"
     };
     
-    // Relationships: each key "NationA-NationB" (alphabetical order) maps to "peace" or "war"
+    // Relationships: each key "NationA-NationB" (alphabetical order) maps to "peace" or "war".
     let relationships = {};
     function initRelationships() {
       const nationKeys = Object.keys(nations);
@@ -126,7 +126,7 @@
       }
       logMessage("Initial relationships set.");
     }
-    // Every 120 seconds randomly toggle relationships
+    // Every 120 seconds randomly toggle relationships.
     setInterval(() => {
       const nationKeys = Object.keys(nations);
       for (let i = 0; i < nationKeys.length; i++) {
@@ -158,7 +158,7 @@
       return Math.hypot(x2 - x1, y2 - y1);
     }
     
-    // Point in polygon using ray–casting algorithm
+    // Point in polygon using the ray–casting algorithm.
     function pointInPolygon(x, y, vertices) {
       let inside = false;
       for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
@@ -170,14 +170,14 @@
       return inside;
     }
     
-    // Normalize an angle to (–PI, PI)
+    // Normalize an angle to (-PI, PI).
     function normalizeAngle(angle) {
-      while (angle > Math.PI) angle -= 2*Math.PI;
-      while (angle < -Math.PI) angle += 2*Math.PI;
+      while (angle > Math.PI) angle -= 2 * Math.PI;
+      while (angle < -Math.PI) angle += 2 * Math.PI;
       return angle;
     }
     
-    // Random integer price between min and max
+    // Random integer price between min and max.
     function randomPrice(min, max) {
       return Math.floor(Math.random() * (max - min + 1)) + min;
     }
@@ -188,7 +188,7 @@
     class Island {
       constructor(vertices) {
         this.vertices = vertices; // Array of {x,y}
-        this.city = null; // Will be set later
+        this.city = null; // Will be set later.
       }
       draw(ctx, offsetX, offsetY) {
         ctx.fillStyle = "#228B22";
@@ -223,15 +223,15 @@
         this.nation = nation;
         this.population = 1000;
         this.goods = {
-          "Rum": { price: randomPrice(10,20), quantity: 100 },
-          "Spices": { price: randomPrice(15,30), quantity: 100 },
-          "Gold": { price: randomPrice(50,100), quantity: 50 }
+          "Rum": { price: randomPrice(10, 20), quantity: 100 },
+          "Spices": { price: randomPrice(15, 30), quantity: 100 },
+          "Gold": { price: randomPrice(50, 100), quantity: 50 }
         };
       }
       draw(ctx, offsetX, offsetY) {
         ctx.font = "16px sans-serif";
         ctx.fillText("🏠", this.x - offsetX - 8, this.y - offsetY + 8);
-        // Draw a small flag beside the city
+        // Draw a small flag beside the city.
         ctx.font = "12px sans-serif";
         ctx.fillText(nations[this.nation], this.x - offsetX + 8, this.y - offsetY - 8);
       }
@@ -258,33 +258,84 @@
         this.cannons = type === "Sloop" ? 2 : type === "Brig" ? 4 : 8;
         this.crew = type === "Sloop" ? 10 : type === "Brig" ? 20 : 30;
         this.isPlayer = isPlayer;
-        this.targetCity = null; // For enemy trade route
+        this.targetCity = null; // For enemy trade route.
         this.homeCity = null;
         this.fireCooldown = 0;
-        this.captured = false;  // Flag for captured enemy ship
-        this.money = 0; // For player only
+        this.captured = false;  // Flag for captured enemy ship.
+        this.money = 0; // For player only.
       }
       update(dt) {
         if (this.isPlayer) {
-          // Use arrow keys to rotate and move
+          // Player ship: rotate with left/right keys; move only when ArrowUp is pressed.
           if (keys["ArrowLeft"]) this.angle -= 0.05;
           if (keys["ArrowRight"]) this.angle += 0.05;
-          if (keys["ArrowUp"]) this.speed = this.maxSpeed;
-          else this.speed = 0;
+          this.speed = keys["ArrowUp"] ? this.maxSpeed : 0;
         } else {
-          // Simple AI: steer toward targetCity (if set)
+          // Sophisticated navigation for enemy ships.
           if (this.targetCity) {
-            const desiredAngle = Math.atan2(this.targetCity.y - this.y, this.targetCity.x - this.x);
-            const angleDiff = normalizeAngle(desiredAngle - this.angle);
-            if (angleDiff > 0.1) this.angle += 0.03;
-            else if (angleDiff < -0.1) this.angle -= 0.03;
-            else this.angle = desiredAngle;
+            // Compute desired vector toward the target.
+            let desired = { x: this.targetCity.x - this.x, y: this.targetCity.y - this.y };
+            let mag = Math.hypot(desired.x, desired.y);
+            if (mag > 0) {
+              desired.x /= mag;
+              desired.y /= mag;
+            }
+            // Compute repulsion from nearby islands.
+            let repulsion = { x: 0, y: 0 };
+            for (let island of islands) {
+              // Compute island center as average of vertices.
+              let center = { x: 0, y: 0 };
+              for (let vertex of island.vertices) {
+                center.x += vertex.x;
+                center.y += vertex.y;
+              }
+              center.x /= island.vertices.length;
+              center.y /= island.vertices.length;
+              // Estimate island radius (average distance from center to vertices).
+              let avgRadius = 0;
+              for (let vertex of island.vertices) {
+                avgRadius += distance(center.x, center.y, vertex.x, vertex.y);
+              }
+              avgRadius /= island.vertices.length;
+              // If the ship is within (avgRadius + buffer) of the island center, add a repulsive force.
+              let buffer = 50;
+              let d = distance(this.x, this.y, center.x, center.y);
+              if (d < (avgRadius + buffer)) {
+                let factor = (avgRadius + buffer - d) / (avgRadius + buffer);
+                // Direction away from the island center.
+                let away = { x: this.x - center.x, y: this.y - center.y };
+                let awayMag = Math.hypot(away.x, away.y);
+                if (awayMag > 0) {
+                  away.x /= awayMag;
+                  away.y /= awayMag;
+                }
+                repulsion.x += away.x * factor;
+                repulsion.y += away.y * factor;
+              }
+            }
+            // Weight the vectors: desired = 1, repulsion = 2.
+            let steering = {
+              x: desired.x + repulsion.x * 2,
+              y: desired.y + repulsion.y * 2
+            };
+            let steerMag = Math.hypot(steering.x, steering.y);
+            if (steerMag > 0) {
+              steering.x /= steerMag;
+              steering.y /= steerMag;
+            }
+            // Compute target angle from the steering vector.
+            let targetAngle = Math.atan2(steering.y, steering.x);
+            let angleDiff = normalizeAngle(targetAngle - this.angle);
+            let turnRate = 0.05;
+            if (angleDiff > turnRate) this.angle += turnRate;
+            else if (angleDiff < -turnRate) this.angle -= turnRate;
+            else this.angle = targetAngle;
             this.speed = this.maxSpeed * 0.8;
           } else {
             this.speed = this.maxSpeed * 0.5;
           }
         }
-        // Attempt to move; avoid islands by checking if new point would be on land
+        // Calculate new position.
         const newX = this.x + Math.cos(this.angle) * this.speed;
         const newY = this.y + Math.sin(this.angle) * this.speed;
         let collision = false;
@@ -294,15 +345,28 @@
             break;
           }
         }
-        if (!collision) { this.x = newX; this.y = newY; }
+        if (!collision) {
+          this.x = newX;
+          this.y = newY;
+        }
         if (this.fireCooldown > 0) this.fireCooldown -= dt;
     
-        // Enemy ships auto-fire at the player if in range and at war
+        // Auto-fire at player if conditions are met.
         if (!this.isPlayer && !inTradeMode && this.fireCooldown <= 0 && playerShip) {
           const d = distance(this.x, this.y, playerShip.x, playerShip.y);
           if (d < 300 && areAtWar(this.nation, playerShip.nation)) {
             fireCannon(this, playerShip.x, playerShip.y);
-            this.fireCooldown = 2; // 2-second cooldown
+            this.fireCooldown = 2;
+          }
+        }
+    
+        // If an enemy ship is stuck on land, reposition it far away into the water.
+        if (!this.isPlayer) {
+          for (let island of islands) {
+            if (pointInPolygon(this.x, this.y, island.vertices)) {
+              repositionEnemyShip(this, island);
+              break;
+            }
           }
         }
       }
@@ -313,7 +377,6 @@
         ctx.font = "20px serif";
         ctx.fillText("⛵", -10, 10);
         ctx.restore();
-        // Draw small flag near the ship
         ctx.font = "12px sans-serif";
         ctx.fillText(nations[this.nation], this.x - offsetX + 15, this.y - offsetY - 15);
       }
@@ -341,12 +404,12 @@
         const dy = Math.sin(this.angle) * this.speed;
         this.x += dx;
         this.y += dy;
-        this.distanceTraveled += Math.hypot(dx,dy);
+        this.distanceTraveled += Math.hypot(dx, dy);
       }
       draw(ctx, offsetX, offsetY) {
         ctx.fillStyle = "black";
         ctx.beginPath();
-        ctx.arc(this.x - offsetX, this.y - offsetY, 5, 0, 2 * Math.PI); // ~10px diameter
+        ctx.arc(this.x - offsetX, this.y - offsetY, 5, 0, 2 * Math.PI);
         ctx.fill();
       }
       drawMinimap(ctx, scale) {
@@ -357,12 +420,12 @@
       }
     }
     
-    // Fire a cannonball from a given ship toward a target (x,y)
+    // Fire a cannonball.
     function fireCannon(ship, targetX, targetY) {
       const angle = Math.atan2(targetY - ship.y, targetX - ship.x);
       const cannonball = new Cannonball(
-        ship.x + Math.cos(angle)*20,
-        ship.y + Math.sin(angle)*20,
+        ship.x + Math.cos(angle) * 20,
+        ship.y + Math.sin(angle) * 20,
         angle,
         ship
       );
@@ -370,29 +433,58 @@
       logMessage((ship.isPlayer ? "Player" : ship.nation + " ship") + " fired a cannonball.");
     }
     
+    // Reposition an enemy ship that is stuck on land to a far-away water location.
+    function repositionEnemyShip(ship, island) {
+      let repositioned = false;
+      // Try up to 10 times to find a "far away" water spot relative to the island's city.
+      for (let i = 0; i < 10; i++) {
+        const angle = Math.random() * 2 * Math.PI;
+        const offsetDistance = Math.random() * 50 + 150; // 150 to 200 pixels away.
+        const newX = island.city.x + Math.cos(angle) * offsetDistance;
+        const newY = island.city.y + Math.sin(angle) * offsetDistance;
+        let safe = true;
+        for (let otherIsland of islands) {
+          if (pointInPolygon(newX, newY, otherIsland.vertices)) {
+            safe = false;
+            break;
+          }
+        }
+        if (safe) {
+          ship.x = newX;
+          ship.y = newY;
+          repositioned = true;
+          logMessage(`${ship.nation} ship repositioned far away into the water near ${island.city.name}.`);
+          break;
+        }
+      }
+      if (!repositioned) {
+        ship.x = island.city.x + 200;
+        ship.y = island.city.y + 200;
+        logMessage(`${ship.nation} ship repositioned (fallback) far away near ${island.city.name}.`);
+      }
+    }
+    
     /***********************
      * World Generation
      ***********************/
-    // Generate 20 islands with random polygonal shapes.
     function generateIslands() {
       islands = [];
       for (let i = 0; i < 20; i++) {
         const cx = Math.random() * (worldWidth - 200) + 100;
         const cy = Math.random() * (worldHeight - 200) + 100;
-        const numPoints = Math.floor(Math.random() * 5) + 5; // 5-9 vertices
+        const numPoints = Math.floor(Math.random() * 5) + 5;
         const vertices = [];
         for (let j = 0; j < numPoints; j++) {
           const angle = (j / numPoints) * 2 * Math.PI;
           const radius = Math.random() * 50 + 30;
-          const x = cx + Math.cos(angle) * radius + (Math.random()-0.5)*20;
-          const y = cy + Math.sin(angle) * radius + (Math.random()-0.5)*20;
-          vertices.push({x, y});
+          const x = cx + Math.cos(angle) * radius + (Math.random() - 0.5) * 20;
+          const y = cy + Math.sin(angle) * radius + (Math.random() - 0.5) * 20;
+          vertices.push({ x, y });
         }
         islands.push(new Island(vertices));
       }
     }
     
-    // Place one city on each island (using one of the island’s vertices)
     function generateCities() {
       cities = [];
       let cityId = 1;
@@ -407,15 +499,13 @@
       }
     }
     
-    // Spawn enemy ships near each city (making sure they appear in water)
     function generateEnemyShips() {
-      // Remove any old enemy ships (keep the player’s ship)
+      // Keep only the player ship if it exists.
       ships = ships.filter(s => s.isPlayer);
       let shipId = 1;
       for (let city of cities) {
-        let spawnX = city.x + Math.random()*100 - 50;
-        let spawnY = city.y + Math.random()*100 - 50;
-        // If by chance the spawn point is on an island, adjust it
+        let spawnX = city.x + Math.random() * 100 - 50;
+        let spawnY = city.y + Math.random() * 100 - 50;
         let onLand = false;
         for (let island of islands) {
           if (pointInPolygon(spawnX, spawnY, island.vertices)) {
@@ -423,27 +513,27 @@
             break;
           }
         }
-        if (onLand) { spawnX = city.x + 100; spawnY = city.y + 100; }
+        if (onLand) {
+          spawnX = city.x + 100;
+          spawnY = city.y + 100;
+        }
         const types = ["Sloop", "Brig", "Galleon"];
-        const type = types[Math.floor(Math.random()*types.length)];
+        const type = types[Math.floor(Math.random() * types.length)];
         const ship = new Ship(shipId, type, city.nation, spawnX, spawnY);
         ship.homeCity = city;
-        // Choose a random target city (different from home) as the trade route destination
         let possibleTargets = cities.filter(c => c.id !== city.id);
-        ship.targetCity = possibleTargets[Math.floor(Math.random()*possibleTargets.length)];
+        ship.targetCity = possibleTargets[Math.floor(Math.random() * possibleTargets.length)];
         ships.push(ship);
         shipId++;
       }
     }
     
-    // Spawn the player’s ship near an English city (if available) in a water location.
     let playerShip = null;
     function spawnPlayerShip() {
       const englishCities = cities.filter(c => c.nation === "England");
-      let spawnCity = englishCities.length ? englishCities[Math.floor(Math.random()*englishCities.length)] : cities[0];
-      let spawnX = spawnCity.x + Math.random()*100 - 50;
-      let spawnY = spawnCity.y + Math.random()*100 - 50;
-      // Ensure the spawn is in water (if on land, adjust)
+      let spawnCity = englishCities.length ? englishCities[Math.floor(Math.random() * englishCities.length)] : cities[0];
+      let spawnX = spawnCity.x + Math.random() * 100 - 50;
+      let spawnY = spawnCity.y + Math.random() * 100 - 50;
       for (let island of islands) {
         if (pointInPolygon(spawnX, spawnY, island.vertices)) {
           spawnX = spawnCity.x + 100;
@@ -452,7 +542,7 @@
         }
       }
       playerShip = new Ship(0, "Sloop", "England", spawnX, spawnY, true);
-      playerShip.money = 100; // starting gold
+      playerShip.money = 100;
       ships.push(playerShip);
       logMessage("Player ship spawned near " + spawnCity.name);
     }
@@ -460,25 +550,22 @@
     /***********************
      * Game Mechanics & Updates
      ***********************/
-    // Update city economies: prices fluctuate slightly over time.
     function updateCityEconomies(dt) {
       for (let city of cities) {
         for (let good in city.goods) {
-          let change = (Math.random()-0.5)*dt*0.1;
+          let change = (Math.random() - 0.5) * dt * 0.1;
           city.goods[good].price = Math.max(1, city.goods[good].price + change);
         }
       }
     }
     
-    // Main update function – moves ships, cannonballs, checks collisions, etc.
     function update(dt) {
       if (isPaused || inTradeMode) return;
       for (let ship of ships) { ship.update(dt); }
-      for (let i = cannonballs.length-1; i >= 0; i--) {
+      for (let i = cannonballs.length - 1; i >= 0; i--) {
         const cb = cannonballs[i];
         cb.update(dt);
         if (cb.distanceTraveled > cb.range) { cannonballs.splice(i, 1); continue; }
-        // Check collision with ships (except the one that fired the cannonball)
         for (let ship of ships) {
           if (ship === cb.owner) continue;
           if (distance(cb.x, cb.y, ship.x, ship.y) < 15) {
@@ -489,7 +576,6 @@
           }
         }
       }
-      // If the player’s ship is destroyed, respawn at the nearest city.
       if (playerShip && playerShip.health <= 0) {
         let nearestCity = cities[0];
         let minDist = distance(playerShip.x, playerShip.y, cities[0].x, cities[0].y);
@@ -508,24 +594,19 @@
       updateCityEconomies(dt);
     }
     
-    // Draw the game world and UI elements.
     function draw() {
-      // Camera: center on playerShip (clamped within world boundaries)
-      let offsetX = playerShip ? playerShip.x - canvas.width/2 : 0;
-      let offsetY = playerShip ? playerShip.y - canvas.height/2 : 0;
+      let offsetX = playerShip ? playerShip.x - canvas.width / 2 : 0;
+      let offsetY = playerShip ? playerShip.y - canvas.height / 2 : 0;
       offsetX = Math.max(0, Math.min(worldWidth - canvas.width, offsetX));
       offsetY = Math.max(0, Math.min(worldHeight - canvas.height, offsetY));
     
-      // Clear main canvas (sea/sky background)
       ctx.fillStyle = "#87CEEB";
-      ctx.fillRect(0,0, canvas.width, canvas.height);
-      // Draw islands, cities, ships, and cannonballs
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
       islands.forEach(island => island.draw(ctx, offsetX, offsetY));
       cities.forEach(city => city.draw(ctx, offsetX, offsetY));
       ships.forEach(ship => ship.draw(ctx, offsetX, offsetY));
       cannonballs.forEach(cb => cb.draw(ctx, offsetX, offsetY));
     
-      // Update HUD with player info
       if (playerShip) {
         hudDiv.innerHTML = `
           <p>HP: ${playerShip.health.toFixed(0)} / 100</p>
@@ -537,12 +618,11 @@
         `;
       }
     
-      // Draw minimap if toggled on
       if (showMinimap) {
-        minimapCtx.clearRect(0,0, minimapCanvas.width, minimapCanvas.height);
+        minimapCtx.clearRect(0, 0, minimapCanvas.width, minimapCanvas.height);
         const scale = minimapCanvas.width / worldWidth;
         minimapCtx.fillStyle = "#87CEEB";
-        minimapCtx.fillRect(0,0, minimapCanvas.width, minimapCanvas.height);
+        minimapCtx.fillRect(0, 0, minimapCanvas.width, minimapCanvas.height);
         islands.forEach(island => island.drawMinimap(minimapCtx, scale));
         cities.forEach(city => city.drawMinimap(minimapCtx, scale));
         ships.forEach(ship => ship.drawMinimap(minimapCtx, scale));
@@ -550,9 +630,8 @@
       }
     }
     
-    // The main game loop using requestAnimationFrame.
     function gameLoop(timestamp) {
-      const dt = (timestamp - lastTime)/1000;
+      const dt = (timestamp - lastTime) / 1000;
       lastTime = timestamp;
       update(dt);
       draw();
@@ -563,32 +642,23 @@
      * Input & Controls
      ***********************/
     document.addEventListener("keydown", (e) => {
-      // Record key state (unless in trade mode)
       if (!inTradeMode) keys[e.key] = true;
-    
-      // Fire cannon with Space (if cooldown allows)
       if (e.key === " ") {
         if (playerShip && playerShip.fireCooldown <= 0) {
           fireCannon(playerShip,
-            playerShip.x + Math.cos(playerShip.angle)*300,
-            playerShip.y + Math.sin(playerShip.angle)*300);
+            playerShip.x + Math.cos(playerShip.angle) * 300,
+            playerShip.y + Math.sin(playerShip.angle) * 300);
           playerShip.fireCooldown = 1;
         }
       }
-      // P: pause/unpause
       if (e.key.toLowerCase() === "p") {
         isPaused = !isPaused;
         logMessage(isPaused ? "Game Paused" : "Game Resumed");
       }
-      // M: toggle minimap
       if (e.key.toLowerCase() === "m") { showMinimap = !showMinimap; }
-      // S: Save game
       if (e.key.toLowerCase() === "s") { saveGame(); }
-      // L: Load game
       if (e.key.toLowerCase() === "l") { loadGame(); }
-      // T: Initiate/exit trading (if near a city)
       if (e.key.toLowerCase() === "t") { toggleTradeMode(); }
-      // C: Attempt to capture an enemy ship (if conditions met)
       if (e.key.toLowerCase() === "c") { attemptCapture(); }
     });
     
@@ -597,7 +667,6 @@
     /***********************
      * Trading Mode
      ***********************/
-    // Toggle trade mode (only allowed when near a city)
     function toggleTradeMode() {
       if (!inTradeMode) {
         let nearbyCity = cities.find(city => distance(playerShip.x, playerShip.y, city.x, city.y) < 100);
@@ -637,14 +706,12 @@
       tradeMenuDiv.style.display = "none";
     }
     
-    // Listen for trade key commands while in trade mode.
     document.addEventListener("keydown", (e) => {
       if (inTradeMode) {
-        // Find the city the player is trading with (must be nearby)
         let currentCity = cities.find(city => distance(playerShip.x, playerShip.y, city.x, city.y) < 100);
         if (!currentCity) return;
-        switch(e.key) {
-          case "1": // Buy Rum
+        switch (e.key) {
+          case "1":
             if (playerShip.money >= currentCity.goods["Rum"].price && currentCity.goods["Rum"].quantity > 0) {
               playerShip.money -= currentCity.goods["Rum"].price;
               playerShip.inventory["Rum"] = (playerShip.inventory["Rum"] || 0) + 1;
@@ -652,7 +719,7 @@
               logMessage("Bought 1 Rum.");
             }
             break;
-          case "2": // Buy Spices
+          case "2":
             if (playerShip.money >= currentCity.goods["Spices"].price && currentCity.goods["Spices"].quantity > 0) {
               playerShip.money -= currentCity.goods["Spices"].price;
               playerShip.inventory["Spices"] = (playerShip.inventory["Spices"] || 0) + 1;
@@ -660,7 +727,7 @@
               logMessage("Bought 1 Spices.");
             }
             break;
-          case "3": // Buy Gold
+          case "3":
             if (playerShip.money >= currentCity.goods["Gold"].price && currentCity.goods["Gold"].quantity > 0) {
               playerShip.money -= currentCity.goods["Gold"].price;
               playerShip.inventory["Gold"] = (playerShip.inventory["Gold"] || 0) + 1;
@@ -669,7 +736,7 @@
             }
             break;
           case "q":
-          case "Q": // Sell Rum
+          case "Q":
             if ((playerShip.inventory["Rum"] || 0) > 0) {
               playerShip.money += currentCity.goods["Rum"].price;
               playerShip.inventory["Rum"]--;
@@ -678,7 +745,7 @@
             }
             break;
           case "w":
-          case "W": // Sell Spices
+          case "W":
             if ((playerShip.inventory["Spices"] || 0) > 0) {
               playerShip.money += currentCity.goods["Spices"].price;
               playerShip.inventory["Spices"]--;
@@ -687,7 +754,7 @@
             }
             break;
           case "e":
-          case "E": // Sell Gold
+          case "E":
             if ((playerShip.inventory["Gold"] || 0) > 0) {
               playerShip.money += currentCity.goods["Gold"].price;
               playerShip.inventory["Gold"]--;
@@ -695,7 +762,7 @@
               logMessage("Sold 1 Gold.");
             }
             break;
-          case "4": // Buy Cannon
+          case "4":
             if (playerShip.money >= 50) {
               playerShip.money -= 50;
               playerShip.cannons++;
@@ -703,7 +770,7 @@
             }
             break;
           case "r":
-          case "R": // Recruit Crew
+          case "R":
             if (playerShip.money >= 10) {
               playerShip.money -= 10;
               playerShip.crew += 5;
@@ -711,7 +778,7 @@
             }
             break;
           case "v":
-          case "V": // Sell Captured Ship
+          case "V":
             let capturedIndex = ships.findIndex(s => s.captured);
             if (capturedIndex !== -1) {
               playerShip.money += 100;
@@ -720,7 +787,7 @@
             }
             break;
           case "y":
-          case "Y": // Sell Cannon
+          case "Y":
             if (playerShip.cannons > 0) {
               playerShip.cannons--;
               playerShip.money += 30;
@@ -728,7 +795,6 @@
             }
             break;
         }
-        // Refresh the trade menu display.
         openTradeMenu(currentCity);
       }
     });
@@ -737,7 +803,6 @@
      * Capturing Enemy Ships
      ***********************/
     function attemptCapture() {
-      // Look for an enemy ship within 50px whose HP is below 15.
       for (let ship of ships) {
         if (!ship.isPlayer && !ship.captured && distance(playerShip.x, playerShip.y, ship.x, ship.y) < 50 && ship.health < 15) {
           const choice = confirm("Capture enemy ship: OK to take over, Cancel to sink.");
@@ -758,7 +823,7 @@
     /***********************
      * Saving & Loading
      ***********************/
-    // Save game state to localStorage.
+    // The fix: After loading the state from localStorage, reassign the prototypes so that methods like update() exist.
     function saveGame() {
       const state = {
         islands, cities, ships, cannonballs, playerShip, relationships
@@ -767,7 +832,6 @@
       logMessage("Game saved.");
     }
     
-    // Load game state from localStorage.
     function loadGame() {
       const stateStr = localStorage.getItem("pirateGameSave");
       if (stateStr) {
@@ -778,6 +842,11 @@
         cannonballs = state.cannonballs;
         playerShip = ships.find(s => s.isPlayer);
         relationships = state.relationships;
+        // Rehydrate objects by resetting their prototypes.
+        islands.forEach(i => Object.setPrototypeOf(i, Island.prototype));
+        cities.forEach(c => Object.setPrototypeOf(c, City.prototype));
+        ships.forEach(s => Object.setPrototypeOf(s, Ship.prototype));
+        cannonballs.forEach(cb => Object.setPrototypeOf(cb, Cannonball.prototype));
         logMessage("Game loaded.");
       } else {
         logMessage("No saved game found.");
