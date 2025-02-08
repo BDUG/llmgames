@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Pirate Game – Sophisticated Routing & Rehydration Fix</title>
+  <title>Pirate Game – Quest System & City Names</title>
   <style>
     /* Page & Canvas styling */
     body {
@@ -26,15 +26,28 @@
       width: 200px;
       height: 200px;
     }
-    /* HUD in top-left, below minimap */
+    /* HUD (player info) in top-left */
     #hud {
       position: absolute;
-      top: 220px;
+      top: 10px;
       left: 10px;
       background: rgba(0,0,0,0.7);
       color: #fff;
       padding: 5px;
       font-size: 14px;
+    }
+    /* Quest log panel positioned below the minimap */
+    #questLog {
+      position: absolute;
+      top: 220px; /* 10px (top of minimap) + 200px (minimap height) + 10px margin */
+      right: 10px;
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      padding: 5px;
+      font-size: 14px;
+      max-height: 200px;
+      overflow-y: auto;
+      width: 200px;
     }
     /* Log console at bottom */
     #log {
@@ -72,8 +85,10 @@
   <div id="minimapContainer">
     <canvas id="minimap" width="200" height="200"></canvas>
   </div>
-  <!-- HUD display -->
+  <!-- HUD (player info) -->
   <div id="hud"></div>
+  <!-- Quest Log (active quests, below minimap) -->
+  <div id="questLog"></div>
   <!-- Debug log console -->
   <div id="log"></div>
   <!-- Trade Menu (shown when trading) -->
@@ -89,6 +104,7 @@
     const minimapCanvas = document.getElementById('minimap');
     const minimapCtx = minimapCanvas.getContext('2d');
     const hudDiv = document.getElementById('hud');
+    const questLogDiv = document.getElementById('questLog');
     const logDiv = document.getElementById('log');
     const tradeMenuDiv = document.getElementById('tradeMenu');
     
@@ -102,6 +118,7 @@
     let cities = [];
     let ships = [];
     let cannonballs = [];
+    let quests = []; // Global quest log.
     
     // Key tracking.
     const keys = {};
@@ -114,7 +131,7 @@
       "England":    "🇬🇧"
     };
     
-    // Relationships: each key "NationA-NationB" (alphabetical order) maps to "peace" or "war".
+    // Relationships between nations.
     let relationships = {};
     function initRelationships() {
       const nationKeys = Object.keys(nations);
@@ -126,7 +143,6 @@
       }
       logMessage("Initial relationships set.");
     }
-    // Every 120 seconds randomly toggle relationships.
     setInterval(() => {
       const nationKeys = Object.keys(nations);
       for (let i = 0; i < nationKeys.length; i++) {
@@ -139,7 +155,7 @@
     }, 120000);
     
     function areAtWar(nationA, nationB) {
-      if(nationA === nationB) return false;
+      if (nationA === nationB) return false;
       const sorted = [nationA, nationB].sort();
       return relationships[sorted[0] + '-' + sorted[1]] === 'war';
     }
@@ -158,7 +174,7 @@
       return Math.hypot(x2 - x1, y2 - y1);
     }
     
-    // Point in polygon using the ray–casting algorithm.
+    // Ray-casting algorithm for point-in-polygon.
     function pointInPolygon(x, y, vertices) {
       let inside = false;
       for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
@@ -170,25 +186,96 @@
       return inside;
     }
     
-    // Normalize an angle to (-PI, PI).
     function normalizeAngle(angle) {
       while (angle > Math.PI) angle -= 2 * Math.PI;
       while (angle < -Math.PI) angle += 2 * Math.PI;
       return angle;
     }
     
-    // Random integer price between min and max.
     function randomPrice(min, max) {
       return Math.floor(Math.random() * (max - min + 1)) + min;
     }
     
     /***********************
-     * Object Classes
+     * Quest System
+     ***********************/
+    class Quest {
+      constructor(id, type, originCity, targetCity, good, amount, reward) {
+        this.id = id;
+        this.type = type; // "delivery"
+        this.originCity = originCity;
+        this.targetCity = targetCity;
+        this.good = good;
+        this.amount = amount;
+        this.reward = reward;
+        this.status = "active"; // active, completed, or failed.
+        this.description = `Deliver ${amount} ${good} from ${originCity.name} to ${targetCity.name} for ${reward} gold.`;
+      }
+    }
+    
+    // Generate a random delivery quest.
+    function generateRandomQuest() {
+      if (cities.length < 2) return;
+      let origin = cities[Math.floor(Math.random() * cities.length)];
+      let target;
+      do {
+        target = cities[Math.floor(Math.random() * cities.length)];
+      } while (target.id === origin.id);
+      
+      const goods = ["Rum", "Spices", "Gold"];
+      const good = goods[Math.floor(Math.random() * goods.length)];
+      
+      const amount = Math.floor(Math.random() * 3) + 1;  // 1-3 units.
+      const reward = Math.floor(Math.random() * 100) + 50; // 50-150 gold.
+      
+      const quest = new Quest(Date.now(), "delivery", origin, target, good, amount, reward);
+      quests.push(quest);
+      logMessage("New quest added: " + quest.description);
+      updateQuestLogUI();
+    }
+    
+    // Check for quest completions.
+    function checkQuestCompletions() {
+      for (let i = quests.length - 1; i >= 0; i--) {
+        let quest = quests[i];
+        if (quest.type === "delivery" && quest.status === "active") {
+          if (distance(playerShip.x, playerShip.y, quest.targetCity.x, quest.targetCity.y) < 100) {
+            if ((playerShip.inventory[quest.good] || 0) >= quest.amount) {
+              playerShip.inventory[quest.good] -= quest.amount;
+              playerShip.money += quest.reward;
+              quest.status = "completed";
+              logMessage("Quest completed: " + quest.description);
+              quests.splice(i, 1);
+              updateQuestLogUI();
+            }
+          }
+        }
+      }
+    }
+    
+    // Update the quest log UI.
+    function updateQuestLogUI() {
+      if (quests.length === 0) {
+        questLogDiv.innerHTML = "<strong>No active quests.</strong>";
+      } else {
+        let html = "<strong>Active Quests:</strong><br>";
+        quests.forEach(q => {
+          html += `<p>${q.description}</p>`;
+        });
+        questLogDiv.innerHTML = html;
+      }
+    }
+    
+    // Generate a new quest every 60 seconds.
+    setInterval(generateRandomQuest, 60000);
+    
+    /***********************
+     * Object Classes (Game Objects)
      ***********************/
     class Island {
       constructor(vertices) {
-        this.vertices = vertices; // Array of {x,y}
-        this.city = null; // Will be set later.
+        this.vertices = vertices;
+        this.city = null;
       }
       draw(ctx, offsetX, offsetY) {
         ctx.fillStyle = "#228B22";
@@ -229,11 +316,12 @@
         };
       }
       draw(ctx, offsetX, offsetY) {
+        // Draw the city symbol (house) in 16px font.
         ctx.font = "16px sans-serif";
         ctx.fillText("🏠", this.x - offsetX - 8, this.y - offsetY + 8);
-        // Draw a small flag beside the city.
+        // Draw the city name below the symbol in 12px font.
         ctx.font = "12px sans-serif";
-        ctx.fillText(nations[this.nation], this.x - offsetX + 8, this.y - offsetY - 8);
+        ctx.fillText(this.name, this.x - offsetX - 8, this.y - offsetY + 22);
       }
       drawMinimap(ctx, scale) {
         ctx.fillStyle = "black";
@@ -258,32 +346,24 @@
         this.cannons = type === "Sloop" ? 2 : type === "Brig" ? 4 : 8;
         this.crew = type === "Sloop" ? 10 : type === "Brig" ? 20 : 30;
         this.isPlayer = isPlayer;
-        this.targetCity = null; // For enemy trade route.
+        this.targetCity = null;
         this.homeCity = null;
         this.fireCooldown = 0;
-        this.captured = false;  // Flag for captured enemy ship.
-        this.money = 0; // For player only.
+        this.captured = false;
+        this.money = 0;
       }
       update(dt) {
         if (this.isPlayer) {
-          // Player ship: rotate with left/right keys; move only when ArrowUp is pressed.
           if (keys["ArrowLeft"]) this.angle -= 0.05;
           if (keys["ArrowRight"]) this.angle += 0.05;
           this.speed = keys["ArrowUp"] ? this.maxSpeed : 0;
         } else {
-          // Sophisticated navigation for enemy ships.
           if (this.targetCity) {
-            // Compute desired vector toward the target.
             let desired = { x: this.targetCity.x - this.x, y: this.targetCity.y - this.y };
             let mag = Math.hypot(desired.x, desired.y);
-            if (mag > 0) {
-              desired.x /= mag;
-              desired.y /= mag;
-            }
-            // Compute repulsion from nearby islands.
+            if (mag > 0) { desired.x /= mag; desired.y /= mag; }
             let repulsion = { x: 0, y: 0 };
             for (let island of islands) {
-              // Compute island center as average of vertices.
               let center = { x: 0, y: 0 };
               for (let vertex of island.vertices) {
                 center.x += vertex.x;
@@ -291,39 +371,28 @@
               }
               center.x /= island.vertices.length;
               center.y /= island.vertices.length;
-              // Estimate island radius (average distance from center to vertices).
               let avgRadius = 0;
               for (let vertex of island.vertices) {
                 avgRadius += distance(center.x, center.y, vertex.x, vertex.y);
               }
               avgRadius /= island.vertices.length;
-              // If the ship is within (avgRadius + buffer) of the island center, add a repulsive force.
               let buffer = 50;
               let d = distance(this.x, this.y, center.x, center.y);
               if (d < (avgRadius + buffer)) {
                 let factor = (avgRadius + buffer - d) / (avgRadius + buffer);
-                // Direction away from the island center.
                 let away = { x: this.x - center.x, y: this.y - center.y };
                 let awayMag = Math.hypot(away.x, away.y);
-                if (awayMag > 0) {
-                  away.x /= awayMag;
-                  away.y /= awayMag;
-                }
+                if (awayMag > 0) { away.x /= awayMag; away.y /= awayMag; }
                 repulsion.x += away.x * factor;
                 repulsion.y += away.y * factor;
               }
             }
-            // Weight the vectors: desired = 1, repulsion = 2.
             let steering = {
               x: desired.x + repulsion.x * 2,
               y: desired.y + repulsion.y * 2
             };
             let steerMag = Math.hypot(steering.x, steering.y);
-            if (steerMag > 0) {
-              steering.x /= steerMag;
-              steering.y /= steerMag;
-            }
-            // Compute target angle from the steering vector.
+            if (steerMag > 0) { steering.x /= steerMag; steering.y /= steerMag; }
             let targetAngle = Math.atan2(steering.y, steering.x);
             let angleDiff = normalizeAngle(targetAngle - this.angle);
             let turnRate = 0.05;
@@ -335,23 +404,14 @@
             this.speed = this.maxSpeed * 0.5;
           }
         }
-        // Calculate new position.
         const newX = this.x + Math.cos(this.angle) * this.speed;
         const newY = this.y + Math.sin(this.angle) * this.speed;
         let collision = false;
         for (let island of islands) {
-          if (pointInPolygon(newX, newY, island.vertices)) {
-            collision = true;
-            break;
-          }
+          if (pointInPolygon(newX, newY, island.vertices)) { collision = true; break; }
         }
-        if (!collision) {
-          this.x = newX;
-          this.y = newY;
-        }
+        if (!collision) { this.x = newX; this.y = newY; }
         if (this.fireCooldown > 0) this.fireCooldown -= dt;
-    
-        // Auto-fire at player if conditions are met.
         if (!this.isPlayer && !inTradeMode && this.fireCooldown <= 0 && playerShip) {
           const d = distance(this.x, this.y, playerShip.x, playerShip.y);
           if (d < 300 && areAtWar(this.nation, playerShip.nation)) {
@@ -359,16 +419,12 @@
             this.fireCooldown = 2;
           }
         }
-    
-        // If an enemy ship is stuck on land, reposition it far away into the water.
         if (!this.isPlayer) {
           for (let island of islands) {
-            if (pointInPolygon(this.x, this.y, island.vertices)) {
-              repositionEnemyShip(this, island);
-              break;
-            }
+            if (pointInPolygon(this.x, this.y, island.vertices)) { repositionEnemyShip(this, island); break; }
           }
         }
+        checkQuestCompletions();
       }
       draw(ctx, offsetX, offsetY) {
         ctx.save();
@@ -376,6 +432,22 @@
         ctx.rotate(this.angle);
         ctx.font = "20px serif";
         ctx.fillText("⛵", -10, 10);
+        if (this.isPlayer) {
+          ctx.strokeStyle = "yellow";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(30, 0);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(30, 0);
+          ctx.lineTo(25, -5);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(30, 0);
+          ctx.lineTo(25, 5);
+          ctx.stroke();
+        }
         ctx.restore();
         ctx.font = "12px sans-serif";
         ctx.fillText(nations[this.nation], this.x - offsetX + 15, this.y - offsetY - 15);
@@ -420,7 +492,6 @@
       }
     }
     
-    // Fire a cannonball.
     function fireCannon(ship, targetX, targetY) {
       const angle = Math.atan2(targetY - ship.y, targetX - ship.x);
       const cannonball = new Cannonball(
@@ -433,21 +504,16 @@
       logMessage((ship.isPlayer ? "Player" : ship.nation + " ship") + " fired a cannonball.");
     }
     
-    // Reposition an enemy ship that is stuck on land to a far-away water location.
     function repositionEnemyShip(ship, island) {
       let repositioned = false;
-      // Try up to 10 times to find a "far away" water spot relative to the island's city.
       for (let i = 0; i < 10; i++) {
         const angle = Math.random() * 2 * Math.PI;
-        const offsetDistance = Math.random() * 50 + 150; // 150 to 200 pixels away.
+        const offsetDistance = Math.random() * 50 + 150;
         const newX = island.city.x + Math.cos(angle) * offsetDistance;
         const newY = island.city.y + Math.sin(angle) * offsetDistance;
         let safe = true;
         for (let otherIsland of islands) {
-          if (pointInPolygon(newX, newY, otherIsland.vertices)) {
-            safe = false;
-            break;
-          }
+          if (pointInPolygon(newX, newY, otherIsland.vertices)) { safe = false; break; }
         }
         if (safe) {
           ship.x = newX;
@@ -500,7 +566,6 @@
     }
     
     function generateEnemyShips() {
-      // Keep only the player ship if it exists.
       ships = ships.filter(s => s.isPlayer);
       let shipId = 1;
       for (let city of cities) {
@@ -508,10 +573,7 @@
         let spawnY = city.y + Math.random() * 100 - 50;
         let onLand = false;
         for (let island of islands) {
-          if (pointInPolygon(spawnX, spawnY, island.vertices)) {
-            onLand = true;
-            break;
-          }
+          if (pointInPolygon(spawnX, spawnY, island.vertices)) { onLand = true; break; }
         }
         if (onLand) {
           spawnX = city.x + 100;
@@ -617,6 +679,8 @@
           <p>Cannons: ${playerShip.cannons}</p>
         `;
       }
+    
+      updateQuestLogUI();
     
       if (showMinimap) {
         minimapCtx.clearRect(0, 0, minimapCanvas.width, minimapCanvas.height);
@@ -821,12 +885,11 @@
     }
     
     /***********************
-     * Saving & Loading
+     * Saving & Loading (with Rehydration)
      ***********************/
-    // The fix: After loading the state from localStorage, reassign the prototypes so that methods like update() exist.
     function saveGame() {
       const state = {
-        islands, cities, ships, cannonballs, playerShip, relationships
+        islands, cities, ships, cannonballs, playerShip, quests, relationships
       };
       localStorage.setItem("pirateGameSave", JSON.stringify(state));
       logMessage("Game saved.");
@@ -840,14 +903,16 @@
         cities = state.cities;
         ships = state.ships;
         cannonballs = state.cannonballs;
+        quests = state.quests || [];
         playerShip = ships.find(s => s.isPlayer);
         relationships = state.relationships;
-        // Rehydrate objects by resetting their prototypes.
         islands.forEach(i => Object.setPrototypeOf(i, Island.prototype));
         cities.forEach(c => Object.setPrototypeOf(c, City.prototype));
         ships.forEach(s => Object.setPrototypeOf(s, Ship.prototype));
         cannonballs.forEach(cb => Object.setPrototypeOf(cb, Cannonball.prototype));
+        quests.forEach(q => Object.setPrototypeOf(q, Quest.prototype));
         logMessage("Game loaded.");
+        updateQuestLogUI();
       } else {
         logMessage("No saved game found.");
       }
@@ -866,6 +931,20 @@
     }
     
     initGame();
+    
+    // Generate a new quest every 60 seconds.
+    setInterval(generateRandomQuest, 60000);
+    
+    /***********************
+     * Main Game Loop
+     ***********************/
+    function gameLoop(timestamp) {
+      const dt = (timestamp - lastTime) / 1000;
+      lastTime = timestamp;
+      update(dt);
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
   </script>
 </body>
 </html>

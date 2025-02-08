@@ -167,4 +167,27 @@ players ship only move on key pressed
 
 >==<
 
-if enemy ship stuck at island (land) set it to the water close to the island
+if enemy ship stuck at island (land) set it far away from the island into the water 
+
+
+>==<
+
+implement a ophisticated routing and navigation logic
+
+
+>==<
+
+fix line 580 Uncaught TypeError: ship.update is not a function
+
+>==<
+
+add an arrow showing the front direction of the players ship
+
+
+>==<
+
+introduce a quest system 
+
+>==<
+
+show the quest menu below the mini map
