@@ -191,3 +191,15 @@ introduce a quest system
 >==<
 
 show the quest menu below the mini map
+
+>==<
+
+show the city name below the city symbol in font-size 12
+
+>==<
+
+for enemy ships the trading route target is not the next city 
+
+>==<
+
+show the possible command keys below the quest menu 

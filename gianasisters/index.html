@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Giana Sisters Style Spiel</title>
+  <style>
+    /* Grundlegende Styles, damit das Canvas den gesamten Bereich füllt */
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      margin: auto;
+      background: #87ceeb; /* Himmelblauer Hintergrund */
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="800" height="600"></canvas>
+  <script>
+    // Canvas und 2D-Kontext initialisieren
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Tastatursteuerung: Wir speichern, welche Tasten gerade gedrückt sind.
+    const keys = {};
+    window.addEventListener('keydown', function(e) {
+      keys[e.code] = true;
+    });
+    window.addEventListener('keyup', function(e) {
+      keys[e.code] = false;
+    });
+
+    // Spieler-Objekt
+    const player = {
+      x: 50,
+      y: 500,
+      width: 40,
+      height: 50,
+      vx: 0,       // Horizontale Geschwindigkeit
+      vy: 0,       // Vertikale Geschwindigkeit
+      speed: 3,    // Bewegungsgeschwindigkeit
+      jumpPower: -10, // Sprungkraft (negative Geschwindigkeit, weil y nach unten wächst)
+      onGround: false // Gibt an, ob der Spieler auf dem Boden steht
+    };
+
+    // Physik-Konstanten
+    const gravity = 0.5; // Schwerkraft
+
+    // Beispiel-Level: Einige Plattformen, auf denen der Spieler laufen kann
+    const platforms = [
+      { x: 0,   y: 550, width: 800, height: 50 },   // Boden
+      { x: 150, y: 450, width: 150, height: 20 },
+      { x: 350, y: 350, width: 150, height: 20 },
+      { x: 550, y: 250, width: 150, height: 20 },
+      { x: 300, y: 150, width: 200, height: 20 }
+    ];
+
+    // Update-Funktion: Hier werden Spielerposition, Bewegung und Kollisionen berechnet
+    function update() {
+      // Horizontalbewegung: Pfeil links/rechts
+      if (keys['ArrowLeft']) {
+        player.vx = -player.speed;
+      } else if (keys['ArrowRight']) {
+        player.vx = player.speed;
+      } else {
+        player.vx = 0;
+      }
+
+      // Springen: Mit Space oder Pfeil hoch
+      if ((keys['Space'] || keys['ArrowUp']) && player.onGround) {
+        player.vy = player.jumpPower;
+        player.onGround = false;
+      }
+
+      // Schwerkraft anwenden
+      player.vy += gravity;
+
+      // Spielerposition aktualisieren
+      player.x += player.vx;
+      player.y += player.vy;
+
+      // Kollisionserkennung mit allen Plattformen
+      player.onGround = false; // Standardmäßig wird der Spieler als nicht am Boden stehend angenommen.
+      for (let i = 0; i < platforms.length; i++) {
+        const plat = platforms[i];
+        // Prüfe, ob sich der Spieler und die Plattform überlappen
+        if (player.x < plat.x + plat.width &&
+            player.x + player.width > plat.x &&
+            player.y < plat.y + plat.height &&
+            player.y + player.height > plat.y) {
+
+          // Landung: Der Spieler fällt und trifft von oben auf die Plattform
+          if (player.vy > 0 && player.y + player.height - player.vy <= plat.y) {
+            player.y = plat.y - player.height;
+            player.vy = 0;
+            player.onGround = true;
+          }
+          // Kopfstoß: Der Spieler springt nach oben und trifft von unten
+          else if (player.vy < 0 && player.y - player.vy >= plat.y + plat.height) {
+            player.y = plat.y + plat.height;
+            player.vy = 0;
+          }
+          // Seitenkollision: Falls der Spieler seitlich in die Plattform läuft
+          else {
+            if (player.vx > 0) {
+              player.x = plat.x - player.width;
+            } else if (player.vx < 0) {
+              player.x = plat.x + plat.width;
+            }
+          }
+        }
+      }
+
+      // Begrenzung: Der Spieler soll nicht aus dem Canvas herauslaufen
+      if (player.x < 0) {
+        player.x = 0;
+      }
+      if (player.x + player.width > canvas.width) {
+        player.x = canvas.width - player.width;
+      }
+      if (player.y + player.height > canvas.height) {
+        player.y = canvas.height - player.height;
+        player.vy = 0;
+        player.onGround = true;
+      }
+    }
+
+    // Draw-Funktion: Zeichnet alle Elemente
+    function draw() {
+      // Canvas löschen
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Hintergrund (optional, hier schon im CSS definiert)
+      ctx.fillStyle = '#87ceeb';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Plattformen zeichnen
+      ctx.fillStyle = '#654321';
+      platforms.forEach(plat => {
+        ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
+      });
+
+      // Spieler zeichnen
+      ctx.fillStyle = '#ff0000';
+      ctx.fillRect(player.x, player.y, player.width, player.height);
+    }
+
+    // Hauptspiel-Schleife: Update und Zeichnen werden in jedem Frame aufgerufen
+    function gameLoop() {
+      update();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Spielstart
+    gameLoop();
+  </script>
+</body>
+</html>

@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pirate Game – Quest System with Command Keys</title>
+    <style>
+        body {
+            margin: 0;
+            background: #87CEEB;
+            font-family: sans-serif;
+            overflow: hidden;
+        }
+        #gameCanvas {
+            border: 2px solid black;
+            background: #87CEEB;
+            display: block;
+        }
+        #minimapContainer {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            border: 1px solid #000;
+            background: rgba(255,255,255,0.7);
+            width: 200px;
+            height: 200px;
+        }
+        #hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: #fff;
+            padding: 5px;
+            font-size: 14px;
+        }
+        #questLog {
+            position: absolute;
+            top: 220px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: #fff;
+            padding: 5px;
+            font-size: 14px;
+            max-height: 200px;
+            overflow-y: auto;
+            width: 200px;
+        }
+        #commandKeys {
+            position: absolute;
+            top: 430px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: #fff;
+            padding: 5px;
+            font-size: 14px;
+            max-height: 150px;
+            overflow-y: auto;
+            width: 200px;
+        }
+        #log {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 100px;
+            background: rgba(0,0,0,0.8);
+            color: #0f0;
+            font-family: monospace;
+            overflow-y: auto;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+        #tradeMenu {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #222;
+            color: #fff;
+            padding: 20px;
+            border: 2px solid #fff;
+            display: none;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="minimapContainer">
+        <canvas id="minimap" width="200" height="200"></canvas>
+    </div>
+    <div id="hud"></div>
+    <div id="questLog"></div>
+    <div id="commandKeys">
+        <strong>Command Keys:</strong><br>
+        &uarr; : Move forward<br>
+        &larr; / &rarr; : Rotate ship<br>
+        Space: Fire cannon<br>
+        P: Pause/Unpause<br>
+        M: Toggle minimap<br>
+        T: Trade (if near a city)<br>
+        C: Capture enemy ship<br>
+        S: Save game<br>
+        L: Load game<br>
+        N: Toggle night mode
+    </div>
+    <div id="log"></div>
+    <div id="tradeMenu"></div>
+    
+    <script>
+        const worldWidth = 2400, worldHeight = 1600;
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const minimapCanvas = document.getElementById('minimap');
+        const minimapCtx = minimapCanvas.getContext('2d');
+        const hudDiv = document.getElementById('hud');
+        const questLogDiv = document.getElementById('questLog');
+        const logDiv = document.getElementById('log');
+        const tradeMenuDiv = document.getElementById('tradeMenu');
+        
+        let lastTime = 0;
+        let isPaused = false;
+        let inTradeMode = false;
+        let showMinimap = true;
+        let nightMode = false;
+        
+        let islands = [];
+        let cities = [];
+        let ships = [];
+        let cannonballs = [];
+        let quests = [];
+        
+        const keys = {};
+        
+        const nations = {
+            "Netherlands": "🇳🇱",
+            "Spain":      "🇪🇸",
+            "France":     "🇫🇷",
+            "England":    "🇬🇧"
+        };
+        
+        let relationships = {};
+        
+        function initRelationships() {
+            const nationKeys = Object.keys(nations);
+            for (let i = 0; i < nationKeys.length; i++) {
+                for (let j = i + 1; j < nationKeys.length; j++) {
+                    const key = nationKeys[i] + '-' + nationKeys[j];
+                    relationships[key] = Math.random() < 0.5 ? 'peace' : 'war';
+                }
+            }
+            logMessage("Initial relationships set.");
+        }
+        
+        setInterval(() => {
+            const nationKeys = Object.keys(nations);
+            for (let i = 0; i < nationKeys.length; i++) {
+                for (let j = i + 1; j < nationKeys.length; j++) {
+                    const key = nationKeys[i] + '-' + nationKeys[j];
+                    relationships[key] = Math.random() < 0.5 ? 'peace' : 'war';
+                    logMessage(`Relationship between ${nationKeys[i]} and ${nationKeys[j]} is now ${relationships[key]}.`);
+                }
+            }
+        }, 120000);
+        
+        function areAtWar(nationA, nationB) {
+            if (nationA === nationB) return false;
+            const sorted = [nationA, nationB].sort();
+            return relationships[sorted[0] + '-' + sorted[1]] === 'war';
+        }
+        
+        function logMessage(message) {
+            const p = document.createElement('p');
+            p.textContent = message;
+            logDiv.appendChild(p);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function distance(x1, y1, x2, y2) {
+            return Math.hypot(x2 - x1, y2 - y1);
+        }
+        
+        function pointInPolygon(x, y, vertices) {
+            let inside = false;
+            for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
+                const xi = vertices[i].x, yi = vertices[i].y;
+                const xj = vertices[j].x, yj = vertices[j].y;
+                const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            }
+            return inside;
+        }
+        
+        function normalizeAngle(angle) {
+            while (angle > Math.PI) angle -= 2 * Math.PI;
+            while (angle < -Math.PI) angle += 2 * Math.PI;
+            return angle;
+        }
+        
+        function randomPrice(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+        
+        class Quest {
+            constructor(id, type, originCity, targetCity, good, amount, reward) {
+                this.id = id;
+                this.type = type;
+                this.originCity = originCity;
+                this.targetCity = targetCity;
+                this.good = good;
+                this.amount = amount;
+                this.reward = reward;
+                this.status = "active";
+                this.description = `Deliver ${amount} ${good} from ${originCity.name} to ${targetCity.name} for ${reward} gold.`;
+            }
+        }
+        
+        function generateRandomQuest() {
+            if (cities.length < 2) return;
+            let origin = cities[Math.floor(Math.random() * cities.length)];
+            let target;
+            do {
+                target = cities[Math.floor(Math.random() * cities.length)];
+            } while (target.id === origin.id);
+            
+            const goods = ["Rum", "Spices", "Gold"];
+            const good = goods[Math.floor(Math.random() * goods.length)];
+            const amount = Math.floor(Math.random() * 3) + 1;
+            const reward = Math.floor(Math.random() * 100) + 50;
+            
+            const quest = new Quest(Date.now(), "delivery", origin, target, good, amount, reward);
+            quests.push(quest);
+            logMessage("New quest added: " + quest.description);
+            updateQuestLogUI();
+        }
+        
+        function checkQuestCompletions() {
+            for (let i = quests.length - 1; i >= 0; i--) {
+                let quest = quests[i];
+                if (quest.type === "delivery" && quest.status === "active") {
+                    if (distance(playerShip.x, playerShip.y, quest.targetCity.x, quest.targetCity.y) < 100) {
+                        if ((playerShip.inventory[quest.good] || 0) >= quest.amount) {
+                            playerShip.inventory[quest.good] -= quest.amount;
+                            playerShip.money += quest.reward;
+                            quest.status = "completed";
+                            logMessage("Quest completed: " + quest.description);
+                            quests.splice(i, 1);
+                            updateQuestLogUI();
+                        }
+                    }
+                }
+            }
+        }
+        
+        function updateQuestLogUI() {
+            if (quests.length === 0) {
+                questLogDiv.innerHTML = "<strong>No active quests.</strong>";
+            } else {
+                let html = "<strong>Active Quests:</strong><br>";
+                quests.forEach(q => {
+                    html += `<p>${q.description}</p>`;
+                });
+                questLogDiv.innerHTML = html;
+            }
+        }
+        
+        setInterval(generateRandomQuest, 60000);
+        
+        class Island {
+            constructor(vertices) {
+                this.vertices = vertices;
+                this.city = null;
+            }
+            draw(ctx, offsetX, offsetY) {
+                ctx.fillStyle = "#228B22";
+                ctx.beginPath();
+                ctx.moveTo(this.vertices[0].x - offsetX, this.vertices[0].y - offsetY);
+                for (let i = 1; i < this.vertices.length; i++) {
+                    ctx.lineTo(this.vertices[i].x - offsetX, this.vertices[i].y - offsetY);
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.strokeStyle = "#006400";
+                ctx.stroke();
+            }
+            drawMinimap(ctx, scale) {
+                ctx.fillStyle = "#228B22";
+                ctx.beginPath();
+                ctx.moveTo(this.vertices[0].x * scale, this.vertices[0].y * scale);
+                for (let i = 1; i < this.vertices.length; i++) {
+                    ctx.lineTo(this.vertices[i].x * scale, this.vertices[i].y * scale);
+                }
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+        
+        class City {
+            constructor(id, name, x, y, nation) {
+                this.id = id;
+                this.name = name;
+                this.x = x;
+                this.y = y;
+                this.nation = nation;
+                this.population = 1000;
+                this.goods = {
+                    "Rum": { price: randomPrice(10, 20), quantity: 100 },
+                    "Spices": { price: randomPrice(15, 30), quantity: 100 },
+                    "Gold": { price: randomPrice(50, 100), quantity: 50 }
+                };
+            }
+            draw(ctx, offsetX, offsetY) {
+                ctx.font = "16px sans-serif";
+                ctx.fillText("🏠", this.x - offsetX - 8, this.y - offsetY + 8);
+                ctx.font = "12px sans-serif";
+                ctx.fillText(this.name, this.x - offsetX - 8, this.y - offsetY + 22);
+            }
+            drawMinimap(ctx, scale) {
+                ctx.fillStyle = "black";
+                ctx.fillText("🏠", this.x * scale - 6, this.y * scale + 6);
+                ctx.fillText(nations[this.nation], this.x * scale + 6, this.y * scale - 6);
+            }
+        }
+        
+        class Ship {
+            constructor(id, type, nation, x, y, isPlayer = false) {
+                this.id = id;
+                this.type = type;
+                this.nation = nation;
+                this.x = x;
+                this.y = y;
+                this.angle = Math.random() * 2 * Math.PI;
+                this.speed = 0;
+                this.maxSpeed = type === "Sloop" ? 2 : type === "Brig" ? 1.5 : 1;
+                this.health = type === "Sloop" ? 100 : type === "Brig" ? 150 : 200;
+                this.maxHealth = this.health;
+                this.inventory = { "Rum": 0, "Spices": 0, "Gold": 0 };
+                this.cannons = type === "Sloop" ? 2 : type === "Brig" ? 4 : 8;
+                this.crew = type === "Sloop" ? 10 : type === "Brig" ? 20 : 30;
+                this.isPlayer = isPlayer;
+                this.targetCity = null;
+                this.homeCity = null;
+                this.fireCooldown = 0;
+                this.captured = false;
+                this.money = 0;
+                this.morale = 100; 
+            }
+
+            update(dt) {
+                this.updateMorale();
+                
+                if (this.isPlayer) {
+                    if (keys["ArrowLeft"]) this.angle -= 0.05;
+                    if (keys["ArrowRight"]) this.angle += 0.05;
+                    this.speed = keys["ArrowUp"] ? this.maxSpeed : 0;
+                    if (this.fireCooldown > 0) this.fireCooldown -= dt; 
+                } else {
+                    if (this.targetCity) {
+                        const desired = { x: this.targetCity.x - this.x, y: this.targetCity.y - this.y };
+                        const mag = Math.hypot(desired.x, desired.y);
+                        if (mag > 0) {
+                            desired.x /= mag;
+                            desired.y /= mag;
+
+                            const steering = 0.1; 
+                            this.angle += (Math.atan2(desired.y, desired.x) - this.angle) * steering;
+                            this.speed = this.maxSpeed; 
+
+                            for (const island of islands) {
+                                if (pointInPolygon(this.x + Math.cos(this.angle) * 20, this.y + Math.sin(this.angle) * 20, island.vertices)) {
+                                    this.angle += Math.PI / 2; 
+                                }
+                            }
+
+                            for (const otherShip of ships) {
+                                if (otherShip !== this && distance(this.x, this.y, otherShip.x, otherShip.y) < 50) {
+                                    this.angle += Math.PI / 4; 
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                this.x += Math.cos(this.angle) * this.speed;
+                this.y += Math.sin(this.angle) * this.speed;
+
+                if (this.x < 0) this.x = 0;
+                if (this.x > worldWidth) this.x = worldWidth;
+                if (this.y < 0) this.y = 0;
+                if (this.y > worldHeight) this.y = worldHeight;
+
+                checkQuestCompletions();
+            }
+
+            updateMorale() {
+                this.morale -= 0.01; 
+                this.morale = Math.min(100, Math.max(0, this.morale));
+                if (this.morale < 20) {
+                    logMessage("Crew morale is low!");
+                }
+            }
+
+            draw(ctx, offsetX, offsetY) {
+                ctx.save();
+                ctx.translate(this.x - offsetX, this.y - offsetY);
+                ctx.rotate(this.angle);
+                ctx.font = "20px serif";
+                ctx.fillText("⛵", -10, 10);
+                if (this.isPlayer) {
+                    ctx.strokeStyle = "yellow";
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(30, 0);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(30, 0);
+                    ctx.lineTo(25, -5);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(30, 0);
+                    ctx.lineTo(25, 5);
+                    ctx.stroke();
+                }
+                ctx.restore();
+                ctx.font = "12px sans-serif";
+                ctx.fillText(`${nations[this.nation]} (M: ${Math.round(this.morale)})`, this.x - offsetX + 15, this.y - offsetY - 15);
+            }
+
+            drawMinimap(ctx, scale) {
+                ctx.fillStyle = this.isPlayer ? "blue" : "red";
+                ctx.beginPath();
+                ctx.arc(this.x * scale, this.y * scale, 3, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+        }
+        
+        class Cannonball {
+            constructor(x, y, angle, owner) {
+                this.x = x;
+                this.y = y;
+                this.angle = angle;
+                this.speed = 5;
+                this.damage = 20;
+                this.range = 300;
+                this.distanceTraveled = 0;
+                this.owner = owner;
+            }
+            update(dt) {
+                const dx = Math.cos(this.angle) * this.speed;
+                const dy = Math.sin(this.angle) * this.speed;
+                this.x += dx;
+                this.y += dy;
+                this.distanceTraveled += Math.hypot(dx, dy);
+            }
+            draw(ctx, offsetX, offsetY) {
+                ctx.fillStyle = "black";
+                ctx.beginPath();
+                ctx.arc(this.x - offsetX, this.y - offsetY, 5, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+            drawMinimap(ctx, scale) {
+                ctx.fillStyle = "black";
+                ctx.beginPath();
+                ctx.arc(this.x * scale, this.y * scale, 2, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+        }
+        
+        function fireCannon(ship, targetX, targetY) {
+            const angle = Math.atan2(targetY - ship.y, targetX - ship.x);
+            const cannonball = new Cannonball(
+                ship.x + Math.cos(angle) * 20,
+                ship.y + Math.sin(angle) * 20,
+                angle,
+                ship
+            );
+            cannonballs.push(cannonball);
+            logMessage((ship.isPlayer ? "Player" : ship.nation + " ship") + " fired a cannonball.");
+            ship.fireCooldown = 1; 
+        }
+
+        function generateIslands() {
+            islands = [];
+            for (let i = 0; i < 20; i++) {
+                const cx = Math.random() * (worldWidth - 200) + 100;
+                const cy = Math.random() * (worldHeight - 200) + 100;
+                const numPoints = Math.floor(Math.random() * 5) + 5;
+                const vertices = [];
+                for (let j = 0; j < numPoints; j++) {
+                    const angle = (j / numPoints) * 2 * Math.PI;
+                    const radius = Math.random() * 50 + 30;
+                    const x = cx + Math.cos(angle) * radius + (Math.random() - 0.5) * 20;
+                    const y = cy + Math.sin(angle) * radius + (Math.random() - 0.5) * 20;
+                    vertices.push({ x, y });
+                }
+                islands.push(new Island(vertices));
+            }
+        }
+        
+        function generateCities() {
+            cities = [];
+            let cityId = 1;
+            for (let island of islands) {
+                const vertex = island.vertices[Math.floor(Math.random() * island.vertices.length)];
+                const nationKeys = Object.keys(nations);
+                const nation = nationKeys[Math.floor(Math.random() * nationKeys.length)];
+                const city = new City(cityId, "City " + cityId, vertex.x, vertex.y, nation);
+                cities.push(city);
+                island.city = city;
+                cityId++;
+            }
+        }
+        
+        function generateEnemyShips() {
+            ships = ships.filter(s => s.isPlayer);
+            let shipId = 1;
+            for (let city of cities) {
+                let spawnX = city.x + Math.random() * 100 - 50;
+                let spawnY = city.y + Math.random() * 100 - 50;
+                let onLand = false;
+                for (let island of islands) {
+                    if (pointInPolygon(spawnX, spawnY, island.vertices)) { onLand = true; break; }
+                }
+                if (onLand) {
+                    spawnX = city.x + 100;
+                    spawnY = city.y + 100;
+                }
+                const types = ["Sloop", "Brig", "Galleon"];
+                const type = types[Math.floor(Math.random() * types.length)];
+                const ship = new Ship(shipId, type, city.nation, spawnX, spawnY);
+                ship.homeCity = city;
+                let possibleTargets = cities.filter(c => c.id !== city.id);
+                ship.targetCity = possibleTargets[Math.floor(Math.random() * possibleTargets.length)];
+                ships.push(ship);
+                shipId++;
+            }
+        }
+
+        let playerShip = null;
+        function spawnPlayerShip() {
+            const englishCities = cities.filter(c => c.nation === "England");
+            let spawnCity = englishCities.length ? englishCities[Math.floor(Math.random() * englishCities.length)] : cities[0];
+            let spawnX = spawnCity.x + Math.random() * 100 - 50;
+            let spawnY = spawnCity.y + Math.random() * 100 - 50;
+            for (let island of islands) {
+                if (pointInPolygon(spawnX, spawnY, island.vertices)) {
+                    spawnX = spawnCity.x + 100;
+                    spawnY = spawnCity.y + 100;
+                    break;
+                }
+            }
+            playerShip = new Ship(0, "Sloop", "England", spawnX, spawnY, true);
+            playerShip.money = 100;
+            ships.push(playerShip);
+            logMessage("Player ship spawned near " + spawnCity.name);
+        }
+        
+        function updateCityEconomies(dt) {
+            for (let city of cities) {
+                for (let good in city.goods) {
+                    let change = (Math.random() - 0.5) * dt * 0.1;
+                    city.goods[good].price = Math.max(1, city.goods[good].price + change);
+                }
+            }
+        }
+        
+        function update(dt) {
+            if (isPaused || inTradeMode) return;
+            for (let ship of ships) { ship.update(dt); }
+            for (let i = cannonballs.length - 1; i >= 0; i--) {
+                const cb = cannonballs[i];
+                cb.update(dt);
+                if (cb.distanceTraveled > cb.range) { cannonballs.splice(i, 1); continue; }
+                for (let ship of ships) {
+                    if (ship === cb.owner) continue;
+                    if (distance(cb.x, cb.y, ship.x, ship.y) < 15) {
+                        ship.health -= cb.damage;
+                        logMessage((ship.isPlayer ? "Player" : ship.nation + " ship") + " hit! HP: " + ship.health.toFixed(0));
+                        cannonballs.splice(i, 1);
+                        break;
+                    }
+                }
+            }
+            if (playerShip && playerShip.health <= 0) {
+                let nearestCity = cities[0];
+                let minDist = distance(playerShip.x, playerShip.y, cities[0].x, cities[0].y);
+                for (let city of cities) {
+                    const d = distance(playerShip.x, playerShip.y, city.x, city.y);
+                    if (d < minDist) { minDist = d; nearestCity = city; }
+                }
+                logMessage("Player ship destroyed! Respawning at " + nearestCity.name);
+                playerShip.x = nearestCity.x + 50;
+                playerShip.y = nearestCity.y + 50;
+                playerShip.health = 100;
+                playerShip.type = "Sloop";
+                playerShip.money = 100;
+                playerShip.crew = 10;
+            }
+            updateCityEconomies(dt);
+        }
+        
+        function draw() {
+            let offsetX = playerShip ? playerShip.x - canvas.width / 2 : 0;
+            let offsetY = playerShip ? playerShip.y - canvas.height / 2 : 0;
+            offsetX = Math.max(0, Math.min(worldWidth - canvas.width, offsetX));
+            offsetY = Math.max(0, Math.min(worldHeight - canvas.height, offsetY));
+        
+            ctx.fillStyle = nightMode ? "#2C2F33" : "#87CEEB";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            islands.forEach(island => island.draw(ctx, offsetX, offsetY));
+            cities.forEach(city => city.draw(ctx, offsetX, offsetY));
+            ships.forEach(ship => ship.draw(ctx, offsetX, offsetY));
+            cannonballs.forEach(cb => cb.draw(ctx, offsetX, offsetY));
+        
+            if (playerShip) {
+                hudDiv.innerHTML = `
+                    <p>HP: ${playerShip.health.toFixed(0)} / 100</p>
+                    <p>Money: ${playerShip.money}</p>
+                    <p>Crew: ${playerShip.crew}</p>
+                    <p>Ship: ${playerShip.type}</p>
+                    <p>Nation: ${playerShip.nation} ${nations[playerShip.nation]}</p>
+                    <p>Cannons: ${playerShip.cannons}</p>
+                    <p>Morale: ${Math.round(playerShip.morale)}</p>
+                `;
+            }
+        
+            updateQuestLogUI();
+        
+            if (showMinimap) {
+                minimapCtx.clearRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+                const scale = minimapCanvas.width / worldWidth;
+                minimapCtx.fillStyle = nightMode ? "#2C2F33" : "#87CEEB";
+                minimapCtx.fillRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+                islands.forEach(island => island.drawMinimap(minimapCtx, scale));
+                cities.forEach(city => city.drawMinimap(minimapCtx, scale));
+                ships.forEach(ship => ship.drawMinimap(minimapCtx, scale));
+                cannonballs.forEach(cb => cb.drawMinimap(minimapCtx, scale));
+            }
+        }
+        
+        function gameLoop(timestamp) {
+            const dt = (timestamp - lastTime) / 1000;
+            lastTime = timestamp;
+            update(dt);
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        document.addEventListener("keydown", (e) => {
+            if (!inTradeMode) keys[e.key] = true;
+            if (e.key === " ") {
+                if (playerShip && playerShip.fireCooldown <= 0) {
+                    fireCannon(playerShip,
+                        playerShip.x + Math.cos(playerShip.angle) * 300,
+                        playerShip.y + Math.sin(playerShip.angle) * 300);
+                }
+            }
+            if (e.key.toLowerCase() === "p") {
+                isPaused = !isPaused;
+                logMessage(isPaused ? "Game Paused" : "Game Resumed");
+            }
+            if (e.key.toLowerCase() === "m") { showMinimap = !showMinimap; }
+            if (e.key.toLowerCase() === "s") { saveGame(); }
+            if (e.key.toLowerCase() === "l") { loadGame(); }
+            if (e.key.toLowerCase() === "t") { toggleTradeMode(); }
+            if (e.key.toLowerCase() === "c") { attemptCapture(); }
+            if (e.key.toLowerCase() === "n") { toggleNightMode(); }
+        });
+        
+        document.addEventListener("keyup", (e) => { keys[e.key] = false; });
+        
+        function toggleNightMode() {
+            nightMode = !nightMode;
+            logMessage(nightMode ? "Night mode activated." : "Day mode activated.");
+        }
+
+        function toggleTradeMode() {
+            if (!inTradeMode) {
+                let nearbyCity = cities.find(city => distance(playerShip.x, playerShip.y, city.x, city.y) < 100);
+                if (nearbyCity) {
+                    inTradeMode = true;
+                    isPaused = true;
+                    openTradeMenu(nearbyCity);
+                } else { logMessage("Not near any city to trade."); }
+            } else {
+                inTradeMode = false;
+                isPaused = false;
+                closeTradeMenu();
+            }
+        }
+        
+        function openTradeMenu(city) {
+            tradeMenuDiv.style.display = "block";
+            tradeMenuDiv.innerHTML = `
+                <h3>Trading at ${city.name} (${city.nation} ${nations[city.nation]})</h3>
+                <p>Your Money: ${playerShip.money}</p>
+                <p>City Inventory:</p>
+                <ul>
+                    <li>Rum: ${city.goods["Rum"].quantity} @ ${city.goods["Rum"].price.toFixed(0)}</li>
+                    <li>Spices: ${city.goods["Spices"].quantity} @ ${city.goods["Spices"].price.toFixed(0)}</li>
+                    <li>Gold: ${city.goods["Gold"].quantity} @ ${city.goods["Gold"].price.toFixed(0)}</li>
+                </ul>
+                <p>Controls:</p>
+                <p>Buy: 1 (Rum), 2 (Spices), 3 (Gold)</p>
+                <p>Sell: Q (Rum), W (Spices), E (Gold)</p>
+                <p>Buy Cannon: 4 | Recruit Crew: R</p>
+                <p>Sell Captured Ship: V | Sell Cannon: Y</p>
+                <p>Press T to exit trading.</p>
+            `;
+        }
+        
+        function closeTradeMenu() {
+            tradeMenuDiv.style.display = "none";
+        }
+        
+        document.addEventListener("keydown", (e) => {
+            if (inTradeMode) {
+                let currentCity = cities.find(city => distance(playerShip.x, playerShip.y, city.x, city.y) < 100);
+                if (!currentCity) return;
+                switch (e.key) {
+                    case "1":
+                        if (playerShip.money >= currentCity.goods["Rum"].price && currentCity.goods["Rum"].quantity > 0) {
+                            playerShip.money -= currentCity.goods["Rum"].price;
+                            playerShip.inventory["Rum"] = (playerShip.inventory["Rum"] || 0) + 1;
+                            currentCity.goods["Rum"].quantity--;
+                            logMessage("Bought 1 Rum.");
+                        }
+                        break;
+                    case "2":
+                        if (playerShip.money >= currentCity.goods["Spices"].price && currentCity.goods["Spices"].quantity > 0) {
+                            playerShip.money -= currentCity.goods["Spices"].price;
+                            playerShip.inventory["Spices"] = (playerShip.inventory["Spices"] || 0) + 1;
+                            currentCity.goods["Spices"].quantity--;
+                            logMessage("Bought 1 Spices.");
+                        }
+                        break;
+                    case "3":
+                        if (playerShip.money >= currentCity.goods["Gold"].price && currentCity.goods["Gold"].quantity > 0) {
+                            playerShip.money -= currentCity.goods["Gold"].price;
+                            playerShip.inventory["Gold"] = (playerShip.inventory["Gold"] || 0) + 1;
+                            currentCity.goods["Gold"].quantity--;
+                            logMessage("Bought 1 Gold.");
+                        }
+                        break;
+                    case "q":
+                    case "Q":
+                        if ((playerShip.inventory["Rum"] || 0) > 0) {
+                            playerShip.money += currentCity.goods["Rum"].price;
+                            playerShip.inventory["Rum"]--;
+                            currentCity.goods["Rum"].quantity++;
+                            logMessage("Sold 1 Rum.");
+                        }
+                        break;
+                    case "w":
+                    case "W":
+                        if ((playerShip.inventory["Spices"] || 0) > 0) {
+                            playerShip.money += currentCity.goods["Spices"].price;
+                            playerShip.inventory["Spices"]--;
+                            currentCity.goods["Spices"].quantity++;
+                            logMessage("Sold 1 Spices.");
+                        }
+                        break;
+                    case "e":
+                    case "E":
+                        if ((playerShip.inventory["Gold"] || 0) > 0) {
+                            playerShip.money += currentCity.goods["Gold"].price;
+                            playerShip.inventory["Gold"]--;
+                            currentCity.goods["Gold"].quantity++;
+                            logMessage("Sold 1 Gold.");
+                        }
+                        break;
+                    case "4":
+                        if (playerShip.money >= 50) {
+                            playerShip.money -= 50;
+                            playerShip.cannons++;
+                            logMessage("Bought a Cannon.");
+                        }
+                        break;
+                    case "r":
+                    case "R":
+                        if (playerShip.money >= 10) {
+                            playerShip.money -= 10;
+                            playerShip.crew += 5;
+                            logMessage("Recruited 5 Crew members.");
+                        }
+                        break;
+                    case "v":
+                    case "V":
+                        let capturedIndex = ships.findIndex(s => s.captured);
+                        if (capturedIndex !== -1) {
+                            playerShip.money += 100;
+                            ships.splice(capturedIndex, 1);
+                            logMessage("Sold captured ship for 100 gold.");
+                        }
+                        break;
+                    case "y":
+                    case "Y":
+                        if (playerShip.cannons > 0) {
+                            playerShip.cannons--;
+                            playerShip.money += 30;
+                            logMessage("Sold a Cannon for 30 gold.");
+                        }
+                        break;
+                }
+                openTradeMenu(currentCity);
+            }
+        });
+        
+        function attemptCapture() {
+            for (let ship of ships) {
+                if (!ship.isPlayer && !ship.captured && distance(playerShip.x, playerShip.y, ship.x, ship.y) < 50 && ship.health < 15) {
+                    const choice = confirm("Capture enemy ship: OK to take over, Cancel to sink.");
+                    if (choice) {
+                        ship.captured = true;
+                        ship.nation = playerShip.nation;
+                        logMessage("Captured enemy ship!");
+                    } else {
+                        playerShip.money += 50;
+                        logMessage("Sunk enemy ship for loot!");
+                        ships = ships.filter(s => s !== ship);
+                    }
+                    break;
+                }
+            }
+        }
+        
+        function saveGame() {
+            const state = {
+                islands, cities, ships, cannonballs, playerShip, quests, relationships
+            };
+            localStorage.setItem("pirateGameSave", JSON.stringify(state));
+            logMessage("Game saved.");
+        }
+        
+        function loadGame() {
+            const stateStr = localStorage.getItem("pirateGameSave");
+            if (stateStr) {
+                const state = JSON.parse(stateStr);
+                islands = state.islands;
+                cities = state.cities;
+                ships = state.ships;
+                cannonballs = state.cannonballs;
+                quests = state.quests || [];
+                playerShip = ships.find(s => s.isPlayer);
+                relationships = state.relationships;
+                islands.forEach(i => Object.setPrototypeOf(i, Island.prototype));
+                cities.forEach(c => Object.setPrototypeOf(c, City.prototype));
+                ships.forEach(s => Object.setPrototypeOf(s, Ship.prototype));
+                cannonballs.forEach(cb => Object.setPrototypeOf(cb, Cannonball.prototype));
+                quests.forEach(q => Object.setPrototypeOf(q, Quest.prototype));
+                logMessage("Game loaded.");
+                updateQuestLogUI();
+            } else {
+                logMessage("No saved game found.");
+            }
+        }
+        
+        function initGame() {
+            initRelationships();
+            generateIslands();
+            generateCities();
+            generateEnemyShips();
+            spawnPlayerShip();
+            requestAnimationFrame(gameLoop);
+        }
+
+        initGame();
+    </script>
+</body>
+</html>
