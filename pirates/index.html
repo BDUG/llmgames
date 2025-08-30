@@ -162,33 +162,7 @@
       const governorMenuDiv = document.getElementById('governorMenu');
       const upgradeMenuDiv = document.getElementById('upgradeMenu');
 
-      const CITY_ICON_URL = 'city.png';
       const CITY_ICON_SIZE = 16;
-      let cityImg = null;
-      loadCityImage(CITY_ICON_URL).then(img => cityImg = img);
-
-      const SHIP_SPRITE_URLS = {
-        Sloop: {
-          Netherlands: 'https://example.com/sloop_netherlands.png',
-          Spain: 'https://example.com/sloop_spain.png',
-          France: 'https://example.com/sloop_france.png',
-          England: 'https://example.com/sloop_england.png'
-        },
-        Brig: {
-          Netherlands: 'https://example.com/brig_netherlands.png',
-          Spain: 'https://example.com/brig_spain.png',
-          France: 'https://example.com/brig_france.png',
-          England: 'https://example.com/brig_england.png'
-        },
-        Galleon: {
-          Netherlands: 'https://example.com/galleon_netherlands.png',
-          Spain: 'https://example.com/galleon_spain.png',
-          France: 'https://example.com/galleon_france.png',
-          England: 'https://example.com/galleon_england.png'
-        }
-      };
-      let shipSprites = {};
-      loadShipSprites(SHIP_SPRITE_URLS).then(map => shipSprites = map);
 
       const BASE_SPRITE_SIZE = 32;
       const SPRITE_HD_SCALE = 2;
@@ -199,7 +173,7 @@
         return { w: size, h: size };
       }
       function getShipSprite(type, nation){
-        return shipSprites[type] ? shipSprites[type][nation] : null;
+        return assets.ship && assets.ship[type] ? assets.ship[type][nation] : null;
       }
 
       let lastTime = 0;
@@ -638,9 +612,9 @@
         draw(ctx, offsetX, offsetY) {
           const width = CITY_ICON_SIZE;
           const height = CITY_ICON_SIZE;
-          if (cityImg) {
+          if (assets.city) {
             ctx.drawImage(
-              cityImg,
+              assets.city,
               this.x - offsetX - width / 2,
               this.y - offsetY - height / 2,
               width,
@@ -1705,7 +1679,8 @@
     /***********************
      * Initialization & Loop Start
      ***********************/
-    function initGame() {
+    async function initGame() {
+      await loadAssets();
       initRelationships();
       initReputation();
       generateIslands();
@@ -1714,7 +1689,7 @@
       spawnPlayerShip();
       requestAnimationFrame(gameLoop);
     }
-    
+
     initGame();
     
     // Generate a new quest every 60 seconds.
