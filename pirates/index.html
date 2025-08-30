@@ -179,6 +179,79 @@
     let cannonballs = [];
     let boardCandidate = null;
     let quests = []; // Global quest log.
+
+    // Navigation grid for AI pathfinding
+    const gridSize = 80;
+    const gridCols = Math.floor(worldWidth / gridSize);
+    const gridRows = Math.floor(worldHeight / gridSize);
+    let navGrid = [];
+
+    function buildNavGrid() {
+      navGrid = [];
+      for (let r = 0; r < gridRows; r++) {
+        const row = [];
+        for (let c = 0; c < gridCols; c++) {
+          const x = c * gridSize + gridSize / 2;
+          const y = r * gridSize + gridSize / 2;
+          let blocked = false;
+          for (let island of islands) {
+            if (pointInPolygon(x, y, island.vertices)) { blocked = true; break; }
+          }
+          row.push(blocked ? 1 : 0);
+        }
+        navGrid.push(row);
+      }
+      logMessage('Navigation grid generated.');
+    }
+
+    function findPath(sx, sy, gx, gy) {
+      const start = { c: Math.floor(sx / gridSize), r: Math.floor(sy / gridSize) };
+      const goal  = { c: Math.floor(gx / gridSize), r: Math.floor(gy / gridSize) };
+
+      const key = p => p.r + ',' + p.c;
+      let open = [start];
+      const came = {};
+      const gScore = { [key(start)]: 0 };
+      const fScore = { [key(start)]: distance(start.c, start.r, goal.c, goal.r) };
+
+      while (open.length) {
+        let idx = 0;
+        for (let i = 1; i < open.length; i++) {
+          if (fScore[key(open[i])] < fScore[key(open[idx])]) idx = i;
+        }
+        const current = open.splice(idx, 1)[0];
+        if (current.c === goal.c && current.r === goal.r) {
+          const path = [];
+          let curKey = key(current);
+          while (came[curKey]) {
+            const [r, c] = curKey.split(',').map(Number);
+            path.push({ x: c * gridSize + gridSize / 2, y: r * gridSize + gridSize / 2 });
+            curKey = came[curKey];
+          }
+          path.reverse();
+          return path;
+        }
+        const neighbors = [
+          { r: current.r - 1, c: current.c },
+          { r: current.r + 1, c: current.c },
+          { r: current.r, c: current.c - 1 },
+          { r: current.r, c: current.c + 1 },
+        ];
+        for (let n of neighbors) {
+          if (n.r < 0 || n.r >= gridRows || n.c < 0 || n.c >= gridCols) continue;
+          if (navGrid[n.r][n.c] === 1) continue;
+          const nk = key(n);
+          const tentativeG = gScore[key(current)] + 1;
+          if (tentativeG < (gScore[nk] ?? Infinity)) {
+            came[nk] = key(current);
+            gScore[nk] = tentativeG;
+            fScore[nk] = tentativeG + distance(n.c, n.r, goal.c, goal.r);
+            if (!open.some(o => o.r === n.r && o.c === n.c)) open.push(n);
+          }
+        }
+      }
+      return [];
+    }
     
     // Key tracking.
     const keys = {};
@@ -555,6 +628,23 @@
         this.captured = false;
         this.money = 0;
         this.specialists = [];
+        this.path = [];
+        this.pathIndex = 0;
+        this.behavior = 'trade';
+        this.tradeRoute = [];
+        this.routeIndex = 0;
+        this.patrolPoints = [];
+        this.patrolIndex = 0;
+        this.chasing = null;
+      }
+      setCourse(destX, destY) {
+        this.path = findPath(this.x, this.y, destX, destY);
+        this.pathIndex = 0;
+        if (this.path.length === 0) {
+          logMessage(`${this.nation} ship failed to plot course.`);
+        } else {
+          logMessage(`${this.nation} ship plotting course with ${this.path.length} waypoints.`);
+        }
       }
       update(dt) {
         const windX = Math.cos(windDirection) * windSpeed;
@@ -573,20 +663,32 @@
           if (keys["ArrowRight"]) this.angle += typeTurn * windTurnFactor;
           this.speed = keys["ArrowUp"] ? Math.max(0, baseSpeed + windMod) : 0;
         } else {
-          if (this.targetCity) {
+          if (this.chasing && distance(this.chasing.x, this.chasing.y, this.x, this.y) > 400) {
+            logMessage(`${this.nation} patrol ship lost target.`);
+            this.chasing = null;
+          }
+          if (this.path.length === 0) {
+            if (this.chasing) {
+              this.setCourse(this.chasing.x, this.chasing.y);
+            } else if (this.behavior === 'trade' && this.targetCity) {
+              this.setCourse(this.targetCity.x, this.targetCity.y);
+            } else if (this.behavior === 'patrol' && this.patrolPoints.length) {
+              const pt = this.patrolPoints[this.patrolIndex];
+              this.setCourse(pt.x, pt.y);
+            }
+          }
+          if (this.path.length) {
+            const waypoint = this.path[this.pathIndex];
             let desired = {
-              x: this.targetCity.x - this.x - windX * 20,
-              y: this.targetCity.y - this.y - windY * 20,
+              x: waypoint.x - this.x - windX * 20,
+              y: waypoint.y - this.y - windY * 20,
             };
             let mag = Math.hypot(desired.x, desired.y);
             if (mag > 0) { desired.x /= mag; desired.y /= mag; }
             let repulsion = { x: 0, y: 0 };
             for (let island of islands) {
               let center = { x: 0, y: 0 };
-              for (let vertex of island.vertices) {
-                center.x += vertex.x;
-                center.y += vertex.y;
-              }
+              for (let vertex of island.vertices) { center.x += vertex.x; center.y += vertex.y; }
               center.x /= island.vertices.length;
               center.y /= island.vertices.length;
               let avgRadius = 0;
@@ -618,6 +720,12 @@
             else if (angleDiff < -turnRate) this.angle -= turnRate;
             else this.angle = targetAngle;
             this.speed = Math.max(0, baseSpeed * 0.8 + windMod);
+            if (distance(this.x, this.y, waypoint.x, waypoint.y) < gridSize / 2) {
+              this.pathIndex++;
+              if (this.pathIndex >= this.path.length) {
+                this.path = [];
+              }
+            }
           } else {
             this.speed = Math.max(0, baseSpeed * 0.5 + windMod);
           }
@@ -643,13 +751,33 @@
           for (let island of islands) {
             if (pointInPolygon(this.x, this.y, island.vertices)) { repositionEnemyShip(this, island); break; }
           }
-          // When an enemy ship reaches its current target city (within 100px),
-          // update its trading route to a new target (excluding its home city).
-          if (this.targetCity && distance(this.x, this.y, this.targetCity.x, this.targetCity.y) < 100) {
-            let possibleTargets = cities.filter(c => c.id !== this.homeCity.id);
-            if (possibleTargets.length > 0) {
-              this.targetCity = possibleTargets[Math.floor(Math.random() * possibleTargets.length)];
-              logMessage(`${this.nation} ship now trading to ${this.targetCity.name}.`);
+          if (this.behavior === 'trade' && this.targetCity &&
+              distance(this.x, this.y, this.targetCity.x, this.targetCity.y) < 100) {
+            this.routeIndex = (this.routeIndex + 1) % this.tradeRoute.length;
+            this.targetCity = this.tradeRoute[this.routeIndex];
+            logMessage(`${this.nation} ship now trading to ${this.targetCity.name}.`);
+            this.setCourse(this.targetCity.x, this.targetCity.y);
+          }
+          if (this.behavior === 'patrol' && this.patrolPoints.length) {
+            if (distance(this.x, this.y, this.patrolPoints[this.patrolIndex].x, this.patrolPoints[this.patrolIndex].y) < 50) {
+              this.patrolIndex = (this.patrolIndex + 1) % this.patrolPoints.length;
+              const pt = this.patrolPoints[this.patrolIndex];
+              logMessage(`${this.nation} patrol ship moving to waypoint ${this.patrolIndex}.`);
+              this.setCourse(pt.x, pt.y);
+            }
+            if (!this.chasing) {
+              for (let s of ships) {
+                if (s !== this && s.nation !== this.nation && areAtWar(s.nation, this.nation) && distance(this.x, this.y, s.x, s.y) < 300) {
+                  this.chasing = s;
+                  logMessage(`${this.nation} patrol ship engaging ${s.nation} vessel.`);
+                  this.path = [];
+                  break;
+                }
+              }
+            } else {
+              if (distance(this.x, this.y, this.chasing.x, this.chasing.y) < 50) {
+                this.chasing = null;
+              }
             }
           }
         }
@@ -785,6 +913,7 @@
         }
         islands.push(new Island(vertices));
       }
+      buildNavGrid();
     }
     
     function generateCities() {
@@ -819,8 +948,30 @@
         const type = types[Math.floor(Math.random() * types.length)];
         const ship = new Ship(shipId, type, city.nation, spawnX, spawnY);
         ship.homeCity = city;
-        let possibleTargets = cities.filter(c => c.id !== city.id);
-        ship.targetCity = possibleTargets[Math.floor(Math.random() * possibleTargets.length)];
+        if (Math.random() < 0.5) {
+          ship.behavior = 'trade';
+          ship.tradeRoute = [city];
+          let available = cities.filter(c => c.id !== city.id);
+          while (ship.tradeRoute.length < 3 && available.length) {
+            let next = available.splice(Math.floor(Math.random() * available.length), 1)[0];
+            ship.tradeRoute.push(next);
+          }
+          ship.routeIndex = 1;
+          ship.targetCity = ship.tradeRoute[1];
+          logMessage(`${ship.nation} trade ship from ${city.name} bound for ${ship.targetCity.name}.`);
+          ship.setCourse(ship.targetCity.x, ship.targetCity.y);
+        } else {
+          ship.behavior = 'patrol';
+          const radius = 200;
+          for (let i = 0; i < 4; i++) {
+            const ang = (i / 4) * 2 * Math.PI;
+            ship.patrolPoints.push({ x: city.x + Math.cos(ang) * radius, y: city.y + Math.sin(ang) * radius });
+          }
+          ship.patrolIndex = 0;
+          const pt = ship.patrolPoints[0];
+          logMessage(`${ship.nation} patrol ship guarding ${city.name}.`);
+          ship.setCourse(pt.x, pt.y);
+        }
         ships.push(ship);
         shipId++;
       }
