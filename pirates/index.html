@@ -662,6 +662,8 @@
         this.captured = false;
         this.money = 0;
         this.specialists = [];
+        this.navigationAccuracy = 0;
+        this.cannonDamage = 20;
         this.path = [];
         this.pathIndex = 0;
         this.behavior = 'trade';
@@ -917,7 +919,7 @@
         return;
       }
       ship.ammo--;
-      const accuracy = ship.morale / 100;
+      const accuracy = Math.min(1, ship.morale / 100 + (ship.navigationAccuracy || 0));
       const angle = Math.atan2(targetY - ship.y, targetX - ship.x) + (Math.random() - 0.5) * (1 - accuracy) * 0.3;
       const cannonball = new Cannonball(
         ship.x + Math.cos(angle) * 20,
@@ -926,6 +928,7 @@
         ship
       );
       cannonball.damageType = Math.random() < 0.5 ? "hull" : "sail";
+      cannonball.damage = ship.cannonDamage || cannonball.damage;
       cannonballs.push(cannonball);
       logMessage((ship.isPlayer ? "Player" : ship.nation + " ship") +
         ` fired a cannonball. Ammo: ${ship.ammo}`);
@@ -1174,6 +1177,8 @@
           <p>Ship: ${playerShip.type}</p>
           <p>Nation: ${playerShip.nation} ${nations[playerShip.nation]}</p>
           <p>Cannons: ${playerShip.cannons}</p>
+          <p>Nav. Accuracy: ${(playerShip.navigationAccuracy*100).toFixed(0)}%</p>
+          <p>Cannon Damage: ${playerShip.cannonDamage}</p>
           <p>Wind: ${windSpeed.toFixed(1)} @ ${(windDirection * 180/Math.PI).toFixed(0)}°</p>
         `;
         if (boardCandidate) {
@@ -1300,10 +1305,10 @@
       upgradeMenuDiv.innerHTML = `
         <h3>Shipyard at ${city.name}</h3>
         <p>Money: ${playerShip.money}</p>
-        <p>1: Upgrade Hull (100 gold)</p>
-        <p>2: Upgrade Sails (100 gold)</p>
-        <p>3: Hire Navigator (50 gold)</p>
-        <p>4: Hire Gunner (50 gold)</p>
+        <p>1: Reinforce Hull (+20 max hull, 100 gold)</p>
+        <p>2: Improve Sails (+20 max sail, 100 gold)</p>
+        <p>3: Refine Navigation (+5% accuracy, 100 gold)</p>
+        <p>4: Upgrade Cannons (+5 damage, 100 gold)</p>
         <p>Esc: Exit</p>
       `;
     }
@@ -1394,6 +1399,8 @@
                 playerShip.maxHull += 20;
                 playerShip.hull = playerShip.maxHull;
                 logMessage("Hull upgraded.");
+              } else {
+                logMessage("Not enough gold for hull upgrade.");
               }
               break;
             case "2":
@@ -1402,24 +1409,26 @@
                 playerShip.maxSail += 20;
                 playerShip.sail = playerShip.maxSail;
                 logMessage("Sails upgraded.");
+              } else {
+                logMessage("Not enough gold for sail upgrade.");
               }
               break;
             case "3":
-              if (playerShip.money >= 50 && !playerShip.specialists.includes('Navigator')) {
-                playerShip.money -= 50;
-                playerShip.specialists.push('Navigator');
-                playerShip.maxSpeed += 0.2;
-                logMessage("Navigator hired.");
+              if (playerShip.money >= 100) {
+                playerShip.money -= 100;
+                playerShip.navigationAccuracy += 0.05;
+                logMessage("Navigation accuracy improved.");
+              } else {
+                logMessage("Not enough gold for navigation upgrade.");
               }
               break;
             case "4":
-              if (playerShip.money >= 50 && !playerShip.specialists.includes('Gunner')) {
-                playerShip.money -= 50;
-                playerShip.specialists.push('Gunner');
-                playerShip.cannons++;
-                playerShip.maxAmmo = playerShip.cannons * 10;
-                playerShip.ammo = playerShip.maxAmmo;
-                logMessage("Gunner hired.");
+              if (playerShip.money >= 100) {
+                playerShip.money -= 100;
+                playerShip.cannonDamage += 5;
+                logMessage("Cannon damage increased.");
+              } else {
+                logMessage("Not enough gold for cannon upgrade.");
               }
               break;
             case "Escape":
@@ -1612,7 +1621,11 @@
         cities,
         ships,
         cannonballs,
-        playerShip,
+        playerShip: {
+          ...playerShip,
+          navigationAccuracy: playerShip.navigationAccuracy,
+          cannonDamage: playerShip.cannonDamage
+        },
         quests,
         relationships,
         playerReputation,
@@ -1644,7 +1657,6 @@
         ships = state.ships;
         cannonballs = state.cannonballs;
         quests = state.quests || [];
-        playerShip = ships.find(s => s.isPlayer);
         relationships = state.relationships;
         playerReputation = state.playerReputation || {};
         lettersOfMarque = state.lettersOfMarque || {};
@@ -1661,7 +1673,18 @@
             if (good.basePrice === undefined) good.basePrice = good.price;
           });
         });
-        ships.forEach(s => Object.setPrototypeOf(s, Ship.prototype));
+        ships.forEach(s => {
+          Object.setPrototypeOf(s, Ship.prototype);
+          if (s.navigationAccuracy === undefined) s.navigationAccuracy = 0;
+          if (s.cannonDamage === undefined) s.cannonDamage = 20;
+        });
+        playerShip = ships.find(s => s.isPlayer);
+        if (state.playerShip) {
+          if (state.playerShip.navigationAccuracy !== undefined)
+            playerShip.navigationAccuracy = state.playerShip.navigationAccuracy;
+          if (state.playerShip.cannonDamage !== undefined)
+            playerShip.cannonDamage = state.playerShip.cannonDamage;
+        }
         cannonballs.forEach(cb => Object.setPrototypeOf(cb, Cannonball.prototype));
         quests.forEach(q => Object.setPrototypeOf(q, Quest.prototype));
         // Ensure reputation and marque objects have all nations
