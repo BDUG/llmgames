@@ -335,10 +335,43 @@
         this.y = y;
         this.nation = nation;
         this.population = 1000;
+
+        // Each good now tracks its economic behaviour.  Prices are seeded
+        // randomly but we also keep a basePrice to anchor future
+        // fluctuations.  productionRate/consumptionRate are measured per
+        // second and tradeVolume captures player trading since the last
+        // economy update.
+        const rumBase = randomPrice(10, 20);
+        const spiceBase = randomPrice(15, 30);
+        const goldBase = randomPrice(50, 100);
         this.goods = {
-          "Rum": { price: randomPrice(10, 20), quantity: 100 },
-          "Spices": { price: randomPrice(15, 30), quantity: 100 },
-          "Gold": { price: randomPrice(50, 100), quantity: 50 }
+          "Rum": {
+            price: rumBase,
+            basePrice: rumBase,
+            quantity: 100,
+            productionRate: 2,
+            consumptionRate: 1,
+            maxStorage: 200,
+            tradeVolume: 0
+          },
+          "Spices": {
+            price: spiceBase,
+            basePrice: spiceBase,
+            quantity: 100,
+            productionRate: 1.5,
+            consumptionRate: 1,
+            maxStorage: 200,
+            tradeVolume: 0
+          },
+          "Gold": {
+            price: goldBase,
+            basePrice: goldBase,
+            quantity: 50,
+            productionRate: 0.5,
+            consumptionRate: 0.2,
+            maxStorage: 100,
+            tradeVolume: 0
+          }
         };
       }
       draw(ctx, offsetX, offsetY) {
@@ -647,10 +680,37 @@
      * Game Mechanics & Updates
      ***********************/
     function updateCityEconomies(dt) {
+      // Simulate simple supply/demand dynamics for each city.  Production and
+      // consumption adjust quantities, while recent trade and scarcity affect
+      // prices.
       for (let city of cities) {
-        for (let good in city.goods) {
-          let change = (Math.random() - 0.5) * dt * 0.1;
-          city.goods[good].price = Math.max(1, city.goods[good].price + change);
+        for (let goodName in city.goods) {
+          const good = city.goods[goodName];
+
+          // Apply local production and consumption.
+          good.quantity += good.productionRate * dt;
+          good.quantity -= good.consumptionRate * dt;
+
+          // Apply player trade impact from since the last update.
+          good.quantity += good.tradeVolume;
+
+          // Adjust price based on trade volume: buying from the city (negative
+          // tradeVolume) drives prices up, selling drives them down.
+          if (good.tradeVolume !== 0) {
+            good.price += (-good.tradeVolume) * 0.5;
+          }
+          good.tradeVolume = 0;
+
+          // Clamp inventory within storage limits.
+          if (good.quantity > good.maxStorage) good.quantity = good.maxStorage;
+          if (good.quantity < 0) good.quantity = 0;
+
+          // Scarcity influences price relative to the base price.
+          const scarcity = 1 - (good.quantity / good.maxStorage);
+          good.price = Math.max(
+            1,
+            good.basePrice * (1 + scarcity)
+          );
         }
       }
     }
@@ -782,15 +842,18 @@
     
     function openTradeMenu(city) {
       tradeMenuDiv.style.display = "block";
+
+      // Build inventory list dynamically to reflect current prices and
+      // quantities that may fluctuate over time.
+      const inventory = Object.entries(city.goods)
+        .map(([name, data]) => `<li>${name}: ${data.quantity.toFixed(0)} @ ${data.price.toFixed(0)}</li>`)
+        .join("");
+
       tradeMenuDiv.innerHTML = `
         <h3>Trading at ${city.name} (${city.nation} ${nations[city.nation]})</h3>
         <p>Your Money: ${playerShip.money}</p>
         <p>City Inventory:</p>
-        <ul>
-          <li>Rum: ${city.goods["Rum"].quantity} @ ${city.goods["Rum"].price.toFixed(0)}</li>
-          <li>Spices: ${city.goods["Spices"].quantity} @ ${city.goods["Spices"].price.toFixed(0)}</li>
-          <li>Gold: ${city.goods["Gold"].quantity} @ ${city.goods["Gold"].price.toFixed(0)}</li>
-        </ul>
+        <ul>${inventory}</ul>
         <p>Controls:</p>
         <p>Buy: 1 (Rum), 2 (Spices), 3 (Gold)</p>
         <p>Sell: Q (Rum), W (Spices), E (Gold)</p>
@@ -814,6 +877,7 @@
               playerShip.money -= currentCity.goods["Rum"].price;
               playerShip.inventory["Rum"] = (playerShip.inventory["Rum"] || 0) + 1;
               currentCity.goods["Rum"].quantity--;
+              currentCity.goods["Rum"].tradeVolume--;
               logMessage("Bought 1 Rum.");
             }
             break;
@@ -822,6 +886,7 @@
               playerShip.money -= currentCity.goods["Spices"].price;
               playerShip.inventory["Spices"] = (playerShip.inventory["Spices"] || 0) + 1;
               currentCity.goods["Spices"].quantity--;
+              currentCity.goods["Spices"].tradeVolume--;
               logMessage("Bought 1 Spices.");
             }
             break;
@@ -830,6 +895,7 @@
               playerShip.money -= currentCity.goods["Gold"].price;
               playerShip.inventory["Gold"] = (playerShip.inventory["Gold"] || 0) + 1;
               currentCity.goods["Gold"].quantity--;
+              currentCity.goods["Gold"].tradeVolume--;
               logMessage("Bought 1 Gold.");
             }
             break;
@@ -839,6 +905,7 @@
               playerShip.money += currentCity.goods["Rum"].price;
               playerShip.inventory["Rum"]--;
               currentCity.goods["Rum"].quantity++;
+              currentCity.goods["Rum"].tradeVolume++;
               logMessage("Sold 1 Rum.");
             }
             break;
@@ -848,6 +915,7 @@
               playerShip.money += currentCity.goods["Spices"].price;
               playerShip.inventory["Spices"]--;
               currentCity.goods["Spices"].quantity++;
+              currentCity.goods["Spices"].tradeVolume++;
               logMessage("Sold 1 Spices.");
             }
             break;
@@ -857,6 +925,7 @@
               playerShip.money += currentCity.goods["Gold"].price;
               playerShip.inventory["Gold"]--;
               currentCity.goods["Gold"].quantity++;
+              currentCity.goods["Gold"].tradeVolume++;
               logMessage("Sold 1 Gold.");
             }
             break;
@@ -923,8 +992,26 @@
      ***********************/
     function saveGame() {
       const state = {
-        islands, cities, ships, cannonballs, playerShip, quests, relationships
+        islands,
+        cities,
+        ships,
+        cannonballs,
+        playerShip,
+        quests,
+        relationships
       };
+
+      // Ensure all economic fields on goods are persisted.
+      state.cities.forEach(city => {
+        Object.values(city.goods).forEach(good => {
+          if (good.tradeVolume === undefined) good.tradeVolume = 0;
+          if (good.productionRate === undefined) good.productionRate = 0;
+          if (good.consumptionRate === undefined) good.consumptionRate = 0;
+          if (good.maxStorage === undefined) good.maxStorage = 0;
+          if (good.basePrice === undefined) good.basePrice = good.price;
+        });
+      });
+
       localStorage.setItem("pirateGameSave", JSON.stringify(state));
       logMessage("Game saved.");
     }
@@ -941,7 +1028,17 @@
         playerShip = ships.find(s => s.isPlayer);
         relationships = state.relationships;
         islands.forEach(i => Object.setPrototypeOf(i, Island.prototype));
-        cities.forEach(c => Object.setPrototypeOf(c, City.prototype));
+        cities.forEach(c => {
+          Object.setPrototypeOf(c, City.prototype);
+          // Restore economy fields for each good, providing defaults for older saves.
+          Object.values(c.goods).forEach(good => {
+            if (good.tradeVolume === undefined) good.tradeVolume = 0;
+            if (good.productionRate === undefined) good.productionRate = 0;
+            if (good.consumptionRate === undefined) good.consumptionRate = 0;
+            if (good.maxStorage === undefined) good.maxStorage = 100;
+            if (good.basePrice === undefined) good.basePrice = good.price;
+          });
+        });
         ships.forEach(s => Object.setPrototypeOf(s, Ship.prototype));
         cannonballs.forEach(cb => Object.setPrototypeOf(cb, Cannonball.prototype));
         quests.forEach(q => Object.setPrototypeOf(q, Quest.prototype));
