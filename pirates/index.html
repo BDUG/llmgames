@@ -167,6 +167,41 @@
       let cityImg = null;
       loadCityImage(CITY_ICON_URL).then(img => cityImg = img);
 
+      const SHIP_SPRITE_URLS = {
+        Sloop: {
+          Netherlands: 'https://example.com/sloop_netherlands.png',
+          Spain: 'https://example.com/sloop_spain.png',
+          France: 'https://example.com/sloop_france.png',
+          England: 'https://example.com/sloop_england.png'
+        },
+        Brig: {
+          Netherlands: 'https://example.com/brig_netherlands.png',
+          Spain: 'https://example.com/brig_spain.png',
+          France: 'https://example.com/brig_france.png',
+          England: 'https://example.com/brig_england.png'
+        },
+        Galleon: {
+          Netherlands: 'https://example.com/galleon_netherlands.png',
+          Spain: 'https://example.com/galleon_spain.png',
+          France: 'https://example.com/galleon_france.png',
+          England: 'https://example.com/galleon_england.png'
+        }
+      };
+      let shipSprites = {};
+      loadShipSprites(SHIP_SPRITE_URLS).then(map => shipSprites = map);
+
+      const BASE_SPRITE_SIZE = 32;
+      const SPRITE_HD_SCALE = 2;
+      const SHIP_CLASS_SCALE = { Sloop: 1, Brig: 1.5, Galleon: 2 };
+      function getShipSpriteDimensions(type){
+        const scale = SHIP_CLASS_SCALE[type] || 1;
+        const size = BASE_SPRITE_SIZE * SPRITE_HD_SCALE * scale;
+        return { w: size, h: size };
+      }
+      function getShipSprite(type, nation){
+        return shipSprites[type] ? shipSprites[type][nation] : null;
+      }
+
       let lastTime = 0;
     let isPaused = false;
     let inTradeMode = false;
@@ -667,6 +702,10 @@
         this.wages = 1;             // gold per crew member when paying wages
         this.mutinyThreshold = 20;  // morale level at which mutiny occurs
         this.wageTimer = 0;         // track time for periodic morale decay
+
+        const dims = getShipSpriteDimensions(type);
+        this.spriteWidth = dims.w;
+        this.spriteHeight = dims.h;
       }
       setCourse(destX, destY) {
         this.path = findPath(this.x, this.y, destX, destY);
@@ -830,22 +869,28 @@
         ctx.save();
         ctx.translate(this.x - offsetX, this.y - offsetY);
         ctx.rotate(this.angle);
-        ctx.font = "20px serif";
-        ctx.fillText("⛵", -10, 10);
+        const sprite = getShipSprite(this.type, this.nation);
+        if (sprite) {
+          ctx.drawImage(sprite, -this.spriteWidth/2, -this.spriteHeight/2, this.spriteWidth, this.spriteHeight);
+        } else {
+          ctx.font = "20px serif";
+          ctx.fillText("⛵", -10, 10);
+        }
         if (this.isPlayer) {
           ctx.strokeStyle = "yellow";
           ctx.lineWidth = 2;
           ctx.beginPath();
           ctx.moveTo(0, 0);
-          ctx.lineTo(30, 0);
+          const bow = this.spriteWidth/2;
+          ctx.lineTo(bow, 0);
           ctx.stroke();
           ctx.beginPath();
-          ctx.moveTo(30, 0);
-          ctx.lineTo(25, -5);
+          ctx.moveTo(bow, 0);
+          ctx.lineTo(bow - 5, -5);
           ctx.stroke();
           ctx.beginPath();
-          ctx.moveTo(30, 0);
-          ctx.lineTo(25, 5);
+          ctx.moveTo(bow, 0);
+          ctx.lineTo(bow - 5, 5);
           ctx.stroke();
         }
         ctx.restore();
