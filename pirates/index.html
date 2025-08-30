@@ -251,6 +251,42 @@
       logMessage('Navigation grid generated.');
     }
 
+    function hasLineOfSight(x0, y0, x1, y1) {
+      let c0 = Math.floor(x0 / gridSize);
+      let r0 = Math.floor(y0 / gridSize);
+      const c1 = Math.floor(x1 / gridSize);
+      const r1 = Math.floor(y1 / gridSize);
+      let dc = Math.abs(c1 - c0);
+      let dr = Math.abs(r1 - r0);
+      let stepC = c0 < c1 ? 1 : -1;
+      let stepR = r0 < r1 ? 1 : -1;
+      let err = dc - dr;
+      while (true) {
+        if (r0 < 0 || r0 >= gridRows || c0 < 0 || c0 >= gridCols) return false;
+        if (navGrid[r0][c0] === 1) return false;
+        if (c0 === c1 && r0 === r1) break;
+        const e2 = err * 2;
+        if (e2 > -dr) { err -= dr; c0 += stepC; }
+        if (e2 < dc) { err += dc; r0 += stepR; }
+      }
+      return true;
+    }
+
+    function smoothPath(path) {
+      if (path.length <= 2) return path;
+      const newPath = [path[0]];
+      let i = 0;
+      while (i < path.length - 1) {
+        let j = path.length - 1;
+        for (; j > i + 1; j--) {
+          if (hasLineOfSight(path[i].x, path[i].y, path[j].x, path[j].y)) break;
+        }
+        newPath.push(path[j]);
+        i = j;
+      }
+      return newPath;
+    }
+
     function findPath(sx, sy, gx, gy) {
       const start = { c: Math.floor(sx / gridSize), r: Math.floor(sy / gridSize) };
       const goal  = { c: Math.floor(gx / gridSize), r: Math.floor(gy / gridSize) };
@@ -270,25 +306,35 @@
         if (current.c === goal.c && current.r === goal.r) {
           const path = [];
           let curKey = key(current);
-          while (came[curKey]) {
+          while (curKey) {
             const [r, c] = curKey.split(',').map(Number);
             path.push({ x: c * gridSize + gridSize / 2, y: r * gridSize + gridSize / 2 });
             curKey = came[curKey];
           }
           path.reverse();
-          return path;
+          const smoothed = smoothPath(path);
+          smoothed.shift();
+          return smoothed;
         }
         const neighbors = [
           { r: current.r - 1, c: current.c },
           { r: current.r + 1, c: current.c },
           { r: current.r, c: current.c - 1 },
           { r: current.r, c: current.c + 1 },
+          { r: current.r - 1, c: current.c - 1 },
+          { r: current.r - 1, c: current.c + 1 },
+          { r: current.r + 1, c: current.c - 1 },
+          { r: current.r + 1, c: current.c + 1 },
         ];
         for (let n of neighbors) {
           if (n.r < 0 || n.r >= gridRows || n.c < 0 || n.c >= gridCols) continue;
           if (navGrid[n.r][n.c] === 1) continue;
+          if (n.r !== current.r && n.c !== current.c) {
+            if (navGrid[current.r][n.c] === 1 || navGrid[n.r][current.c] === 1) continue;
+          }
           const nk = key(n);
-          const tentativeG = gScore[key(current)] + 1;
+          const cost = (n.r !== current.r && n.c !== current.c) ? Math.SQRT2 : 1;
+          const tentativeG = gScore[key(current)] + cost;
           if (tentativeG < (gScore[nk] ?? Infinity)) {
             came[nk] = key(current);
             gScore[nk] = tentativeG;
@@ -697,6 +743,9 @@
         this.patrolPoints = [];
         this.patrolIndex = 0;
         this.chasing = null;
+        this.dest = null;
+        this.lastWindDirection = windDirection;
+        this.lastWindSpeed = windSpeed;
 
         // Crew management
         this.morale = 100;          // overall happiness of the crew
@@ -709,6 +758,9 @@
         this.spriteHeight = dims.h;
       }
       setCourse(destX, destY) {
+        this.dest = { x: destX, y: destY };
+        this.lastWindDirection = windDirection;
+        this.lastWindSpeed = windSpeed;
         this.path = findPath(this.x, this.y, destX, destY);
         this.pathIndex = 0;
         if (this.path.length === 0) {
@@ -746,6 +798,18 @@
           if (keys["ArrowRight"]) this.angle += typeTurn * windTurnFactor;
           this.speed = keys["ArrowUp"] ? Math.max(0, baseSpeed + windMod) : 0;
         } else {
+          if (this.dest && this.path.length) {
+            const windDirChange = Math.abs(normalizeAngle(windDirection - (this.lastWindDirection || 0)));
+            const windSpdChange = Math.abs(windSpeed - (this.lastWindSpeed || 0));
+            const finalTarget = this.dest;
+            if (
+              windDirChange > 0.5 ||
+              windSpdChange > 0.5 ||
+              !hasLineOfSight(this.x, this.y, finalTarget.x, finalTarget.y)
+            ) {
+              this.setCourse(finalTarget.x, finalTarget.y);
+            }
+          }
           if (this.chasing && distance(this.chasing.x, this.chasing.y, this.x, this.y) > 400) {
             logMessage(`${this.nation} patrol ship lost target.`);
             this.chasing = null;
@@ -807,6 +871,7 @@
               this.pathIndex++;
               if (this.pathIndex >= this.path.length) {
                 this.path = [];
+                this.dest = null;
               }
             }
           } else {
