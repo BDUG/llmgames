@@ -136,9 +136,10 @@
   <div id="tradeMenu"></div>
   <!-- Governor and Upgrade Menus -->
   <div id="governorMenu"></div>
-  <div id="upgradeMenu"></div>
-  
-  <script>
+    <div id="upgradeMenu"></div>
+
+    <script src="assets.js"></script>
+    <script>
     /***********************
      * Global Game Settings
      ***********************/
@@ -157,11 +158,16 @@
     const hudDiv = document.getElementById('hud');
     const questLogDiv = document.getElementById('questLog');
     const logDiv = document.getElementById('log');
-    const tradeMenuDiv = document.getElementById('tradeMenu');
-    const governorMenuDiv = document.getElementById('governorMenu');
-    const upgradeMenuDiv = document.getElementById('upgradeMenu');
-    
-    let lastTime = 0;
+      const tradeMenuDiv = document.getElementById('tradeMenu');
+      const governorMenuDiv = document.getElementById('governorMenu');
+      const upgradeMenuDiv = document.getElementById('upgradeMenu');
+
+      const CITY_ICON_URL = 'city.png';
+      const CITY_ICON_SIZE = 16;
+      let cityImg = null;
+      loadCityImage(CITY_ICON_URL).then(img => cityImg = img);
+
+      let lastTime = 0;
     let isPaused = false;
     let inTradeMode = false;
     let showMinimap = true;
@@ -594,13 +600,25 @@
           }
         };
       }
-      draw(ctx, offsetX, offsetY) {
-        ctx.font = "16px sans-serif";
-        ctx.fillText("🏠", this.x - offsetX - 8, this.y - offsetY + 8);
-        // Draw the city name below the symbol using 12px font.
-        ctx.font = "12px sans-serif";
-        ctx.fillText(this.name, this.x - offsetX - 8, this.y - offsetY + 22);
-      }
+        draw(ctx, offsetX, offsetY) {
+          const width = CITY_ICON_SIZE;
+          const height = CITY_ICON_SIZE;
+          if (cityImg) {
+            ctx.drawImage(
+              cityImg,
+              this.x - offsetX - width / 2,
+              this.y - offsetY - height / 2,
+              width,
+              height
+            );
+          } else {
+            ctx.font = "16px sans-serif";
+            ctx.fillText("🏠", this.x - offsetX - 8, this.y - offsetY + 8);
+          }
+          // Draw the city name below the symbol using 12px font.
+          ctx.font = "12px sans-serif";
+          ctx.fillText(this.name, this.x - offsetX - 8, this.y - offsetY + 22);
+        }
       drawMinimap(ctx, scale) {
         ctx.fillStyle = "black";
         ctx.fillText("🏠", this.x * scale - 6, this.y * scale + 6);
