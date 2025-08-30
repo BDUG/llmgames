@@ -138,7 +138,20 @@
     let isPaused = false;
     let inTradeMode = false;
     let showMinimap = true;
-    
+
+    // Global wind state (direction radians, speed pixels per update)
+    let windDirection = 0;
+    let windSpeed = 0.5;
+
+    function updateWind() {
+      windDirection = normalizeAngle(
+        windDirection + (Math.random() - 0.5) * 0.2
+      );
+      windSpeed = 0.3 + Math.random() * 0.7;
+    }
+    updateWind();
+    setInterval(updateWind, 15000);
+
     // Arrays to hold game objects.
     let islands = [];
     let cities = [];
@@ -411,13 +424,27 @@
         this.money = 0;
       }
       update(dt) {
+        const windX = Math.cos(windDirection) * windSpeed;
+        const windY = Math.sin(windDirection) * windSpeed;
+        const relWind = normalizeAngle(windDirection - this.angle);
+        const typeTurn =
+          this.type === "Sloop" ? 0.07 : this.type === "Brig" ? 0.05 : 0.03;
+        const windTurnFactor = 1 + Math.sin(relWind) * 0.3;
+        const sailEfficiency =
+          this.type === "Sloop" ? 1 : this.type === "Brig" ? 0.8 : 0.6;
+        const baseSpeed = this.maxSpeed * sailEfficiency;
+        const windMod = Math.cos(relWind) * windSpeed;
+
         if (this.isPlayer) {
-          if (keys["ArrowLeft"]) this.angle -= 0.05;
-          if (keys["ArrowRight"]) this.angle += 0.05;
-          this.speed = keys["ArrowUp"] ? this.maxSpeed : 0;
+          if (keys["ArrowLeft"]) this.angle -= typeTurn * windTurnFactor;
+          if (keys["ArrowRight"]) this.angle += typeTurn * windTurnFactor;
+          this.speed = keys["ArrowUp"] ? Math.max(0, baseSpeed + windMod) : 0;
         } else {
           if (this.targetCity) {
-            let desired = { x: this.targetCity.x - this.x, y: this.targetCity.y - this.y };
+            let desired = {
+              x: this.targetCity.x - this.x - windX * 20,
+              y: this.targetCity.y - this.y - windY * 20,
+            };
             let mag = Math.hypot(desired.x, desired.y);
             if (mag > 0) { desired.x /= mag; desired.y /= mag; }
             let repulsion = { x: 0, y: 0 };
@@ -436,7 +463,7 @@
               avgRadius /= island.vertices.length;
               let buffer = 50;
               let d = distance(this.x, this.y, center.x, center.y);
-              if (d < (avgRadius + buffer)) {
+              if (d < avgRadius + buffer) {
                 let factor = (avgRadius + buffer - d) / (avgRadius + buffer);
                 let away = { x: this.x - center.x, y: this.y - center.y };
                 let awayMag = Math.hypot(away.x, away.y);
@@ -447,23 +474,25 @@
             }
             let steering = {
               x: desired.x + repulsion.x * 2,
-              y: desired.y + repulsion.y * 2
+              y: desired.y + repulsion.y * 2,
             };
             let steerMag = Math.hypot(steering.x, steering.y);
             if (steerMag > 0) { steering.x /= steerMag; steering.y /= steerMag; }
             let targetAngle = Math.atan2(steering.y, steering.x);
             let angleDiff = normalizeAngle(targetAngle - this.angle);
-            let turnRate = 0.05;
+            let turnRate = typeTurn * windTurnFactor;
             if (angleDiff > turnRate) this.angle += turnRate;
             else if (angleDiff < -turnRate) this.angle -= turnRate;
             else this.angle = targetAngle;
-            this.speed = this.maxSpeed * 0.8;
+            this.speed = Math.max(0, baseSpeed * 0.8 + windMod);
           } else {
-            this.speed = this.maxSpeed * 0.5;
+            this.speed = Math.max(0, baseSpeed * 0.5 + windMod);
           }
         }
-        const newX = this.x + Math.cos(this.angle) * this.speed;
-        const newY = this.y + Math.sin(this.angle) * this.speed;
+        const newX =
+          this.x + Math.cos(this.angle) * this.speed + windX;
+        const newY =
+          this.y + Math.sin(this.angle) * this.speed + windY;
         let collision = false;
         for (let island of islands) {
           if (pointInPolygon(newX, newY, island.vertices)) { collision = true; break; }
@@ -771,6 +800,7 @@
           <p>Ship: ${playerShip.type}</p>
           <p>Nation: ${playerShip.nation} ${nations[playerShip.nation]}</p>
           <p>Cannons: ${playerShip.cannons}</p>
+          <p>Wind: ${windSpeed.toFixed(1)} @ ${(windDirection * 180/Math.PI).toFixed(0)}°</p>
         `;
       }
     
