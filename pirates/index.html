@@ -89,6 +89,20 @@
       display: none;
       z-index: 100;
     }
+    /* Governor and upgrade overlays */
+    #governorMenu,
+    #upgradeMenu {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #222;
+      color: #fff;
+      padding: 20px;
+      border: 2px solid #fff;
+      display: none;
+      z-index: 100;
+    }
   </style>
 </head>
 <body>
@@ -120,6 +134,9 @@
   <div id="log"></div>
   <!-- Trade Menu (shown when trading) -->
   <div id="tradeMenu"></div>
+  <!-- Governor and Upgrade Menus -->
+  <div id="governorMenu"></div>
+  <div id="upgradeMenu"></div>
   
   <script>
     /***********************
@@ -134,6 +151,8 @@
     const questLogDiv = document.getElementById('questLog');
     const logDiv = document.getElementById('log');
     const tradeMenuDiv = document.getElementById('tradeMenu');
+    const governorMenuDiv = document.getElementById('governorMenu');
+    const upgradeMenuDiv = document.getElementById('upgradeMenu');
     
     let lastTime = 0;
     let isPaused = false;
@@ -174,6 +193,8 @@
     
     // Relationships between nations.
     let relationships = {};
+    let playerReputation = {};
+    let lettersOfMarque = {};
     function initRelationships() {
       const nationKeys = Object.keys(nations);
       for (let i = 0; i < nationKeys.length; i++) {
@@ -194,6 +215,13 @@
         }
       }
     }, 120000);
+
+    function initReputation() {
+      Object.keys(nations).forEach(n => {
+        playerReputation[n] = 0;
+        lettersOfMarque[n] = false;
+      });
+    }
     
     function areAtWar(nationA, nationB) {
       if (nationA === nationB) return false;
@@ -429,6 +457,7 @@
         this.fireCooldown = 0;
         this.captured = false;
         this.money = 0;
+        this.specialists = [];
       }
       update(dt) {
         const windX = Math.cos(windDirection) * windSpeed;
@@ -919,6 +948,7 @@
       tradeMenuDiv.innerHTML = `
         <h3>Trading at ${city.name} (${city.nation} ${nations[city.nation]})</h3>
         <p>Your Money: ${playerShip.money}</p>
+        <p>Reputation with ${city.nation}: ${playerReputation[city.nation]}</p>
         <p>City Inventory:</p>
         <ul>${inventory}</ul>
         <p>Controls:</p>
@@ -926,18 +956,144 @@
         <p>Sell: Q (Rum), W (Spices), E (Gold)</p>
         <p>Buy Cannon: 4 | Recruit Crew: R</p>
         <p>Sell Captured Ship: V | Sell Cannon: Y</p>
+        <p>Visit Governor: G | Accept Mission: M</p>
+        <p>Refit Ship: F | Hire Specialists: H</p>
         <p>Press T to exit trading.</p>
       `;
     }
-    
+
     function closeTradeMenu() {
       tradeMenuDiv.style.display = "none";
+      governorMenuDiv.style.display = "none";
+      upgradeMenuDiv.style.display = "none";
+    }
+
+    function openGovernorMenu(city) {
+      governorMenuDiv.style.display = "block";
+      governorMenuDiv.innerHTML = `
+        <h3>Governor of ${city.name}</h3>
+        <p>Nation: ${city.nation} ${nations[city.nation]}</p>
+        <p>Your Reputation: ${playerReputation[city.nation]}</p>
+        <p>M: Accept Mission (Rep ≥ 10)</p>
+        <p>L: Request Letter of Marque (Rep ≥ 20)</p>
+        <p>Esc: Exit</p>
+      `;
+    }
+
+    function closeGovernorMenu() { governorMenuDiv.style.display = "none"; }
+
+    function openUpgradeMenu(city) {
+      upgradeMenuDiv.style.display = "block";
+      upgradeMenuDiv.innerHTML = `
+        <h3>Shipyard at ${city.name}</h3>
+        <p>Money: ${playerShip.money}</p>
+        <p>1: Upgrade Hull (100 gold)</p>
+        <p>2: Upgrade Sails (100 gold)</p>
+        <p>3: Hire Navigator (50 gold)</p>
+        <p>4: Hire Gunner (50 gold)</p>
+        <p>Esc: Exit</p>
+      `;
+    }
+
+    function closeUpgradeMenu() { upgradeMenuDiv.style.display = "none"; }
+
+    function acceptMissionFromCity(city) {
+      if (playerReputation[city.nation] < 10) {
+        logMessage("Reputation too low for missions.");
+        return;
+      }
+      if (cities.length < 2) return;
+      let target;
+      do {
+        target = cities[Math.floor(Math.random() * cities.length)];
+      } while (target.id === city.id);
+      const goods = ["Rum", "Spices", "Gold"];
+      const good = goods[Math.floor(Math.random() * goods.length)];
+      const amount = Math.floor(Math.random() * 3) + 1;
+      const reward = Math.floor(Math.random() * 100) + 50;
+      const quest = new Quest(Date.now(), "delivery", city, target, good, amount, reward);
+      quests.push(quest);
+      logMessage("Mission accepted: " + quest.description);
+      updateQuestLogUI();
+    }
+
+    function requestLetterOfMarque(city) {
+      if (playerReputation[city.nation] < 20) {
+        logMessage("Reputation too low for letter of marque.");
+        return;
+      }
+      if (lettersOfMarque[city.nation]) {
+        logMessage("Letter of marque already granted.");
+        return;
+      }
+      lettersOfMarque[city.nation] = true;
+      logMessage(`${city.nation} grants you a letter of marque!`);
     }
     
     document.addEventListener("keydown", (e) => {
       if (inTradeMode) {
         let currentCity = cities.find(city => distance(playerShip.x, playerShip.y, city.x, city.y) < 100);
         if (!currentCity) return;
+
+        if (governorMenuDiv.style.display === "block") {
+          switch (e.key.toLowerCase()) {
+            case "m":
+              acceptMissionFromCity(currentCity);
+              break;
+            case "l":
+              requestLetterOfMarque(currentCity);
+              break;
+            case "escape":
+              closeGovernorMenu();
+              break;
+          }
+          return;
+        }
+
+        if (upgradeMenuDiv.style.display === "block") {
+          switch (e.key) {
+            case "1":
+              if (playerShip.money >= 100) {
+                playerShip.money -= 100;
+                playerShip.maxHull += 20;
+                playerShip.hull = playerShip.maxHull;
+                logMessage("Hull upgraded.");
+              }
+              break;
+            case "2":
+              if (playerShip.money >= 100) {
+                playerShip.money -= 100;
+                playerShip.maxSail += 20;
+                playerShip.sail = playerShip.maxSail;
+                logMessage("Sails upgraded.");
+              }
+              break;
+            case "3":
+              if (playerShip.money >= 50 && !playerShip.specialists.includes('Navigator')) {
+                playerShip.money -= 50;
+                playerShip.specialists.push('Navigator');
+                playerShip.maxSpeed += 0.2;
+                logMessage("Navigator hired.");
+              }
+              break;
+            case "4":
+              if (playerShip.money >= 50 && !playerShip.specialists.includes('Gunner')) {
+                playerShip.money -= 50;
+                playerShip.specialists.push('Gunner');
+                playerShip.cannons++;
+                playerShip.maxAmmo = playerShip.cannons * 10;
+                playerShip.ammo = playerShip.maxAmmo;
+                logMessage("Gunner hired.");
+              }
+              break;
+            case "Escape":
+              closeUpgradeMenu();
+              break;
+          }
+          if (upgradeMenuDiv.style.display === "block") openUpgradeMenu(currentCity);
+          return;
+        }
+
         switch (e.key) {
           case "1":
             if (playerShip.money >= currentCity.goods["Rum"].price && currentCity.goods["Rum"].quantity > 0) {
@@ -945,6 +1101,7 @@
               playerShip.inventory["Rum"] = (playerShip.inventory["Rum"] || 0) + 1;
               currentCity.goods["Rum"].quantity--;
               currentCity.goods["Rum"].tradeVolume--;
+              playerReputation[currentCity.nation]++;
               logMessage("Bought 1 Rum.");
             }
             break;
@@ -954,6 +1111,7 @@
               playerShip.inventory["Spices"] = (playerShip.inventory["Spices"] || 0) + 1;
               currentCity.goods["Spices"].quantity--;
               currentCity.goods["Spices"].tradeVolume--;
+              playerReputation[currentCity.nation]++;
               logMessage("Bought 1 Spices.");
             }
             break;
@@ -963,6 +1121,7 @@
               playerShip.inventory["Gold"] = (playerShip.inventory["Gold"] || 0) + 1;
               currentCity.goods["Gold"].quantity--;
               currentCity.goods["Gold"].tradeVolume--;
+              playerReputation[currentCity.nation]++;
               logMessage("Bought 1 Gold.");
             }
             break;
@@ -973,6 +1132,7 @@
               playerShip.inventory["Rum"]--;
               currentCity.goods["Rum"].quantity++;
               currentCity.goods["Rum"].tradeVolume++;
+              playerReputation[currentCity.nation]++;
               logMessage("Sold 1 Rum.");
             }
             break;
@@ -983,6 +1143,7 @@
               playerShip.inventory["Spices"]--;
               currentCity.goods["Spices"].quantity++;
               currentCity.goods["Spices"].tradeVolume++;
+              playerReputation[currentCity.nation]++;
               logMessage("Sold 1 Spices.");
             }
             break;
@@ -993,6 +1154,7 @@
               playerShip.inventory["Gold"]--;
               currentCity.goods["Gold"].quantity++;
               currentCity.goods["Gold"].tradeVolume++;
+              playerReputation[currentCity.nation]++;
               logMessage("Sold 1 Gold.");
             }
             break;
@@ -1027,6 +1189,22 @@
               playerShip.money += 30;
               logMessage("Sold a Cannon for 30 gold.");
             }
+            break;
+          case "g":
+          case "G":
+            openGovernorMenu(currentCity);
+            break;
+          case "m":
+          case "M":
+            acceptMissionFromCity(currentCity);
+            break;
+          case "f":
+          case "F":
+            openUpgradeMenu(currentCity);
+            break;
+          case "h":
+          case "H":
+            openUpgradeMenu(currentCity);
             break;
         }
         openTradeMenu(currentCity);
@@ -1087,7 +1265,9 @@
         cannonballs,
         playerShip,
         quests,
-        relationships
+        relationships,
+        playerReputation,
+        lettersOfMarque
       };
 
       // Ensure all economic fields on goods are persisted.
@@ -1116,6 +1296,8 @@
         quests = state.quests || [];
         playerShip = ships.find(s => s.isPlayer);
         relationships = state.relationships;
+        playerReputation = state.playerReputation || {};
+        lettersOfMarque = state.lettersOfMarque || {};
         islands.forEach(i => Object.setPrototypeOf(i, Island.prototype));
         cities.forEach(c => {
           Object.setPrototypeOf(c, City.prototype);
@@ -1131,6 +1313,11 @@
         ships.forEach(s => Object.setPrototypeOf(s, Ship.prototype));
         cannonballs.forEach(cb => Object.setPrototypeOf(cb, Cannonball.prototype));
         quests.forEach(q => Object.setPrototypeOf(q, Quest.prototype));
+        // Ensure reputation and marque objects have all nations
+        Object.keys(nations).forEach(n => {
+          if (playerReputation[n] === undefined) playerReputation[n] = 0;
+          if (lettersOfMarque[n] === undefined) lettersOfMarque[n] = false;
+        });
         logMessage("Game loaded.");
         updateQuestLogUI();
       } else {
@@ -1143,6 +1330,7 @@
      ***********************/
     function initGame() {
       initRelationships();
+      initReputation();
       generateIslands();
       generateCities();
       generateEnemyShips();
