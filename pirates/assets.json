@@ -1,0 +1,24 @@
+{
+  "city": "https://via.placeholder.com/16x16?text=C",
+  "island": "https://via.placeholder.com/64x64?text=I",
+  "ship": {
+    "Sloop": {
+      "Netherlands": "https://via.placeholder.com/64?text=Sloop+NL",
+      "Spain": "https://via.placeholder.com/64?text=Sloop+SP",
+      "France": "https://via.placeholder.com/64?text=Sloop+FR",
+      "England": "https://via.placeholder.com/64?text=Sloop+EN"
+    },
+    "Brig": {
+      "Netherlands": "https://via.placeholder.com/64?text=Brig+NL",
+      "Spain": "https://via.placeholder.com/64?text=Brig+SP",
+      "France": "https://via.placeholder.com/64?text=Brig+FR",
+      "England": "https://via.placeholder.com/64?text=Brig+EN"
+    },
+    "Galleon": {
+      "Netherlands": "https://via.placeholder.com/64?text=Gal+NL",
+      "Spain": "https://via.placeholder.com/64?text=Gal+SP",
+      "France": "https://via.placeholder.com/64?text=Gal+FR",
+      "England": "https://via.placeholder.com/64?text=Gal+EN"
+    }
+  }
+}
