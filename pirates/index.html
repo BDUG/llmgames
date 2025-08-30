@@ -143,8 +143,15 @@
      * Global Game Settings
      ***********************/
     const worldWidth = 2400, worldHeight = 1600;
+    const CSS_WIDTH = 800, CSS_HEIGHT = 600;
     const canvas = document.getElementById('gameCanvas');
+    const dpr = window.devicePixelRatio || 1;
+    canvas.style.width = CSS_WIDTH + 'px';
+    canvas.style.height = CSS_HEIGHT + 'px';
+    canvas.width = CSS_WIDTH * dpr;
+    canvas.height = CSS_HEIGHT * dpr;
     const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
     const minimapCanvas = document.getElementById('minimap');
     const minimapCtx = minimapCanvas.getContext('2d');
     const hudDiv = document.getElementById('hud');
@@ -1107,13 +1114,13 @@
     }
     
     function draw() {
-      let offsetX = playerShip ? playerShip.x - canvas.width / 2 : 0;
-      let offsetY = playerShip ? playerShip.y - canvas.height / 2 : 0;
-      offsetX = Math.max(0, Math.min(worldWidth - canvas.width, offsetX));
-      offsetY = Math.max(0, Math.min(worldHeight - canvas.height, offsetY));
-    
+      let offsetX = playerShip ? playerShip.x - CSS_WIDTH / 2 : 0;
+      let offsetY = playerShip ? playerShip.y - CSS_HEIGHT / 2 : 0;
+      offsetX = Math.max(0, Math.min(worldWidth - CSS_WIDTH, offsetX));
+      offsetY = Math.max(0, Math.min(worldHeight - CSS_HEIGHT, offsetY));
+
       ctx.fillStyle = "#87CEEB";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, CSS_WIDTH, CSS_HEIGHT);
       islands.forEach(island => island.draw(ctx, offsetX, offsetY));
       cities.forEach(city => city.draw(ctx, offsetX, offsetY));
       ships.forEach(ship => ship.draw(ctx, offsetX, offsetY));
