@@ -184,12 +184,37 @@
     // Global wind state (direction radians, speed pixels per update)
     let windDirection = 0;
     let windSpeed = 0.5;
+    let weatherState = { condition: "calm", visibility: 1 };
+    let stormSlowdown = 1;
+    let viewDistance = Infinity;
 
     function updateWind() {
       windDirection = normalizeAngle(
         windDirection + (Math.random() - 0.5) * 0.2
       );
-      windSpeed = 0.3 + Math.random() * 0.7;
+      const roll = Math.random();
+      if (roll < 0.1) weatherState.condition = "storm";
+      else if (roll < 0.2) weatherState.condition = "calm";
+      else if (roll < 0.3) weatherState.condition = "fog";
+      else weatherState.condition = "calm";
+
+      switch (weatherState.condition) {
+        case "storm":
+          windSpeed = 1 + Math.random();
+          weatherState.visibility = 1;
+          break;
+        case "calm":
+          windSpeed = 0.05 + Math.random() * 0.2;
+          weatherState.visibility = 1;
+          break;
+        case "fog":
+          windSpeed = 0.2 + Math.random() * 0.3;
+          weatherState.visibility = 0.4;
+          break;
+        default:
+          windSpeed = 0.3 + Math.random() * 0.7;
+          weatherState.visibility = 1;
+      }
     }
     updateWind();
     setInterval(updateWind, 15000);
@@ -701,7 +726,7 @@
         const windTurnFactor = 1 + Math.sin(relWind) * 0.3;
         const sailEfficiency =
           this.type === "Sloop" ? 1 : this.type === "Brig" ? 0.8 : 0.6;
-        const baseSpeed = this.maxSpeed * sailEfficiency * (this.sail / this.maxSail) * (this.morale/100);
+        const baseSpeed = this.maxSpeed * sailEfficiency * (this.sail / this.maxSail) * (this.morale/100) * stormSlowdown;
         const windMod = Math.cos(relWind) * windSpeed;
         if (this.isPlayer) {
           this.wageTimer += dt;
@@ -1103,6 +1128,8 @@
     
     function update(dt) {
       if (isPaused || inTradeMode) return;
+      stormSlowdown = weatherState.condition === "storm" ? 0.7 : 1;
+      viewDistance = weatherState.condition === "fog" ? 200 : Infinity;
       boardCandidate = null;
       for (let ship of ships) {
         ship.update(dt);
@@ -1165,6 +1192,21 @@
       cities.forEach(city => city.draw(ctx, offsetX, offsetY));
       ships.forEach(ship => ship.draw(ctx, offsetX, offsetY));
       cannonballs.forEach(cb => cb.draw(ctx, offsetX, offsetY));
+      if (weatherState.condition === "fog" && playerShip) {
+        const radius = viewDistance;
+        const grad = ctx.createRadialGradient(
+          playerShip.x - offsetX,
+          playerShip.y - offsetY,
+          radius * 0.2,
+          playerShip.x - offsetX,
+          playerShip.y - offsetY,
+          radius
+        );
+        grad.addColorStop(0, "rgba(255,255,255,0)");
+        grad.addColorStop(1, "rgba(255,255,255,0.8)");
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, CSS_WIDTH, CSS_HEIGHT);
+      }
     
       if (playerShip) {
         hudDiv.innerHTML = `
@@ -1180,6 +1222,7 @@
           <p>Nav. Accuracy: ${(playerShip.navigationAccuracy*100).toFixed(0)}%</p>
           <p>Cannon Damage: ${playerShip.cannonDamage}</p>
           <p>Wind: ${windSpeed.toFixed(1)} @ ${(windDirection * 180/Math.PI).toFixed(0)}°</p>
+          <p>Weather: ${weatherState.condition}</p>
         `;
         if (boardCandidate) {
           hudDiv.innerHTML += `<p>Press B to board!</p>`;
