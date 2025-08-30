@@ -111,6 +111,7 @@
     P: Pause/Unpause<br>
     M: Toggle minimap<br>
     T: Trade (if near a city)<br>
+    B: Board enemy ship<br>
     C: Capture enemy ship<br>
     S: Save game<br>
     L: Load game
@@ -157,6 +158,7 @@
     let cities = [];
     let ships = [];
     let cannonballs = [];
+    let boardCandidate = null;
     let quests = []; // Global quest log.
     
     // Key tracking.
@@ -411,11 +413,16 @@
         this.angle = Math.random() * 2 * Math.PI;
         this.speed = 0;
         this.maxSpeed = type === "Sloop" ? 2 : type === "Brig" ? 1.5 : 1;
-        this.health = type === "Sloop" ? 100 : type === "Brig" ? 150 : 200;
-        this.maxHealth = this.health;
+        this.hull = type === "Sloop" ? 100 : type === "Brig" ? 150 : 200;
+        this.maxHull = this.hull;
+        this.sail = 100;
+        this.maxSail = 100;
         this.inventory = { "Rum": 0, "Spices": 0, "Gold": 0 };
         this.cannons = type === "Sloop" ? 2 : type === "Brig" ? 4 : 8;
+        this.ammo = this.cannons * 10;
+        this.maxAmmo = this.ammo;
         this.crew = type === "Sloop" ? 10 : type === "Brig" ? 20 : 30;
+        this.maxCrew = this.crew;
         this.isPlayer = isPlayer;
         this.targetCity = null;
         this.homeCity = null;
@@ -432,7 +439,7 @@
         const windTurnFactor = 1 + Math.sin(relWind) * 0.3;
         const sailEfficiency =
           this.type === "Sloop" ? 1 : this.type === "Brig" ? 0.8 : 0.6;
-        const baseSpeed = this.maxSpeed * sailEfficiency;
+        const baseSpeed = this.maxSpeed * sailEfficiency * (this.sail / this.maxSail);
         const windMod = Math.cos(relWind) * windSpeed;
 
         if (this.isPlayer) {
@@ -589,6 +596,11 @@
     }
     
     function fireCannon(ship, targetX, targetY) {
+      if (ship.ammo <= 0) {
+        logMessage((ship.isPlayer ? "Player" : ship.nation + " ship") + " is out of ammo!");
+        return;
+      }
+      ship.ammo--;
       const angle = Math.atan2(targetY - ship.y, targetX - ship.x);
       const cannonball = new Cannonball(
         ship.x + Math.cos(angle) * 20,
@@ -596,8 +608,10 @@
         angle,
         ship
       );
+      cannonball.damageType = Math.random() < 0.5 ? "hull" : "sail";
       cannonballs.push(cannonball);
-      logMessage((ship.isPlayer ? "Player" : ship.nation + " ship") + " fired a cannonball.");
+      logMessage((ship.isPlayer ? "Player" : ship.nation + " ship") +
+        ` fired a cannonball. Ammo: ${ship.ammo}`);
     }
     
     function repositionEnemyShip(ship, island) {
@@ -746,7 +760,14 @@
     
     function update(dt) {
       if (isPaused || inTradeMode) return;
-      for (let ship of ships) { ship.update(dt); }
+      boardCandidate = null;
+      for (let ship of ships) {
+        ship.update(dt);
+        if (playerShip && ship !== playerShip && !ship.captured &&
+            distance(playerShip.x, playerShip.y, ship.x, ship.y) < 20) {
+          boardCandidate = ship;
+        }
+      }
       for (let i = cannonballs.length - 1; i >= 0; i--) {
         const cb = cannonballs[i];
         cb.update(dt);
@@ -754,27 +775,37 @@
         for (let ship of ships) {
           if (ship === cb.owner) continue;
           if (distance(cb.x, cb.y, ship.x, ship.y) < 15) {
-            ship.health -= cb.damage;
-            logMessage((ship.isPlayer ? "Player" : ship.nation + " ship") + " hit! HP: " + ship.health.toFixed(0));
+            if (cb.damageType === "sail") {
+              ship.sail = Math.max(0, ship.sail - cb.damage);
+            } else {
+              ship.hull = Math.max(0, ship.hull - cb.damage);
+            }
+            const casualties = Math.floor(Math.random() * 3);
+            ship.crew = Math.max(0, ship.crew - casualties);
+            logMessage((ship.isPlayer ? "Player" : ship.nation + " ship") +
+              ` hit! Hull: ${ship.hull.toFixed(0)} Sails: ${ship.sail.toFixed(0)}`);
             cannonballs.splice(i, 1);
             break;
           }
         }
       }
-      if (playerShip && playerShip.health <= 0) {
+      if (playerShip && (playerShip.hull <= 0 || playerShip.crew <= 0)) {
         let nearestCity = cities[0];
         let minDist = distance(playerShip.x, playerShip.y, cities[0].x, cities[0].y);
         for (let city of cities) {
           const d = distance(playerShip.x, playerShip.y, city.x, city.y);
           if (d < minDist) { minDist = d; nearestCity = city; }
         }
-        logMessage("Player ship destroyed! Respawning at " + nearestCity.name);
+        logMessage("Player ship lost! Respawning at " + nearestCity.name);
         playerShip.x = nearestCity.x + 50;
         playerShip.y = nearestCity.y + 50;
-        playerShip.health = 100;
         playerShip.type = "Sloop";
+        playerShip.hull = playerShip.maxHull = 100;
+        playerShip.sail = playerShip.maxSail = 100;
+        playerShip.cannons = 2;
+        playerShip.ammo = playerShip.maxAmmo = playerShip.cannons * 10;
         playerShip.money = 100;
-        playerShip.crew = 10;
+        playerShip.crew = playerShip.maxCrew = 10;
       }
       updateCityEconomies(dt);
     }
@@ -794,14 +825,19 @@
     
       if (playerShip) {
         hudDiv.innerHTML = `
-          <p>HP: ${playerShip.health.toFixed(0)} / 100</p>
+          <p>Hull: ${playerShip.hull.toFixed(0)} / ${playerShip.maxHull}</p>
+          <p>Sails: ${playerShip.sail.toFixed(0)} / ${playerShip.maxSail}</p>
+          <p>Ammo: ${playerShip.ammo} / ${playerShip.maxAmmo}</p>
+          <p>Crew: ${playerShip.crew} / ${playerShip.maxCrew}</p>
           <p>Money: ${playerShip.money}</p>
-          <p>Crew: ${playerShip.crew}</p>
           <p>Ship: ${playerShip.type}</p>
           <p>Nation: ${playerShip.nation} ${nations[playerShip.nation]}</p>
           <p>Cannons: ${playerShip.cannons}</p>
           <p>Wind: ${windSpeed.toFixed(1)} @ ${(windDirection * 180/Math.PI).toFixed(0)}°</p>
         `;
+        if (boardCandidate) {
+          hudDiv.innerHTML += `<p>Press B to board!</p>`;
+        }
       }
     
       updateQuestLogUI();
@@ -848,6 +884,7 @@
       if (e.key.toLowerCase() === "l") { loadGame(); }
       if (e.key.toLowerCase() === "t") { toggleTradeMode(); }
       if (e.key.toLowerCase() === "c") { attemptCapture(); }
+      if (e.key.toLowerCase() === "b") { attemptBoarding(); }
     });
     
     document.addEventListener("keyup", (e) => { keys[e.key] = false; });
@@ -997,11 +1034,33 @@
     });
     
     /***********************
+     * Boarding Sequence
+     ***********************/
+    function attemptBoarding() {
+      if (!boardCandidate) { logMessage("No ship to board."); return; }
+      const enemy = boardCandidate;
+      logMessage("Boarding " + enemy.nation + " ship!");
+      while (playerShip.crew > 0 && enemy.crew > 0) {
+        enemy.crew -= Math.floor(Math.random() * 3) + 1;
+        playerShip.crew -= Math.floor(Math.random() * 3) + 1;
+      }
+      if (playerShip.crew > 0) {
+        enemy.captured = true;
+        enemy.nation = playerShip.nation;
+        logMessage("Enemy ship captured!");
+      } else {
+        logMessage("Your crew was defeated!");
+        playerShip.hull = 0;
+      }
+      boardCandidate = null;
+    }
+
+    /***********************
      * Capturing Enemy Ships
      ***********************/
     function attemptCapture() {
       for (let ship of ships) {
-        if (!ship.isPlayer && !ship.captured && distance(playerShip.x, playerShip.y, ship.x, ship.y) < 50 && ship.health < 15) {
+        if (!ship.isPlayer && !ship.captured && distance(playerShip.x, playerShip.y, ship.x, ship.y) < 50 && ship.hull < 15) {
           const choice = confirm("Capture enemy ship: OK to take over, Cancel to sink.");
           if (choice) {
             ship.captured = true;
