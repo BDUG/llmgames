@@ -103,6 +103,20 @@
       display: none;
       z-index: 100;
     }
+    .isometric-cards {
+      position: absolute;
+      bottom: 120px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      perspective: 800px;
+    }
+    .card {
+      width: 100px;
+      height: 150px;
+      transform: rotateX(60deg) rotateZ(45deg);
+    }
   </style>
 </head>
 <body>
@@ -137,6 +151,7 @@
   <!-- Governor and Upgrade Menus -->
   <div id="governorMenu"></div>
     <div id="upgradeMenu"></div>
+    <div id="cardContainer" class="isometric-cards"></div>
 
     <script src="assets.js"></script>
     <script>
@@ -161,6 +176,14 @@
       const tradeMenuDiv = document.getElementById('tradeMenu');
       const governorMenuDiv = document.getElementById('governorMenu');
       const upgradeMenuDiv = document.getElementById('upgradeMenu');
+      const cardContainer = document.getElementById('cardContainer');
+
+      function addCard(imgSrc) {
+        const img = document.createElement('img');
+        img.src = imgSrc;
+        img.className = 'card';
+        cardContainer.appendChild(img);
+      }
 
       const CITY_ICON_SIZE = 16;
 
@@ -1817,12 +1840,14 @@
       generateIslands();
       generateCities();
       generateEnemyShips();
-      spawnPlayerShip();
+    spawnPlayerShip();
       requestAnimationFrame(gameLoop);
     }
 
     initGame();
-    
+    addCard('https://via.placeholder.com/100x150');
+    addCard('https://via.placeholder.com/100x150?text=2');
+
     // Generate a new quest every 60 seconds.
     setInterval(generateRandomQuest, 60000);
     
