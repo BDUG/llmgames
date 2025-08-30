@@ -192,9 +192,10 @@
     };
     
     // Relationships between nations.
-    let relationships = {};
-    let playerReputation = {};
-    let lettersOfMarque = {};
+      let relationships = {};
+      let playerReputation = {};
+      let lettersOfMarque = {};
+      let storyMilestones = {};
     function initRelationships() {
       const nationKeys = Object.keys(nations);
       for (let i = 0; i < nationKeys.length; i++) {
@@ -268,59 +269,155 @@
     /***********************
      * Quest System
      ***********************/
-    class Quest {
-      constructor(id, type, originCity, targetCity, good, amount, reward) {
-        this.id = id;
-        this.type = type; // "delivery"
-        this.originCity = originCity;
-        this.targetCity = targetCity;
-        this.good = good;
-        this.amount = amount;
-        this.reward = reward;
-        this.status = "active"; // active, completed, or failed.
-        this.description = `Deliver ${amount} ${good} from ${originCity.name} to ${targetCity.name} for ${reward} gold.`;
+      class Quest {
+        constructor(id, type, data) {
+          this.id = id;
+          this.type = type;
+          Object.assign(this, data);
+          this.status = "active"; // active, completed, or failed.
+
+          switch (type) {
+            case "delivery":
+              this.description = `Deliver ${this.amount} ${this.good} from ${this.originCity.name} to ${this.targetCity.name} for ${this.reward} gold.`;
+              break;
+            case "treasure":
+              this.description = `Find hidden treasure near ${this.targetCity.name} for ${this.reward} gold.`;
+              break;
+            case "rescue":
+              this.rescued = false;
+              this.description = `Rescue the captive at ${this.targetCity.name} and return to ${this.originCity.name} for ${this.reward} gold.`;
+              break;
+            case "bounty":
+              this.enemyDefeated = false;
+              this.description = `Hunt down the pirate ${this.enemy} near ${this.targetCity.name} for ${this.reward} gold.`;
+              break;
+          }
+        }
       }
-    }
+
+      // Individual quest generators.
+      function generateDeliveryQuest() {
+        if (cities.length < 2) return null;
+        let origin = cities[Math.floor(Math.random() * cities.length)];
+        let target;
+        do {
+          target = cities[Math.floor(Math.random() * cities.length)];
+        } while (target.id === origin.id);
+        const goods = ["Rum", "Spices", "Gold"];
+        const good = goods[Math.floor(Math.random() * goods.length)];
+        const amount = Math.floor(Math.random() * 3) + 1;
+        const reward = Math.floor(Math.random() * 100) + 50;
+        return new Quest(Date.now(), "delivery", { originCity: origin, targetCity: target, good, amount, reward });
+      }
+
+      function generateTreasureHuntQuest() {
+        if (cities.length === 0) return null;
+        const target = cities[Math.floor(Math.random() * cities.length)];
+        const reward = Math.floor(Math.random() * 200) + 100;
+        return new Quest(Date.now(), "treasure", { targetCity: target, reward });
+      }
+
+      function generateRescueQuest() {
+        if (cities.length < 2) return null;
+        let origin = cities[Math.floor(Math.random() * cities.length)];
+        let target;
+        do {
+          target = cities[Math.floor(Math.random() * cities.length)];
+        } while (target.id === origin.id);
+        const reward = Math.floor(Math.random() * 150) + 75;
+        return new Quest(Date.now(), "rescue", { originCity: origin, targetCity: target, reward });
+      }
+
+      function generateBountyHuntQuest() {
+        if (cities.length === 0) return null;
+        const target = cities[Math.floor(Math.random() * cities.length)];
+        const reward = Math.floor(Math.random() * 200) + 100;
+        const enemy = "Notorious Pirate";
+        return new Quest(Date.now(), "bounty", { targetCity: target, reward, enemy });
+      }
+
+      // Generate a random quest.
+      function generateRandomQuest() {
+        const generators = [generateDeliveryQuest, generateTreasureHuntQuest, generateRescueQuest, generateBountyHuntQuest];
+        const generator = generators[Math.floor(Math.random() * generators.length)];
+        const quest = generator();
+        if (quest) {
+          quests.push(quest);
+          logMessage("New quest added: " + quest.description);
+          updateQuestLogUI();
+        }
+      }
+
+      function unlockStoryMissions() {
+        const totalRep = Object.values(playerReputation).reduce((a, b) => a + b, 0);
+        if (totalRep >= 20 && !storyMilestones.firstStory) {
+          const target = cities[Math.floor(Math.random() * cities.length)];
+          const quest = new Quest(Date.now(), "treasure", { targetCity: target, reward: 500 });
+          quest.isStory = true;
+          quests.push(quest);
+          storyMilestones.firstStory = true;
+          logMessage("Story mission unlocked: " + quest.description);
+          updateQuestLogUI();
+        }
+      }
     
-    // Generate a random delivery quest.
-    function generateRandomQuest() {
-      if (cities.length < 2) return;
-      let origin = cities[Math.floor(Math.random() * cities.length)];
-      let target;
-      do {
-        target = cities[Math.floor(Math.random() * cities.length)];
-      } while (target.id === origin.id);
-      
-      const goods = ["Rum", "Spices", "Gold"];
-      const good = goods[Math.floor(Math.random() * goods.length)];
-      
-      const amount = Math.floor(Math.random() * 3) + 1;  // 1-3 units.
-      const reward = Math.floor(Math.random() * 100) + 50; // 50-150 gold.
-      
-      const quest = new Quest(Date.now(), "delivery", origin, target, good, amount, reward);
-      quests.push(quest);
-      logMessage("New quest added: " + quest.description);
-      updateQuestLogUI();
-    }
-    
-    // Check for quest completions.
-    function checkQuestCompletions() {
-      for (let i = quests.length - 1; i >= 0; i--) {
-        let quest = quests[i];
-        if (quest.type === "delivery" && quest.status === "active") {
-          if (distance(playerShip.x, playerShip.y, quest.targetCity.x, quest.targetCity.y) < 100) {
-            if ((playerShip.inventory[quest.good] || 0) >= quest.amount) {
-              playerShip.inventory[quest.good] -= quest.amount;
+      // Check for quest completions.
+      function checkQuestCompletions() {
+        for (let i = quests.length - 1; i >= 0; i--) {
+          let quest = quests[i];
+          if (quest.status !== "active") continue;
+
+          if (quest.type === "delivery") {
+            if (distance(playerShip.x, playerShip.y, quest.targetCity.x, quest.targetCity.y) < 100) {
+              if ((playerShip.inventory[quest.good] || 0) >= quest.amount) {
+                playerShip.inventory[quest.good] -= quest.amount;
+                playerShip.money += quest.reward;
+                playerReputation[quest.originCity.nation]++;
+                quest.status = "completed";
+                logMessage("Quest completed: " + quest.description);
+                quests.splice(i, 1);
+                updateQuestLogUI();
+                unlockStoryMissions();
+              }
+            }
+          } else if (quest.type === "treasure") {
+            if (distance(playerShip.x, playerShip.y, quest.targetCity.x, quest.targetCity.y) < 100) {
               playerShip.money += quest.reward;
+              playerReputation[quest.targetCity.nation]++;
               quest.status = "completed";
               logMessage("Quest completed: " + quest.description);
               quests.splice(i, 1);
               updateQuestLogUI();
+              unlockStoryMissions();
+            }
+          } else if (quest.type === "rescue") {
+            if (!quest.rescued && distance(playerShip.x, playerShip.y, quest.targetCity.x, quest.targetCity.y) < 100) {
+              quest.rescued = true;
+              quest.description = `Return the captive to ${quest.originCity.name}.`;
+              logMessage("Captive rescued! Return to " + quest.originCity.name + ".");
+              updateQuestLogUI();
+            } else if (quest.rescued && distance(playerShip.x, playerShip.y, quest.originCity.x, quest.originCity.y) < 100) {
+              playerShip.money += quest.reward;
+              playerReputation[quest.originCity.nation] += 2;
+              quest.status = "completed";
+              logMessage("Quest completed: " + quest.description);
+              quests.splice(i, 1);
+              updateQuestLogUI();
+              unlockStoryMissions();
+            }
+          } else if (quest.type === "bounty") {
+            if (distance(playerShip.x, playerShip.y, quest.targetCity.x, quest.targetCity.y) < 100) {
+              playerShip.money += quest.reward;
+              playerReputation[quest.targetCity.nation] += 2;
+              quest.status = "completed";
+              logMessage("Quest completed: " + quest.description);
+              quests.splice(i, 1);
+              updateQuestLogUI();
+              unlockStoryMissions();
             }
           }
         }
       }
-    }
     
     // Update the quest log UI.
     function updateQuestLogUI() {
@@ -1267,7 +1364,8 @@
         quests,
         relationships,
         playerReputation,
-        lettersOfMarque
+        lettersOfMarque,
+        storyMilestones
       };
 
       // Ensure all economic fields on goods are persisted.
@@ -1298,6 +1396,7 @@
         relationships = state.relationships;
         playerReputation = state.playerReputation || {};
         lettersOfMarque = state.lettersOfMarque || {};
+        storyMilestones = state.storyMilestones || {};
         islands.forEach(i => Object.setPrototypeOf(i, Island.prototype));
         cities.forEach(c => {
           Object.setPrototypeOf(c, City.prototype);
