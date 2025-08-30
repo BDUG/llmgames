@@ -636,6 +636,12 @@
         this.patrolPoints = [];
         this.patrolIndex = 0;
         this.chasing = null;
+
+        // Crew management
+        this.morale = 100;          // overall happiness of the crew
+        this.wages = 1;             // gold per crew member when paying wages
+        this.mutinyThreshold = 20;  // morale level at which mutiny occurs
+        this.wageTimer = 0;         // track time for periodic morale decay
       }
       setCourse(destX, destY) {
         this.path = findPath(this.x, this.y, destX, destY);
@@ -655,8 +661,20 @@
         const windTurnFactor = 1 + Math.sin(relWind) * 0.3;
         const sailEfficiency =
           this.type === "Sloop" ? 1 : this.type === "Brig" ? 0.8 : 0.6;
-        const baseSpeed = this.maxSpeed * sailEfficiency * (this.sail / this.maxSail);
+        const baseSpeed = this.maxSpeed * sailEfficiency * (this.sail / this.maxSail) * (this.morale/100);
         const windMod = Math.cos(relWind) * windSpeed;
+        if (this.isPlayer) {
+          this.wageTimer += dt;
+          if (this.wageTimer >= 60) {
+            this.morale = Math.max(0, this.morale - 5);
+            this.wageTimer = 0;
+            if (this.morale <= this.mutinyThreshold) {
+              logMessage("Mutiny! The crew seizes your gold and morale resets.");
+              this.money = 0;
+              this.morale = 50;
+            }
+          }
+        }
 
         if (this.isPlayer) {
           if (keys["ArrowLeft"]) this.angle -= typeTurn * windTurnFactor;
@@ -855,7 +873,8 @@
         return;
       }
       ship.ammo--;
-      const angle = Math.atan2(targetY - ship.y, targetX - ship.x);
+      const accuracy = ship.morale / 100;
+      const angle = Math.atan2(targetY - ship.y, targetX - ship.x) + (Math.random() - 0.5) * (1 - accuracy) * 0.3;
       const cannonball = new Cannonball(
         ship.x + Math.cos(angle) * 20,
         ship.y + Math.sin(angle) * 20,
@@ -1106,6 +1125,7 @@
           <p>Sails: ${playerShip.sail.toFixed(0)} / ${playerShip.maxSail}</p>
           <p>Ammo: ${playerShip.ammo} / ${playerShip.maxAmmo}</p>
           <p>Crew: ${playerShip.crew} / ${playerShip.maxCrew}</p>
+          <p>Morale: ${playerShip.morale.toFixed(0)}%</p>
           <p>Money: ${playerShip.money}</p>
           <p>Ship: ${playerShip.type}</p>
           <p>Nation: ${playerShip.nation} ${nations[playerShip.nation]}</p>
@@ -1206,6 +1226,7 @@
         <p>Sell Captured Ship: V | Sell Cannon: Y</p>
         <p>Visit Governor: G | Accept Mission: M</p>
         <p>Refit Ship: F | Hire Specialists: H</p>
+        <p>Pay Crew: P | Share Loot: L</p>
         <p>Press T to exit trading.</p>
       `;
     }
@@ -1244,6 +1265,29 @@
     }
 
     function closeUpgradeMenu() { upgradeMenuDiv.style.display = "none"; }
+
+    function payCrew() {
+      const cost = playerShip.wages * playerShip.crew;
+      if (playerShip.money >= cost) {
+        playerShip.money -= cost;
+        playerShip.morale = Math.min(100, playerShip.morale + 15);
+        logMessage(`Crew paid ${cost} gold.`);
+      } else {
+        logMessage("Not enough gold to pay the crew.");
+        playerShip.morale = Math.max(0, playerShip.morale - 5);
+      }
+    }
+
+    function distributeLoot() {
+      if (playerShip.money <= 0) {
+        logMessage("No loot to share.");
+        return;
+      }
+      const share = Math.floor(playerShip.money * 0.2);
+      playerShip.money -= share;
+      playerShip.morale = Math.min(100, playerShip.morale + 20);
+      logMessage(`Crew shares ${share} gold in loot.`);
+    }
 
     function acceptMissionFromCity(city) {
       if (playerReputation[city.nation] < 10) {
@@ -1454,6 +1498,14 @@
           case "H":
             openUpgradeMenu(currentCity);
             break;
+          case "p":
+          case "P":
+            payCrew();
+            break;
+          case "l":
+          case "L":
+            distributeLoot();
+            break;
         }
         openTradeMenu(currentCity);
       }
@@ -1467,14 +1519,19 @@
       const enemy = boardCandidate;
       logMessage("Boarding " + enemy.nation + " ship!");
       while (playerShip.crew > 0 && enemy.crew > 0) {
-        enemy.crew -= Math.floor(Math.random() * 3) + 1;
-        playerShip.crew -= Math.floor(Math.random() * 3) + 1;
+        const playerPower = (Math.random() * 3 + 1) * (playerShip.morale / 100);
+        const enemyMorale = enemy.morale !== undefined ? enemy.morale : 100;
+        const enemyPower = (Math.random() * 3 + 1) * (enemyMorale / 100);
+        enemy.crew -= Math.max(1, Math.floor(playerPower));
+        playerShip.crew -= Math.max(1, Math.floor(enemyPower));
       }
       if (playerShip.crew > 0) {
         enemy.captured = true;
         enemy.nation = playerShip.nation;
+        playerShip.morale = Math.min(100, playerShip.morale + 10);
         logMessage("Enemy ship captured!");
       } else {
+        playerShip.morale = Math.max(0, playerShip.morale - 20);
         logMessage("Your crew was defeated!");
         playerShip.hull = 0;
       }
