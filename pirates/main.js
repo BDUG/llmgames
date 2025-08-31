@@ -956,9 +956,10 @@ function generateIslands() {
 function generateCities() {
   cities = [];
   let cityId = 1;
+  let fallback = null;
   for (let r = 0; r < gridRows; r++) {
     for (let c = 0; c < gridCols; c++) {
-      if (tiles[r][c] !== Terrain.LAND) continue;
+      if (tiles[r][c] !== Terrain.COAST) continue;
       const neighbors = [
         [r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]
       ];
@@ -966,7 +967,11 @@ function generateCities() {
         nr >= 0 && nr < gridRows && nc >= 0 && nc < gridCols &&
         tiles[nr][nc] === Terrain.WATER
       );
-      if (!isShore || Math.random() > 0.03) continue;
+      if (!isShore) continue;
+      if (Math.random() > 0.1) {
+        if (!fallback) fallback = { r, c };
+        continue;
+      }
       tiles[r][c] = Terrain.VILLAGE;
       const x = c * gridSize + gridSize / 2;
       const y = r * gridSize + gridSize / 2;
@@ -976,6 +981,15 @@ function generateCities() {
       cities.push(city);
       cityId++;
     }
+  }
+  if (!cities.length && fallback) {
+    const { r, c } = fallback;
+    tiles[r][c] = Terrain.VILLAGE;
+    const x = c * gridSize + gridSize / 2;
+    const y = r * gridSize + gridSize / 2;
+    const nationKeys = Object.keys(nations);
+    const nation = nationKeys[Math.floor(Math.random() * nationKeys.length)];
+    cities.push(new City(cityId, "City " + cityId, x, y, nation));
   }
 }
 
