@@ -59,7 +59,7 @@ function loop(timestamp) {
   if (keys['ArrowRight']) player.rotate(1);
   if (keys['ArrowUp']) player.speed = Math.min(player.speed + 0.1, 5);
   if (keys['ArrowDown']) player.speed = Math.max(player.speed - 0.1, 0);
-  player.update(1); // simplistic update
+  player.update(1, tiles, gridSize); // simplistic update with collision
   player.draw(ctx);
   updateHUD(player);
   drawMinimap(minimapCtx, tiles, player, worldWidth, worldHeight);
