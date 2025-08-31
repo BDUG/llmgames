@@ -2,7 +2,6 @@
   "name": "llmgames",
   "version": "1.0.0",
   "description": "Sharing games generated via language models",
-  "main": "server.js",
   "scripts": {
     "test": "echo 'No tests'",
     "start": "node server.js"
@@ -10,7 +9,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "mitt": "^3.0.0",
     "simplex-noise": "^4.0.0"
