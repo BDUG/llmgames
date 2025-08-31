@@ -1,6 +1,7 @@
 import { assets, loadAssets } from './assets.js';
 import { generateWorld, drawWorld, Terrain } from './world.js';
 import { Ship } from './entities/ship.js';
+import { NpcShip } from './entities/npcShip.js';
 import { City } from './entities/city.js';
 import { initHUD, updateHUD } from './ui/hud.js';
 import { initMinimap, drawMinimap } from './ui/minimap.js';
@@ -26,8 +27,14 @@ const minimapCtx = minimapCanvas.getContext('2d');
 initHUD();
 initMinimap();
 initLog(bus);
+bus.on('npc-spotted', ({ npc }) => {
+  bus.emit('log', `${npc.nation} ship spotted you!`);
+});
+bus.on('npc-flee', ({ npc }) => {
+  bus.emit('log', `${npc.nation} ship fled!`);
+});
 
-let tiles, player, cities, cityMetadata;
+let tiles, player, cities, cityMetadata, npcShips;
 const keys = {};
 
 window.addEventListener('keydown', e => {
@@ -47,6 +54,7 @@ function setup(seed=Math.random()) {
   player = new Ship(worldWidth / 2, worldHeight / 2);
   cities = [];
   cityMetadata = new Map();
+  npcShips = [];
 
   let rngSeed = seed; // seeded randomness for deterministic placement
   const rand = () => {
@@ -55,10 +63,11 @@ function setup(seed=Math.random()) {
   };
 
   // Collect all land tiles eligible for city placement.
-  const landTiles = [];
+  const landTiles = [], waterTiles = [];
   for (let r = 0; r < tiles.length; r++) {
     for (let c = 0; c < tiles[0].length; c++) {
       if (tiles[r][c] !== Terrain.WATER) landTiles.push({ r, c });
+      else waterTiles.push({ r, c });
     }
   }
 
@@ -76,6 +85,15 @@ function setup(seed=Math.random()) {
     const supplies = GOODS.filter(() => rand() < 0.5);
     const demands = GOODS.filter(g => !supplies.includes(g) && rand() < 0.5);
     cityMetadata.set(city, { nation, supplies, demands });
+  }
+
+  const numNpcs = 3;
+  for (let i = 0; i < numNpcs && waterTiles.length; i++) {
+    const idx = Math.floor(rand() * waterTiles.length);
+    const { r, c } = waterTiles[idx];
+    const x = c * gridSize + gridSize / 2;
+    const y = r * gridSize + gridSize / 2;
+    npcShips.push(new NpcShip(x, y, NATIONS[Math.floor(rand() * NATIONS.length)]));
   }
 
   bus.emit('log', 'World generated');
@@ -100,6 +118,10 @@ function loop(timestamp) {
 
   drawWorld(ctx, tiles, gridSize, assets, offsetX, offsetY);
   cities.forEach(c => c.draw(ctx, offsetX, offsetY));
+  npcShips.forEach(n => {
+    n.update(1, tiles, gridSize, player);
+    n.draw(ctx, offsetX, offsetY);
+  });
   player.draw(ctx, offsetX, offsetY);
   updateHUD(player);
   drawMinimap(minimapCtx, tiles, player, worldWidth, worldHeight);
