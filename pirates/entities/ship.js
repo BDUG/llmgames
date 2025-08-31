@@ -29,12 +29,27 @@ export class Ship {
 
     if (tiles && gridSize) {
       const tile = tileAt(tiles, newX, newY, gridSize);
-      if (tile === Terrain.LAND || tile === Terrain.COAST) {
+      if (
+        tile === Terrain.LAND ||
+        tile === Terrain.COAST ||
+        tile === Terrain.HILL ||
+        tile === Terrain.VILLAGE
+      ) {
         const tileX = tileAt(tiles, this.x + dx, this.y, gridSize);
         const tileY = tileAt(tiles, this.x, this.y + dy, gridSize);
-        if (tileX !== Terrain.LAND && tileX !== Terrain.COAST) {
+        if (
+          tileX !== Terrain.LAND &&
+          tileX !== Terrain.COAST &&
+          tileX !== Terrain.HILL &&
+          tileX !== Terrain.VILLAGE
+        ) {
           this.x += dx;
-        } else if (tileY !== Terrain.LAND && tileY !== Terrain.COAST) {
+        } else if (
+          tileY !== Terrain.LAND &&
+          tileY !== Terrain.COAST &&
+          tileY !== Terrain.HILL &&
+          tileY !== Terrain.VILLAGE
+        ) {
           this.y += dy;
         }
         return;
