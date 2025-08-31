@@ -1875,7 +1875,15 @@
      * Initialization & Loop Start
      ***********************/
     async function initGame() {
-      await loadAssets();
+      let loadedAssets = {};
+      try {
+        loadedAssets = await loadAssets();
+        if (!loadedAssets || Object.keys(loadedAssets).length === 0) {
+          console.warn("Starting game with empty asset map.");
+        }
+      } catch (err) {
+        console.error("Failed to load assets; starting with empty set.", err);
+      }
       initRelationships();
       initReputation();
       generateIslands();
