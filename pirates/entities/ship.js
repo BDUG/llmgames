@@ -3,13 +3,22 @@ export class Ship {
     this.x = x;
     this.y = y;
     this.nation = nation;
-    this.speed = 1;
+    this.speed = 0;
+    this.angle = 0;
+    this.turnSpeed = 0.05;
+  }
+
+  rotate(direction) {
+    this.angle += this.turnSpeed * direction;
+  }
+
+  forward(dt) {
+    this.x += Math.cos(this.angle) * this.speed * dt;
+    this.y += Math.sin(this.angle) * this.speed * dt;
   }
 
   update(dt) {
-    // Simple drift to show movement
-    this.x += Math.cos(0) * this.speed * dt;
-    this.y += Math.sin(0) * this.speed * dt;
+    this.forward(dt);
   }
 
   draw(ctx) {

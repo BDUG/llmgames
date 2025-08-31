@@ -27,6 +27,15 @@ initMinimap();
 initLog(bus);
 
 let tiles, player, cities;
+const keys = {};
+
+window.addEventListener('keydown', e => {
+  keys[e.key] = true;
+});
+
+window.addEventListener('keyup', e => {
+  keys[e.key] = false;
+});
 
 function setup(seed=Math.random()) {
   const result = generateWorld(worldWidth, worldHeight, gridSize, seed);
@@ -46,6 +55,10 @@ function loop(timestamp) {
   ctx.clearRect(0, 0, CSS_WIDTH, CSS_HEIGHT);
   drawWorld(ctx, tiles, gridSize, assets);
   cities.forEach(c => c.draw(ctx));
+  if (keys['ArrowLeft']) player.rotate(-1);
+  if (keys['ArrowRight']) player.rotate(1);
+  if (keys['ArrowUp']) player.speed = Math.min(player.speed + 0.1, 5);
+  if (keys['ArrowDown']) player.speed = Math.max(player.speed - 0.1, 0);
   player.update(1); // simplistic update
   player.draw(ctx);
   updateHUD(player);
