@@ -256,7 +256,6 @@
     const gridRows = Math.floor(worldHeight / gridSize);
     const Terrain = { WATER: 0, LAND: 1 };
     let tiles = Array.from({ length: gridRows }, () => Array(gridCols).fill(Terrain.WATER));
-    let navGrid = [];
 
     const tileWidth = gridSize;
     const tileHeight = gridSize / 2;
@@ -275,12 +274,22 @@
       }
     }
 
-    function buildNavGrid() {
-      navGrid = tiles.map(row => row.map(cell => (cell === Terrain.LAND ? 1 : 0)));
-      logMessage('Navigation grid generated.');
+    function movementCost(r, c, naval = true) {
+      if (r < 0 || r >= gridRows || c < 0 || c >= gridCols) return Infinity;
+      const tile = tiles[r][c];
+      if (naval) return tile === Terrain.WATER ? 1 : Infinity;
+      return tile === Terrain.LAND ? 1 : Infinity;
     }
 
-    function hasLineOfSight(x0, y0, x1, y1) {
+    function isWalkableRC(r, c, naval = true) {
+      return movementCost(r, c, naval) !== Infinity;
+    }
+
+    function isWalkable(x, y, naval = true) {
+      return isWalkableRC(Math.floor(y / gridSize), Math.floor(x / gridSize), naval);
+    }
+
+    function hasLineOfSight(x0, y0, x1, y1, naval = true) {
       let c0 = Math.floor(x0 / gridSize);
       let r0 = Math.floor(y0 / gridSize);
       const c1 = Math.floor(x1 / gridSize);
@@ -291,8 +300,7 @@
       let stepR = r0 < r1 ? 1 : -1;
       let err = dc - dr;
       while (true) {
-        if (r0 < 0 || r0 >= gridRows || c0 < 0 || c0 >= gridCols) return false;
-        if (navGrid[r0][c0] === 1) return false;
+        if (!isWalkableRC(r0, c0, naval)) return false;
         if (c0 === c1 && r0 === r1) break;
         const e2 = err * 2;
         if (e2 > -dr) { err -= dr; c0 += stepC; }
@@ -301,14 +309,14 @@
       return true;
     }
 
-    function smoothPath(path) {
+    function smoothPath(path, naval = true) {
       if (path.length <= 2) return path;
       const newPath = [path[0]];
       let i = 0;
       while (i < path.length - 1) {
         let j = path.length - 1;
         for (; j > i + 1; j--) {
-          if (hasLineOfSight(path[i].x, path[i].y, path[j].x, path[j].y)) break;
+          if (hasLineOfSight(path[i].x, path[i].y, path[j].x, path[j].y, naval)) break;
         }
         newPath.push(path[j]);
         i = j;
@@ -316,7 +324,7 @@
       return newPath;
     }
 
-    function findPath(sx, sy, gx, gy) {
+    function findPath(sx, sy, gx, gy, naval = true) {
       const start = { c: Math.floor(sx / gridSize), r: Math.floor(sy / gridSize) };
       const goal  = { c: Math.floor(gx / gridSize), r: Math.floor(gy / gridSize) };
 
@@ -341,7 +349,7 @@
             curKey = came[curKey];
           }
           path.reverse();
-          const smoothed = smoothPath(path);
+          const smoothed = smoothPath(path, naval);
           smoothed.shift();
           return smoothed;
         }
@@ -356,14 +364,14 @@
           { r: current.r + 1, c: current.c + 1 },
         ];
         for (let n of neighbors) {
-          if (n.r < 0 || n.r >= gridRows || n.c < 0 || n.c >= gridCols) continue;
-          if (navGrid[n.r][n.c] === 1) continue;
+          const tileCost = movementCost(n.r, n.c, naval);
+          if (!isFinite(tileCost)) continue;
           if (n.r !== current.r && n.c !== current.c) {
-            if (navGrid[current.r][n.c] === 1 || navGrid[n.r][current.c] === 1) continue;
+            if (!isWalkableRC(current.r, n.c, naval) || !isWalkableRC(n.r, current.c, naval)) continue;
           }
           const nk = key(n);
           const cost = (n.r !== current.r && n.c !== current.c) ? Math.SQRT2 : 1;
-          const tentativeG = gScore[key(current)] + cost;
+          const tentativeG = gScore[key(current)] + cost * tileCost;
           if (tentativeG < (gScore[nk] ?? Infinity)) {
             came[nk] = key(current);
             gScore[nk] = tentativeG;
@@ -792,7 +800,7 @@
         this.dest = { x: destX, y: destY };
         this.lastWindDirection = windDirection;
         this.lastWindSpeed = windSpeed;
-        this.path = findPath(this.x, this.y, destX, destY);
+        this.path = findPath(this.x, this.y, destX, destY, true);
         this.pathIndex = 0;
         if (this.path.length === 0) {
           logMessage(`${this.nation} ship failed to plot course.`);
@@ -836,7 +844,7 @@
             if (
               windDirChange > 0.5 ||
               windSpdChange > 0.5 ||
-              !hasLineOfSight(this.x, this.y, finalTarget.x, finalTarget.y)
+              !hasLineOfSight(this.x, this.y, finalTarget.x, finalTarget.y, true)
             ) {
               this.setCourse(finalTarget.x, finalTarget.y);
             }
@@ -858,47 +866,19 @@
           if (this.path.length) {
             const waypoint = this.path[this.pathIndex];
             let desired = {
-              x: waypoint.x - this.x - windX * 20,
-              y: waypoint.y - this.y - windY * 20,
+              x: waypoint.x - this.x,
+              y: waypoint.y - this.y,
             };
             let mag = Math.hypot(desired.x, desired.y);
             if (mag > 0) { desired.x /= mag; desired.y /= mag; }
-            let repulsion = { x: 0, y: 0 };
-            for (let island of islands) {
-              let center = { x: 0, y: 0 };
-              for (let vertex of island.vertices) { center.x += vertex.x; center.y += vertex.y; }
-              center.x /= island.vertices.length;
-              center.y /= island.vertices.length;
-              let avgRadius = 0;
-              for (let vertex of island.vertices) {
-                avgRadius += distance(center.x, center.y, vertex.x, vertex.y);
-              }
-              avgRadius /= island.vertices.length;
-              let buffer = 50;
-              let d = distance(this.x, this.y, center.x, center.y);
-              if (d < avgRadius + buffer) {
-                let factor = (avgRadius + buffer - d) / (avgRadius + buffer);
-                let away = { x: this.x - center.x, y: this.y - center.y };
-                let awayMag = Math.hypot(away.x, away.y);
-                if (awayMag > 0) { away.x /= awayMag; away.y /= awayMag; }
-                repulsion.x += away.x * factor;
-                repulsion.y += away.y * factor;
-              }
-            }
-            let steering = {
-              x: desired.x + repulsion.x * 2,
-              y: desired.y + repulsion.y * 2,
-            };
-            let steerMag = Math.hypot(steering.x, steering.y);
-            if (steerMag > 0) { steering.x /= steerMag; steering.y /= steerMag; }
-            let targetAngle = Math.atan2(steering.y, steering.x);
+            let targetAngle = Math.atan2(desired.y, desired.x);
             let angleDiff = normalizeAngle(targetAngle - this.angle);
             let turnRate = typeTurn * windTurnFactor;
             if (angleDiff > turnRate) this.angle += turnRate;
             else if (angleDiff < -turnRate) this.angle -= turnRate;
             else this.angle = targetAngle;
             this.speed = Math.max(0, baseSpeed * 0.8 + windMod);
-            if (distance(this.x, this.y, waypoint.x, waypoint.y) < gridSize / 2) {
+            if (distance(this.x, this.y, waypoint.x, waypoint.y) < gridSize / 3) {
               this.pathIndex++;
               if (this.pathIndex >= this.path.length) {
                 this.path = [];
@@ -913,11 +893,7 @@
           this.x + Math.cos(this.angle) * this.speed + windX;
         const newY =
           this.y + Math.sin(this.angle) * this.speed + windY;
-        let collision = false;
-        for (let island of islands) {
-          if (pointInPolygon(newX, newY, island.vertices)) { collision = true; break; }
-        }
-        if (!collision) { this.x = newX; this.y = newY; }
+        if (isWalkable(newX, newY, true)) { this.x = newX; this.y = newY; }
         if (this.fireCooldown > 0) this.fireCooldown -= dt;
         if (!this.isPlayer && !inTradeMode && this.fireCooldown <= 0 && playerShip) {
           const d = distance(this.x, this.y, playerShip.x, playerShip.y);
@@ -927,9 +903,7 @@
           }
         }
         if (!this.isPlayer) {
-          for (let island of islands) {
-            if (pointInPolygon(this.x, this.y, island.vertices)) { repositionEnemyShip(this, island); break; }
-          }
+          if (!isWalkable(this.x, this.y, true)) { repositionEnemyShip(this); }
           if (this.behavior === 'trade' && this.targetCity &&
               distance(this.x, this.y, this.targetCity.x, this.targetCity.y) < 100) {
             this.routeIndex = (this.routeIndex + 1) % this.tradeRoute.length;
@@ -1057,29 +1031,26 @@
         ` fired a cannonball. Ammo: ${ship.ammo}`);
     }
     
-    function repositionEnemyShip(ship, island) {
+    function repositionEnemyShip(ship) {
+      let baseCity = ship.homeCity || cities[0];
       let repositioned = false;
       for (let i = 0; i < 10; i++) {
         const angle = Math.random() * 2 * Math.PI;
         const offsetDistance = Math.random() * 50 + 150;
-        const newX = island.city.x + Math.cos(angle) * offsetDistance;
-        const newY = island.city.y + Math.sin(angle) * offsetDistance;
-        let safe = true;
-        for (let otherIsland of islands) {
-          if (pointInPolygon(newX, newY, otherIsland.vertices)) { safe = false; break; }
-        }
-        if (safe) {
+        const newX = baseCity.x + Math.cos(angle) * offsetDistance;
+        const newY = baseCity.y + Math.sin(angle) * offsetDistance;
+        if (isWalkable(newX, newY, true)) {
           ship.x = newX;
           ship.y = newY;
           repositioned = true;
-          logMessage(`${ship.nation} ship repositioned far away into the water near ${island.city.name}.`);
+          logMessage(`${ship.nation} ship repositioned near ${baseCity.name}.`);
           break;
         }
       }
       if (!repositioned) {
-        ship.x = island.city.x + 200;
-        ship.y = island.city.y + 200;
-        logMessage(`${ship.nation} ship repositioned (fallback) far away near ${island.city.name}.`);
+        ship.x = baseCity.x + 200;
+        ship.y = baseCity.y + 200;
+        logMessage(`${ship.nation} ship repositioned (fallback) near ${baseCity.name}.`);
       }
     }
     
@@ -1128,7 +1099,6 @@
         }
         tiles.push(row);
       }
-      buildNavGrid();
     }
     
     function generateCities() {
@@ -1151,11 +1121,7 @@
       for (let city of cities) {
         let spawnX = city.x + Math.random() * 100 - 50;
         let spawnY = city.y + Math.random() * 100 - 50;
-        let onLand = false;
-        for (let island of islands) {
-          if (pointInPolygon(spawnX, spawnY, island.vertices)) { onLand = true; break; }
-        }
-        if (onLand) {
+        if (!isWalkable(spawnX, spawnY, true)) {
           spawnX = city.x + 100;
           spawnY = city.y + 100;
         }
@@ -1198,12 +1164,9 @@
       let spawnCity = englishCities.length ? englishCities[Math.floor(Math.random() * englishCities.length)] : cities[0];
       let spawnX = spawnCity.x + Math.random() * 100 - 50;
       let spawnY = spawnCity.y + Math.random() * 100 - 50;
-      for (let island of islands) {
-        if (pointInPolygon(spawnX, spawnY, island.vertices)) {
-          spawnX = spawnCity.x + 100;
-          spawnY = spawnCity.y + 100;
-          break;
-        }
+      if (!isWalkable(spawnX, spawnY, true)) {
+        spawnX = spawnCity.x + 100;
+        spawnY = spawnCity.y + 100;
       }
       playerShip = new Ship(0, "Sloop", "England", spawnX, spawnY, true);
       playerShip.money = 100;
