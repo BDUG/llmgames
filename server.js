@@ -29,8 +29,10 @@ const server = http.createServer((req, res) => {
     };
 
     const contentType = mimeTypes[ext] || 'application/octet-stream';
-    // Deliberately omit Access-Control-Allow-Origin to disable CORS
-    res.writeHead(200, { 'Content-Type': contentType });
+    res.writeHead(200, {
+      'Content-Type': contentType,
+      'Access-Control-Allow-Origin': '*'
+    });
     res.end(data);
   });
 });
