@@ -1810,3 +1810,6 @@ function startGame(seed) {
 // Expose startGame globally so HTML UI can trigger it.
 window.startGame = startGame;
 
+// Automatically start the game when the page loads.
+window.addEventListener('load', () => startGame());
+
