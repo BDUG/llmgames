@@ -1736,7 +1736,7 @@ function loadGame() {
 async function initGame() {
   let loadedAssets = {};
   try {
-    loadedAssets = await loadAssets();
+    loadedAssets = await loadAssets(gridSize);
     if (!loadedAssets || Object.keys(loadedAssets).length === 0) {
       console.warn("Starting game with empty asset map.");
     }
