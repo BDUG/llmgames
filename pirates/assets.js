@@ -3,10 +3,15 @@
   global.assets = assets;
 
   async function loadAssets(){
-    const response = await fetch('/pirates/assets.json');
-    const data = await response.json();
-    await loadNested(data, assets);
-    return assets;
+    try {
+      const response = await fetch('/pirates/assets.json');
+      const data = await response.json();
+      await loadNested(data, assets);
+      return assets;
+    } catch (err) {
+      console.error('Failed to load asset manifest:', err);
+      throw err;
+    }
   }
 
   async function loadNested(src, target, path = []){
