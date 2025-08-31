@@ -251,14 +251,14 @@
     let quests = []; // Global quest log.
 
     // Navigation grid for AI pathfinding
-    const gridSize = 80;
+    const gridSize = 64;
     const gridCols = Math.floor(worldWidth / gridSize);
     const gridRows = Math.floor(worldHeight / gridSize);
     const Terrain = { WATER: 0, LAND: 1, VILLAGE: 2, COAST: 3, HILL: 4 };
     let tiles = Array.from({ length: gridRows }, () => Array(gridCols).fill(Terrain.WATER));
 
     const tileWidth = gridSize;
-    const tileHeight = gridSize / 2;
+    const tileHeight = gridSize;
 
     function worldToIso(x, y) {
       return { x: (x - y) / 2, y: (x + y) / 4 };

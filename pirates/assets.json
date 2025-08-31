@@ -2,11 +2,11 @@
   "city": "https://via.placeholder.com/16x16?text=C",
   "island": "https://via.placeholder.com/64x64?text=I",
   "tiles": {
-    "water": "https://via.placeholder.com/16x16?text=W",
-    "land": "https://via.placeholder.com/16x16?text=L",
-    "village": "https://via.placeholder.com/16x16?text=V",
-    "coast": "https://via.placeholder.com/16x16?text=C",
-    "hill": "https://via.placeholder.com/16x16?text=H"
+    "water": "https://via.placeholder.com/64x64?text=W",
+    "land": "https://via.placeholder.com/64x64?text=L",
+    "village": "https://via.placeholder.com/64x64?text=V",
+    "coast": "https://via.placeholder.com/64x64?text=C",
+    "hill": "https://via.placeholder.com/64x64?text=H"
   },
   "ship": {
     "Sloop": {
