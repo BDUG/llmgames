@@ -254,7 +254,7 @@
     const gridSize = 80;
     const gridCols = Math.floor(worldWidth / gridSize);
     const gridRows = Math.floor(worldHeight / gridSize);
-    const Terrain = { WATER: 0, LAND: 1 };
+    const Terrain = { WATER: 0, LAND: 1, VILLAGE: 2 };
     let tiles = Array.from({ length: gridRows }, () => Array(gridCols).fill(Terrain.WATER));
 
     const tileWidth = gridSize;
@@ -266,7 +266,9 @@
 
     function drawTile(row, col, offsetX, offsetY) {
       const type = tiles[row][col];
-      const img = type === Terrain.LAND ? assets.tiles.land : assets.tiles.water;
+      let img;
+      if (type === Terrain.WATER) img = assets.tiles.water;
+      else img = assets.tiles.land;
       const isoX = (col - row) * tileWidth / 2 - offsetX;
       const isoY = (col + row) * tileHeight / 2 - offsetY;
       if (img) {
@@ -278,7 +280,7 @@
       if (r < 0 || r >= gridRows || c < 0 || c >= gridCols) return Infinity;
       const tile = tiles[r][c];
       if (naval) return tile === Terrain.WATER ? 1 : Infinity;
-      return tile === Terrain.LAND ? 1 : Infinity;
+      return tile === Terrain.WATER ? Infinity : 1;
     }
 
     function isWalkableRC(r, c, naval = true) {
@@ -720,20 +722,17 @@
         };
       }
         draw(ctx, offsetX, offsetY) {
+          const iso = worldToIso(this.x, this.y);
           const width = CITY_ICON_SIZE;
           const height = CITY_ICON_SIZE;
-          const iso = worldToIso(this.x, this.y);
-          if (assets.city) {
+          if (assets.tiles && assets.tiles.village) {
             ctx.drawImage(
-              assets.city,
+              assets.tiles.village,
               iso.x - offsetX - width / 2,
               iso.y - offsetY - height / 2,
               width,
               height
             );
-          } else {
-            ctx.font = "16px sans-serif";
-            ctx.fillText("🏠", iso.x - offsetX - 8, iso.y - offsetY + 8);
           }
           ctx.font = "12px sans-serif";
           ctx.fillText(this.name, iso.x - offsetX - 8, iso.y - offsetY + 22);
@@ -1104,14 +1103,26 @@
     function generateCities() {
       cities = [];
       let cityId = 1;
-      for (let island of islands) {
-        const vertex = island.vertices[Math.floor(Math.random() * island.vertices.length)];
-        const nationKeys = Object.keys(nations);
-        const nation = nationKeys[Math.floor(Math.random() * nationKeys.length)];
-        const city = new City(cityId, "City " + cityId, vertex.x, vertex.y, nation);
-        cities.push(city);
-        island.city = city;
-        cityId++;
+      for (let r = 0; r < gridRows; r++) {
+        for (let c = 0; c < gridCols; c++) {
+          if (tiles[r][c] !== Terrain.LAND) continue;
+          const neighbors = [
+            [r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]
+          ];
+          let isShore = neighbors.some(([nr, nc]) =>
+            nr >= 0 && nr < gridRows && nc >= 0 && nc < gridCols &&
+            tiles[nr][nc] === Terrain.WATER
+          );
+          if (!isShore || Math.random() > 0.03) continue;
+          tiles[r][c] = Terrain.VILLAGE;
+          const x = c * gridSize + gridSize / 2;
+          const y = r * gridSize + gridSize / 2;
+          const nationKeys = Object.keys(nations);
+          const nation = nationKeys[Math.floor(Math.random() * nationKeys.length)];
+          const city = new City(cityId, "City " + cityId, x, y, nation);
+          cities.push(city);
+          cityId++;
+        }
       }
     }
     
