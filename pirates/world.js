@@ -1,4 +1,4 @@
-import { createNoise2D } from 'simplex-noise';
+import { createNoise2D } from 'https://cdn.skypack.dev/simplex-noise';
 
 export const Terrain = {
   WATER: 0,
