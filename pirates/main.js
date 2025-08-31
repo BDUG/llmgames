@@ -6,6 +6,7 @@ import { initHUD, updateHUD } from './ui/hud.js';
 import { initMinimap, drawMinimap } from './ui/minimap.js';
 import { initLog } from './ui/log.js';
 import { bus } from './bus.js';
+import { openTradeMenu, closeTradeMenu } from './ui/trade.js';
 
 const worldWidth = 4800, worldHeight = 3200, gridSize = 128;
 const CSS_WIDTH = 800, CSS_HEIGHT = 600;
@@ -102,6 +103,13 @@ function loop(timestamp) {
   player.draw(ctx, offsetX, offsetY);
   updateHUD(player);
   drawMinimap(minimapCtx, tiles, player, worldWidth, worldHeight);
+
+  const nearbyCity = cities.find(c => Math.hypot(player.x - c.x, player.y - c.y) < 32);
+  if (nearbyCity) {
+    openTradeMenu(player);
+  } else {
+    closeTradeMenu();
+  }
   requestAnimationFrame(loop);
 }
 

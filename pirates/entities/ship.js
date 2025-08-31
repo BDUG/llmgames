@@ -9,6 +9,9 @@ export class Ship {
     this.speed = 0;
     this.angle = 0;
     this.turnSpeed = 0.05;
+    this.cargo = {};
+    this.cargoCapacity = 20;
+    this.gold = 100;
   }
 
   rotate(direction) {
