@@ -3,7 +3,8 @@ import { createNoise2D } from 'simplex-noise';
 export const Terrain = {
   WATER: 0,
   LAND: 1,
-  COAST: 2
+  HILL: 2,
+  VILLAGE: 3
 };
 
 export function generateWorld(width, height, gridSize, seed=Math.random()) {
@@ -16,28 +17,18 @@ export function generateWorld(width, height, gridSize, seed=Math.random()) {
     )
   );
 
-  // Mark coastal water tiles adjacent to land.
+  // Randomly assign hills and villages on land tiles.
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      if (tiles[r][c] === Terrain.WATER && hasLandNeighbor(tiles, r, c, rows, cols)) {
-        tiles[r][c] = Terrain.COAST;
+      if (tiles[r][c] === Terrain.LAND) {
+        const rand = seededRandom(seed++);
+        if (rand < 0.1) tiles[r][c] = Terrain.HILL;
+        else if (rand < 0.13) tiles[r][c] = Terrain.VILLAGE;
       }
     }
   }
 
   return { tiles, rows, cols };
-}
-
-function hasLandNeighbor(tiles, r, c, rows, cols) {
-  for (let dr = -1; dr <= 1; dr++) {
-    for (let dc = -1; dc <= 1; dc++) {
-      const nr = r + dr, nc = c + dc;
-      if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && tiles[nr][nc] === Terrain.LAND) {
-        return true;
-      }
-    }
-  }
-  return false;
 }
 
 function seededRandom(seed) {
@@ -51,7 +42,8 @@ export function drawWorld(ctx, tiles, gridSize, assets, offsetX=0, offsetY=0) {
       const t = tiles[r][c];
       let img;
       if (t === Terrain.WATER) img = assets.tiles?.water;
-      else if (t === Terrain.COAST) img = assets.tiles?.coast;
+      else if (t === Terrain.HILL) img = assets.tiles?.hill;
+      else if (t === Terrain.VILLAGE) img = assets.tiles?.village;
       else img = assets.tiles?.land;
       if (!img) continue;
       const x = c * gridSize - offsetX;
