@@ -254,7 +254,7 @@
     const gridSize = 80;
     const gridCols = Math.floor(worldWidth / gridSize);
     const gridRows = Math.floor(worldHeight / gridSize);
-    const Terrain = { WATER: 0, LAND: 1, VILLAGE: 2 };
+    const Terrain = { WATER: 0, LAND: 1, VILLAGE: 2, COAST: 3, HILL: 4 };
     let tiles = Array.from({ length: gridRows }, () => Array(gridCols).fill(Terrain.WATER));
 
     const tileWidth = gridSize;
@@ -268,6 +268,9 @@
       const type = tiles[row][col];
       let img;
       if (type === Terrain.WATER) img = assets.tiles.water;
+      else if (type === Terrain.COAST) img = assets.tiles.coast;
+      else if (type === Terrain.HILL) img = assets.tiles.hill;
+      else if (type === Terrain.VILLAGE) img = assets.tiles.village;
       else img = assets.tiles.land;
       const isoX = (col - row) * tileWidth / 2 - offsetX;
       const isoY = (col + row) * tileHeight / 2 - offsetY;
@@ -1094,7 +1097,12 @@
         const row = [];
         for (let c = 0; c < gridCols; c++) {
           const h = fbm(c * scale, r * scale, seed);
-          row.push(h > 0.5 ? Terrain.LAND : Terrain.WATER);
+          let type;
+          if (h > 0.75) type = Terrain.HILL;
+          else if (h > 0.55) type = Terrain.LAND;
+          else if (h > 0.45) type = Terrain.COAST;
+          else type = Terrain.WATER;
+          row.push(type);
         }
         tiles.push(row);
       }

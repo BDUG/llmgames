@@ -4,7 +4,9 @@
   "tiles": {
     "water": "https://via.placeholder.com/16x16?text=W",
     "land": "https://via.placeholder.com/16x16?text=L",
-    "village": "https://via.placeholder.com/16x16?text=V"
+    "village": "https://via.placeholder.com/16x16?text=V",
+    "coast": "https://via.placeholder.com/16x16?text=C",
+    "hill": "https://via.placeholder.com/16x16?text=H"
   },
   "ship": {
     "Sloop": {
