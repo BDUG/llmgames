@@ -68,6 +68,16 @@ function loop(timestamp) {
 
 start();
 
-window.startGame = seed => {
+function startGame(seed) {
   setup(seed);
-};
+}
+
+window.startGame = startGame;
+
+const startBtn = document.getElementById('startButton');
+if (startBtn) {
+  startBtn.addEventListener('click', () => {
+    const seed = parseFloat(document.getElementById('seedInput').value);
+    startGame(seed);
+  });
+}
