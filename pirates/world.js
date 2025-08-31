@@ -61,10 +61,10 @@ function seededRandom(seed) {
   return x - Math.floor(x);
 }
 
-export function worldToIso(r, c, tileWidth, tileHeight, offsetX = 0, offsetY = 0) {
+export function worldToHalfStep(r, c, tileWidth, tileHeight, offsetX = 0, offsetY = 0) {
   return {
-    x: (c - r) * tileWidth / 2 - offsetX,
-    y: (c + r) * tileHeight / 2 - offsetY
+    x: c * tileWidth / 2 - offsetX,
+    y: r * tileHeight / 2 - offsetY
   };
 }
 
@@ -93,7 +93,7 @@ export function drawWorld(ctx, tiles, tileWidth, tileHeight, assets, offsetX=0, 
       else if (t === Terrain.COAST) img = assets.tiles?.coast || assets.tiles?.land;
       else img = assets.tiles?.land;
       if (!img) continue;
-      const { x, y } = worldToIso(r, c, tileWidth, tileHeight, offsetX, offsetY);
+      const { x, y } = worldToHalfStep(r, c, tileWidth, tileHeight, offsetX, offsetY);
       ctx.drawImage(img, x, y, tileWidth, tileHeight);
     }
   }
