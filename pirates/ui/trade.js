@@ -1,3 +1,5 @@
+import { bus } from '../bus.js';
+
 const GOODS = ['Sugar', 'Rum', 'Tobacco', 'Cotton'];
 const PRICES = { Sugar: 10, Rum: 12, Tobacco: 15, Cotton: 8 };
 
@@ -35,6 +37,7 @@ export function openTradeMenu(player) {
       if (player.gold >= PRICES[good] && cargoUsed(player) < player.cargoCapacity) {
         player.gold -= PRICES[good];
         player.cargo[good] = (player.cargo[good] || 0) + 1;
+        bus.emit('log', `Bought 1 ${good} for ${PRICES[good]}g`);
         openTradeMenu(player);
       }
     };
@@ -48,6 +51,7 @@ export function openTradeMenu(player) {
       if ((player.cargo[good] || 0) > 0) {
         player.cargo[good] -= 1;
         player.gold += PRICES[good];
+        bus.emit('log', `Sold 1 ${good} for ${PRICES[good]}g`);
         openTradeMenu(player);
       }
     };
