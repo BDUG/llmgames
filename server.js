@@ -5,7 +5,7 @@ import path from 'path';
 const port = process.env.PORT || 8000;
 
 const server = http.createServer((req, res) => {
-  const requestedPath = req.url === '/' ? '/index.html' : req.url;
+  const requestedPath = req.url === '/' ? 'pirates/index.html' : req.url.replace(/^\/+/, '');
   const filePath = path.join(process.cwd(), requestedPath);
 
   fs.readFile(filePath, (err, data) => {
