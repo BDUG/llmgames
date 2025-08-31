@@ -45,17 +45,17 @@ export class Ship {
     this.y = newY;
   }
 
-  draw(ctx) {
+  draw(ctx, offsetX = 0, offsetY = 0) {
     const img = assets.ship?.Sloop?.[this.nation] || assets.ship?.Sloop?.England;
     if (img) {
       ctx.save();
-      ctx.translate(this.x, this.y);
+      ctx.translate(this.x - offsetX, this.y - offsetY);
       ctx.rotate(this.angle);
       ctx.drawImage(img, -img.width / 2, -img.height / 2);
       ctx.restore();
     } else {
       ctx.fillStyle = 'brown';
-      ctx.fillRect(this.x - 5, this.y - 5, 10, 10);
+      ctx.fillRect(this.x - 5 - offsetX, this.y - 5 - offsetY, 10, 10);
     }
   }
 }
