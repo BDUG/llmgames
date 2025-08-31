@@ -15,6 +15,7 @@ import { startBoarding } from './boarding.js';
 import { initCommandKeys, updateCommandKeys } from './ui/commandKeys.js';
 
 const worldWidth = 4800, worldHeight = 3200, gridSize = 128;
+let tileWidth = gridSize, tileHeight = gridSize / 2;
 const CSS_WIDTH = 800, CSS_HEIGHT = 600;
 
 const canvas = document.getElementById('gameCanvas');
@@ -117,6 +118,11 @@ function setup(seed=Math.random()) {
 
 async function start() {
   await loadAssets(gridSize);
+  const sampleTile = assets.tiles?.land || assets.tiles?.water;
+  if (sampleTile) {
+    tileWidth = sampleTile.width;
+    tileHeight = sampleTile.height;
+  }
   setup();
   requestAnimationFrame(loop);
 }
@@ -133,7 +139,7 @@ function loop(timestamp) {
   const offsetX = player.x - CSS_WIDTH / 2;
   const offsetY = player.y - CSS_HEIGHT / 2;
 
-  drawWorld(ctx, tiles, gridSize, assets, offsetX, offsetY);
+  drawWorld(ctx, tiles, tileWidth, tileHeight, assets, offsetX, offsetY);
   cities.forEach(c => c.draw(ctx, offsetX, offsetY));
   npcShips.forEach(n => {
     n.update(1, tiles, gridSize, player);
