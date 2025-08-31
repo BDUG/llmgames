@@ -1179,6 +1179,10 @@
     
     let playerShip = null;
     function spawnPlayerShip() {
+      if (!cities.length) {
+        console.error("No cities generated; cannot spawn player ship.");
+        return; // or regenerate cities / use fallback coordinates
+      }
       const englishCities = cities.filter(c => c.nation === "England");
       let spawnCity = englishCities.length ? englishCities[Math.floor(Math.random() * englishCities.length)] : cities[0];
       let spawnX = spawnCity.x + Math.random() * 100 - 50;
@@ -1876,8 +1880,12 @@
       initReputation();
       generateIslands();
       generateCities();
+      if (!cities.length) {
+        console.error("No cities generated; creating fallback city.");
+        cities.push(new City(1, "Fallback City", worldWidth / 2, worldHeight / 2, "England"));
+      }
       generateEnemyShips();
-    spawnPlayerShip();
+      spawnPlayerShip();
       requestAnimationFrame(gameLoop);
     }
 
