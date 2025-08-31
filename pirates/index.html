@@ -254,23 +254,12 @@
     const gridSize = 80;
     const gridCols = Math.floor(worldWidth / gridSize);
     const gridRows = Math.floor(worldHeight / gridSize);
+    const Terrain = { WATER: 0, LAND: 1 };
+    let tiles = Array.from({ length: gridRows }, () => Array(gridCols).fill(Terrain.WATER));
     let navGrid = [];
 
     function buildNavGrid() {
-      navGrid = [];
-      for (let r = 0; r < gridRows; r++) {
-        const row = [];
-        for (let c = 0; c < gridCols; c++) {
-          const x = c * gridSize + gridSize / 2;
-          const y = r * gridSize + gridSize / 2;
-          let blocked = false;
-          for (let island of islands) {
-            if (pointInPolygon(x, y, island.vertices)) { blocked = true; break; }
-          }
-          row.push(blocked ? 1 : 0);
-        }
-        navGrid.push(row);
-      }
+      navGrid = tiles.map(row => row.map(cell => (cell === Terrain.LAND ? 1 : 0)));
       logMessage('Navigation grid generated.');
     }
 
@@ -1076,21 +1065,47 @@
     /***********************
      * World Generation
      ***********************/
+    function random2(x, y, seed) {
+      return Math.abs(Math.sin(x * 127.1 + y * 311.7 + seed * 101.3)) % 1;
+    }
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function valueNoise(x, y, seed) {
+      const x0 = Math.floor(x);
+      const y0 = Math.floor(y);
+      const x1 = x0 + 1;
+      const y1 = y0 + 1;
+      const sx = x - x0;
+      const sy = y - y0;
+      const n00 = random2(x0, y0, seed);
+      const n10 = random2(x1, y0, seed);
+      const n01 = random2(x0, y1, seed);
+      const n11 = random2(x1, y1, seed);
+      const ix0 = lerp(n00, n10, sx);
+      const ix1 = lerp(n01, n11, sx);
+      return lerp(ix0, ix1, sy);
+    }
+    function fbm(x, y, seed) {
+      let total = 0, freq = 1, amp = 1, max = 0;
+      for (let i = 0; i < 4; i++) {
+        total += valueNoise(x * freq, y * freq, seed + i * 10) * amp;
+        max += amp;
+        amp *= 0.5;
+        freq *= 2;
+      }
+      return total / max;
+    }
     function generateIslands() {
       islands = [];
-      for (let i = 0; i < 20; i++) {
-        const cx = Math.random() * (worldWidth - 200) + 100;
-        const cy = Math.random() * (worldHeight - 200) + 100;
-        const numPoints = Math.floor(Math.random() * 5) + 5;
-        const vertices = [];
-        for (let j = 0; j < numPoints; j++) {
-          const angle = (j / numPoints) * 2 * Math.PI;
-          const radius = Math.random() * 50 + 30;
-          const x = cx + Math.cos(angle) * radius + (Math.random() - 0.5) * 20;
-          const y = cy + Math.sin(angle) * radius + (Math.random() - 0.5) * 20;
-          vertices.push({ x, y });
+      tiles = [];
+      const seed = Math.random() * 1000;
+      const scale = 0.1;
+      for (let r = 0; r < gridRows; r++) {
+        const row = [];
+        for (let c = 0; c < gridCols; c++) {
+          const h = fbm(c * scale, r * scale, seed);
+          row.push(h > 0.5 ? Terrain.LAND : Terrain.WATER);
         }
-        islands.push(new Island(vertices));
+        tiles.push(row);
       }
       buildNavGrid();
     }
