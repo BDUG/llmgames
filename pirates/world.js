@@ -62,8 +62,9 @@ function seededRandom(seed) {
 }
 
 export function worldToHalfStep(r, c, tileWidth, tileHeight, offsetX = 0, offsetY = 0) {
+  const rowShift = (r % 2 === 0) ? -tileWidth / 2 : tileWidth / 2;
   return {
-    x: c * tileWidth / 2 - offsetX,
+    x: c * tileWidth / 2 + rowShift - offsetX,
     y: r * tileHeight / 2 - offsetY
   };
 }
