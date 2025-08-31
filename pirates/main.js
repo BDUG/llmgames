@@ -1,5 +1,5 @@
 import { assets, loadAssets } from './assets.js';
-import { generateWorld, drawWorld } from './world.js';
+import { generateWorld, drawWorld, Terrain } from './world.js';
 import { Ship } from './entities/ship.js';
 import { City } from './entities/city.js';
 import { initHUD, updateHUD } from './ui/hud.js';
@@ -26,7 +26,7 @@ initHUD();
 initMinimap();
 initLog(bus);
 
-let tiles, player, cities;
+let tiles, player, cities, cityMetadata;
 const keys = {};
 
 window.addEventListener('keydown', e => {
@@ -37,11 +37,46 @@ window.addEventListener('keyup', e => {
   keys[e.key] = false;
 });
 
+const NATIONS = ['England', 'France', 'Spain', 'Netherlands'];
+const GOODS = ['Sugar', 'Rum', 'Tobacco', 'Cotton'];
+
 function setup(seed=Math.random()) {
   const result = generateWorld(worldWidth, worldHeight, gridSize, seed);
   tiles = result.tiles;
   player = new Ship(worldWidth / 2, worldHeight / 2);
-  cities = [new City(600, 600, 'Port Royal')];
+  cities = [];
+  cityMetadata = new Map();
+
+  let rngSeed = seed; // seeded randomness for deterministic placement
+  const rand = () => {
+    const x = Math.sin(rngSeed++) * 10000;
+    return x - Math.floor(x);
+  };
+
+  // Collect all land tiles eligible for city placement.
+  const landTiles = [];
+  for (let r = 0; r < tiles.length; r++) {
+    for (let c = 0; c < tiles[0].length; c++) {
+      if (tiles[r][c] !== Terrain.WATER) landTiles.push({ r, c });
+    }
+  }
+
+  const numCities = Math.min(5, landTiles.length);
+  for (let i = 0; i < numCities; i++) {
+    const idx = Math.floor(rand() * landTiles.length);
+    const { r, c } = landTiles.splice(idx, 1)[0];
+    const x = c * gridSize + gridSize / 2;
+    const y = r * gridSize + gridSize / 2;
+    const name = `City ${i + 1}`;
+    const city = new City(x, y, name);
+    cities.push(city);
+
+    const nation = NATIONS[Math.floor(rand() * NATIONS.length)];
+    const supplies = GOODS.filter(() => rand() < 0.5);
+    const demands = GOODS.filter(g => !supplies.includes(g) && rand() < 0.5);
+    cityMetadata.set(city, { nation, supplies, demands });
+  }
+
   bus.emit('log', 'World generated');
 }
 
