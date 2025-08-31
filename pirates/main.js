@@ -94,6 +94,8 @@ let ships = [];
 let cannonballs = [];
 let boardCandidate = null;
 let quests = []; // Global quest log.
+// Seed controlling world generation. Can be set before starting the game.
+let worldSeed = Math.random() * 1000;
 
 // Navigation grid for AI pathfinding
 const gridSize = 128;
@@ -923,7 +925,7 @@ function valueNoise(x, y, seed) {
   const ix1 = lerp(n01, n11, sx);
   return lerp(ix0, ix1, sy);
 }
-function fbm(x, y, seed) {
+function fbm(x, y, seed = 0) {
   let total = 0, freq = 1, amp = 1, max = 0;
   for (let i = 0; i < 4; i++) {
     total += valueNoise(x * freq, y * freq, seed + i * 10) * amp;
@@ -933,10 +935,9 @@ function fbm(x, y, seed) {
   }
   return total / max;
 }
-function generateIslands() {
+function generateIslands(seed = worldSeed) {
   islands = [];
   tiles = [];
-  const seed = Math.random() * 1000;
   const scale = 0.1;
   for (let r = 0; r < gridRows; r++) {
     const row = [];
@@ -1687,7 +1688,7 @@ function attemptCapture() {
  ***********************/
 function saveGame() {
   const state = {
-    islands,
+    seed: worldSeed,
     cities,
     ships,
     cannonballs,
@@ -1722,7 +1723,8 @@ function loadGame() {
   const stateStr = localStorage.getItem("pirateGameSave");
   if (stateStr) {
     const state = JSON.parse(stateStr);
-    islands = state.islands;
+    worldSeed = state.seed || worldSeed;
+    generateIslands(worldSeed);
     cities = state.cities;
     ships = state.ships;
     cannonballs = state.cannonballs;
@@ -1731,7 +1733,6 @@ function loadGame() {
     playerReputation = state.playerReputation || {};
     lettersOfMarque = state.lettersOfMarque || {};
     storyMilestones = state.storyMilestones || {};
-    islands.forEach(i => Object.setPrototypeOf(i, Island.prototype));
     cities.forEach(c => {
       Object.setPrototypeOf(c, City.prototype);
       // Restore economy fields for each good, providing defaults for older saves.
@@ -1784,7 +1785,7 @@ async function initGame() {
   }
   initRelationships();
   initReputation();
-  generateIslands();
+  generateIslands(worldSeed);
   generateCities();
   if (!cities.length) {
     console.error("No cities generated; creating fallback city.");
@@ -1795,10 +1796,17 @@ async function initGame() {
   requestAnimationFrame(gameLoop);
 }
 
-initGame();
-addCard('https://via.placeholder.com/100x150');
-addCard('https://via.placeholder.com/100x150?text=2');
+function startGame(seed) {
+  if (seed !== undefined && !isNaN(seed)) {
+    worldSeed = seed;
+  }
+  initGame();
+  addCard('https://via.placeholder.com/100x150');
+  addCard('https://via.placeholder.com/100x150?text=2');
+  // Generate a new quest every 60 seconds.
+  setInterval(generateRandomQuest, 60000);
+}
 
-// Generate a new quest every 60 seconds.
-setInterval(generateRandomQuest, 60000);
+// Expose startGame globally so HTML UI can trigger it.
+window.startGame = startGame;
 
