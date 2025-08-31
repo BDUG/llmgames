@@ -8,7 +8,7 @@ export class City {
   }
 
   draw(ctx, offsetX = 0, offsetY = 0) {
-    const img = assets.city;
+    const img = assets.tiles.village;
     if (img) {
       ctx.drawImage(img, this.x - img.width / 2 - offsetX, this.y - img.height / 2 - offsetY);
     } else {

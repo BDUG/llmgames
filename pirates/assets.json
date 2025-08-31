@@ -1,11 +1,8 @@
 {
-  "city": "assets/villageTB128.png",
-  "island": "assets/grassTB128.png",
   "tiles": {
     "water": "assets/seaTB128.png",
     "land": "assets/grassTB128.png",
     "village": "assets/villageTB128.png",
-    "coast": "assets/grassTB128.png",
     "hill": "assets/hillTB128.png"
   },
   "ship": {
