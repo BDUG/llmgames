@@ -951,6 +951,54 @@ function generateIslands() {
     }
     tiles.push(row);
   }
+
+  // After tiles have been classified, identify contiguous landmasses.
+  const visited = Array.from({ length: gridRows }, () => Array(gridCols).fill(false));
+  const dirs = [
+    [1, 0], [-1, 0], [0, 1], [0, -1]
+  ];
+
+  for (let r = 0; r < gridRows; r++) {
+    for (let c = 0; c < gridCols; c++) {
+      if (visited[r][c]) continue;
+      const tileType = tiles[r][c];
+      if (tileType === Terrain.WATER) {
+        visited[r][c] = true;
+        continue;
+      }
+
+      // Flood fill to gather all tiles in this landmass.
+      const queue = [[r, c]];
+      visited[r][c] = true;
+      let minR = r, maxR = r, minC = c, maxC = c;
+
+      while (queue.length) {
+        const [cr, cc] = queue.shift();
+        minR = Math.min(minR, cr);
+        maxR = Math.max(maxR, cr);
+        minC = Math.min(minC, cc);
+        maxC = Math.max(maxC, cc);
+        for (const [dr, dc] of dirs) {
+          const nr = cr + dr;
+          const nc = cc + dc;
+          if (nr < 0 || nr >= gridRows || nc < 0 || nc >= gridCols) continue;
+          if (visited[nr][nc]) continue;
+          if (tiles[nr][nc] === Terrain.WATER) continue;
+          visited[nr][nc] = true;
+          queue.push([nr, nc]);
+        }
+      }
+
+      // Convert bounding box to polygon vertices in world coordinates.
+      const vertices = [
+        { x: minC * gridSize,       y: minR * gridSize },
+        { x: (maxC + 1) * gridSize, y: minR * gridSize },
+        { x: (maxC + 1) * gridSize, y: (maxR + 1) * gridSize },
+        { x: minC * gridSize,       y: (maxR + 1) * gridSize }
+      ];
+      islands.push(new Island(vertices));
+    }
+  }
 }
 
 function generateCities() {
@@ -1165,16 +1213,7 @@ function draw() {
 
   ctx.fillStyle = "#87CEEB";
   ctx.fillRect(0, 0, CSS_WIDTH, CSS_HEIGHT);
-
-  for (let sum = 0; sum < gridRows + gridCols - 1; sum++) {
-    for (let r = 0; r < gridRows; r++) {
-      const c = sum - r;
-      if (c >= 0 && c < gridCols) {
-        drawTile(r, c, offsetX, offsetY);
-      }
-    }
-  }
-
+  // Draw landmasses derived from the flood-fill.
   islands.forEach(island => island.draw(ctx, offsetX, offsetY));
   cities.forEach(city => city.draw(ctx, offsetX, offsetY));
   ships.forEach(ship => ship.draw(ctx, offsetX, offsetY));
