@@ -7,13 +7,13 @@ export class City {
     this.name = name;
   }
 
-  draw(ctx) {
+  draw(ctx, offsetX = 0, offsetY = 0) {
     const img = assets.city;
     if (img) {
-      ctx.drawImage(img, this.x - img.width / 2, this.y - img.height / 2);
+      ctx.drawImage(img, this.x - img.width / 2 - offsetX, this.y - img.height / 2 - offsetY);
     } else {
       ctx.fillStyle = 'gray';
-      ctx.fillRect(this.x - 8, this.y - 8, 16, 16);
+      ctx.fillRect(this.x - 8 - offsetX, this.y - 8 - offsetY, 16, 16);
     }
   }
 }

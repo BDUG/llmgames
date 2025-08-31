@@ -53,14 +53,18 @@ async function start() {
 
 function loop(timestamp) {
   ctx.clearRect(0, 0, CSS_WIDTH, CSS_HEIGHT);
-  drawWorld(ctx, tiles, gridSize, assets);
-  cities.forEach(c => c.draw(ctx));
   if (keys['ArrowLeft']) player.rotate(-1);
   if (keys['ArrowRight']) player.rotate(1);
   if (keys['ArrowUp']) player.speed = Math.min(player.speed + 0.1, 5);
   if (keys['ArrowDown']) player.speed = Math.max(player.speed - 0.1, 0);
   player.update(1, tiles, gridSize); // simplistic update with collision
-  player.draw(ctx);
+
+  const offsetX = player.x - CSS_WIDTH / 2;
+  const offsetY = player.y - CSS_HEIGHT / 2;
+
+  drawWorld(ctx, tiles, gridSize, assets, offsetX, offsetY);
+  cities.forEach(c => c.draw(ctx, offsetX, offsetY));
+  player.draw(ctx, offsetX, offsetY);
   updateHUD(player);
   drawMinimap(minimapCtx, tiles, player, worldWidth, worldHeight);
   requestAnimationFrame(loop);
