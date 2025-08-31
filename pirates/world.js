@@ -19,22 +19,25 @@ export function generateWorld(width, height, gridSize, seed=Math.random()) {
   // Mark coastal water tiles adjacent to land.
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      if (tiles[r][c] === Terrain.WATER) {
-        for (let dr = -1; dr <= 1; dr++) {
-          for (let dc = -1; dc <= 1; dc++) {
-            const nr = r + dr, nc = c + dc;
-            if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && tiles[nr][nc] === Terrain.LAND) {
-              tiles[r][c] = Terrain.COAST;
-              dr = 2; // break outer loops
-              break;
-            }
-          }
-        }
+      if (tiles[r][c] === Terrain.WATER && hasLandNeighbor(tiles, r, c, rows, cols)) {
+        tiles[r][c] = Terrain.COAST;
       }
     }
   }
 
   return { tiles, rows, cols };
+}
+
+function hasLandNeighbor(tiles, r, c, rows, cols) {
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      const nr = r + dr, nc = c + dc;
+      if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && tiles[nr][nc] === Terrain.LAND) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 function seededRandom(seed) {
