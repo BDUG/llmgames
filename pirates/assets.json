@@ -1,6 +1,10 @@
 {
   "city": "https://via.placeholder.com/16x16?text=C",
   "island": "https://via.placeholder.com/64x64?text=I",
+  "tiles": {
+    "water": "https://via.placeholder.com/16x16?text=W",
+    "land": "https://via.placeholder.com/16x16?text=L"
+  },
   "ship": {
     "Sloop": {
       "Netherlands": "https://via.placeholder.com/64?text=Sloop+NL",
