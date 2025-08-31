@@ -16,6 +16,7 @@ export class Ship {
     this.hull = 100;
     this.sunk = false;
     this.projectiles = [];
+    this.reputation = {};
   }
 
   rotate(direction) {
@@ -97,6 +98,11 @@ export class Ship {
     if (this.hull <= 0) {
       this.sunk = true;
     }
+  }
+
+  adjustReputation(nation, amount) {
+    if (this.reputation[nation] === undefined) this.reputation[nation] = 0;
+    this.reputation[nation] += amount;
   }
 }
 

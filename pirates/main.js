@@ -6,6 +6,9 @@ import { City } from './entities/city.js';
 import { initHUD, updateHUD } from './ui/hud.js';
 import { initMinimap, drawMinimap } from './ui/minimap.js';
 import { initLog } from './ui/log.js';
+import { initQuestLog, updateQuestLog } from './ui/questLog.js';
+import { Quest } from './quest.js';
+import { questManager } from './questManager.js';
 import { bus } from './bus.js';
 import { openTradeMenu, closeTradeMenu } from './ui/trade.js';
 import { startBoarding } from './boarding.js';
@@ -28,6 +31,12 @@ const minimapCtx = minimapCanvas.getContext('2d');
 initHUD();
 initMinimap();
 initLog(bus);
+initQuestLog();
+bus.on('quest-updated', () => updateQuestLog(questManager));
+bus.on('quest-completed', ({ quest }) => {
+  player.adjustReputation(quest.nation, quest.reputation);
+  bus.emit('log', `Quest completed: ${quest.description}`);
+});
 bus.on('npc-spotted', ({ npc }) => {
   bus.emit('log', `${npc.nation} ship spotted you!`);
 });
@@ -56,6 +65,9 @@ function setup(seed=Math.random()) {
   cities = [];
   cityMetadata = new Map();
   npcShips = [];
+  questManager.active = [];
+  questManager.completed = [];
+  bus.emit('quest-updated');
 
   let rngSeed = seed; // seeded randomness for deterministic placement
   const rand = () => {
@@ -96,6 +108,8 @@ function setup(seed=Math.random()) {
     const y = r * gridSize + gridSize / 2;
     npcShips.push(new NpcShip(x, y, NATIONS[Math.floor(rand() * NATIONS.length)]));
   }
+
+  questManager.addQuest(new Quest('capture', 'Capture an enemy ship', 'England', 10));
 
   bus.emit('log', 'World generated');
 }
@@ -149,14 +163,23 @@ function loop(timestamp) {
   player.projectiles = player.projectiles.filter(p => p.life > 0);
   npcShips = npcShips.filter(n => !n.sunk);
 
-  // boarding
-  npcShips.forEach(n => {
+  // boarding and capturing
+  for (let i = 0; i < npcShips.length; i++) {
+    const n = npcShips[i];
     const dist = Math.hypot(player.x - n.x, player.y - n.y);
     if (dist < 30 && (keys['b'] || keys['B'])) {
       startBoarding(player, n);
       keys['b'] = keys['B'] = false;
     }
-  });
+    if (dist < 30 && (keys['c'] || keys['C'])) {
+      bus.emit('log', `Captured ${n.nation} ship!`);
+      player.adjustReputation(n.nation, -5);
+      questManager.completeQuest('capture');
+      npcShips.splice(i, 1);
+      keys['c'] = keys['C'] = false;
+      i--;
+    }
+  }
   updateHUD(player);
   drawMinimap(minimapCtx, tiles, player, worldWidth, worldHeight);
 
