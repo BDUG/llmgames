@@ -1,3 +1,5 @@
+import { cartToIso } from '../world.js';
+
 export class Projectile {
   constructor(x, y, angle) {
     this.x = x;
@@ -15,8 +17,9 @@ export class Projectile {
   }
 
   draw(ctx, offsetX = 0, offsetY = 0) {
+    const { isoX, isoY } = cartToIso(this.x, this.y);
     ctx.save();
-    ctx.translate(this.x - offsetX, this.y - offsetY);
+    ctx.translate(isoX - offsetX, isoY - offsetY);
     ctx.fillStyle = 'black';
     ctx.beginPath();
     ctx.arc(0, 0, 2, 0, Math.PI * 2);

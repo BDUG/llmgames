@@ -1,4 +1,5 @@
 import { createNoise2D } from 'https://cdn.skypack.dev/simplex-noise';
+import { assets } from './assets.js';
 
 export const Terrain = {
   WATER: 0,
@@ -64,6 +65,16 @@ export function worldToIso(r, c, tileWidth, tileHeight, offsetX = 0, offsetY = 0
   return {
     x: (c - r) * tileWidth / 2 - offsetX,
     y: (c + r) * tileHeight / 2 - offsetY
+  };
+}
+
+export function cartToIso(x, y, tileWidth, tileHeight) {
+  tileWidth = tileWidth ?? assets.tiles?.land?.width ?? assets.tiles?.water?.width;
+  tileHeight = tileHeight ?? assets.tiles?.land?.height ?? assets.tiles?.water?.height ?? (tileWidth ? tileWidth / 2 : undefined);
+  if (!tileWidth || !tileHeight) return { isoX: x, isoY: y };
+  return {
+    isoX: (x - y) / 2,
+    isoY: (x + y) * (tileHeight / (2 * tileWidth))
   };
 }
 

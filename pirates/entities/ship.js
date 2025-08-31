@@ -1,5 +1,5 @@
 import { assets } from '../assets.js';
-import { Terrain } from '../world.js';
+import { Terrain, cartToIso } from '../world.js';
 import { Projectile } from './projectile.js';
 
 export class Ship {
@@ -75,14 +75,16 @@ export class Ship {
     if (!this.sunk) {
       const img = assets.ship?.Sloop?.[this.nation] || assets.ship?.Sloop?.England;
       if (img) {
+        const { isoX, isoY } = cartToIso(this.x, this.y);
         ctx.save();
-        ctx.translate(this.x - offsetX, this.y - offsetY);
+        ctx.translate(isoX - offsetX, isoY - offsetY);
         ctx.rotate(this.angle);
         ctx.drawImage(img, -img.width / 2, -img.height / 2);
         ctx.restore();
       } else {
+        const { isoX, isoY } = cartToIso(this.x, this.y);
         ctx.fillStyle = 'brown';
-        ctx.fillRect(this.x - 5 - offsetX, this.y - 5 - offsetY, 10, 10);
+        ctx.fillRect(isoX - 5 - offsetX, isoY - 5 - offsetY, 10, 10);
       }
     }
 
