@@ -3,7 +3,8 @@
   "island": "https://via.placeholder.com/64x64?text=I",
   "tiles": {
     "water": "https://via.placeholder.com/16x16?text=W",
-    "land": "https://via.placeholder.com/16x16?text=L"
+    "land": "https://via.placeholder.com/16x16?text=L",
+    "village": "https://via.placeholder.com/16x16?text=V"
   },
   "ship": {
     "Sloop": {
