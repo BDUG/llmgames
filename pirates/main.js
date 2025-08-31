@@ -1749,14 +1749,3 @@ addCard('https://via.placeholder.com/100x150?text=2');
 // Generate a new quest every 60 seconds.
 setInterval(generateRandomQuest, 60000);
 
-/***********************
- * Main Game Loop
- ***********************/
-function gameLoop(timestamp) {
-  const dt = (timestamp - lastTime) / 1000;
-  lastTime = timestamp;
-  update(dt);
-  draw();
-  requestAnimationFrame(gameLoop);
-}
-  
