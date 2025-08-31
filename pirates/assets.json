@@ -1,31 +1,31 @@
 {
-  "city": "https://via.placeholder.com/16x16?text=C",
-  "island": "https://via.placeholder.com/64x64?text=I",
+  "city": "./assets/villageTB.jpg",
+  "island": "./assets/grassTB.jpg",
   "tiles": {
-    "water": "https://via.placeholder.com/64x64?text=W",
-    "land": "https://via.placeholder.com/64x64?text=L",
-    "village": "https://via.placeholder.com/64x64?text=V",
-    "coast": "https://via.placeholder.com/64x64?text=C",
-    "hill": "https://via.placeholder.com/64x64?text=H"
+    "water": "./assets/seaTB.jpg",
+    "land": "./assets/grassTB.jpg",
+    "village": "./assets/villageTB.jpg",
+    "coast": "./assets/grassTB.jpg",
+    "hill": "./assets/hillTB.jpg"
   },
   "ship": {
     "Sloop": {
-      "Netherlands": "https://via.placeholder.com/64?text=Sloop+NL",
-      "Spain": "https://via.placeholder.com/64?text=Sloop+SP",
-      "France": "https://via.placeholder.com/64?text=Sloop+FR",
-      "England": "https://via.placeholder.com/64?text=Sloop+EN"
+      "Netherlands": "./assets/slopTB.jpg",
+      "Spain": "./assets/slopTB.jpg",
+      "France": "./assets/slopTB.jpg",
+      "England": "./assets/slopTB.jpg"
     },
     "Brig": {
-      "Netherlands": "https://via.placeholder.com/64?text=Brig+NL",
-      "Spain": "https://via.placeholder.com/64?text=Brig+SP",
-      "France": "https://via.placeholder.com/64?text=Brig+FR",
-      "England": "https://via.placeholder.com/64?text=Brig+EN"
+      "Netherlands":  "./assets/brigTB.jpg",
+      "Spain": "./assets/brigTB.jpg",
+      "France": "./assets/brigTB.jpg",
+      "England": "./assets/brigTB.jpg"
     },
     "Galleon": {
-      "Netherlands": "https://via.placeholder.com/64?text=Gal+NL",
-      "Spain": "https://via.placeholder.com/64?text=Gal+SP",
-      "France": "https://via.placeholder.com/64?text=Gal+FR",
-      "England": "https://via.placeholder.com/64?text=Gal+EN"
+      "Netherlands": "./assets/galleonTB.jpg",
+      "Spain": "./assets/galleonTB.jpg",
+      "France": "./assets/galleonTB.jpg",
+      "England": "./assets/galleonTB.jpg",
     }
   }
 }
