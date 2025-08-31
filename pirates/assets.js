@@ -1,4 +1,8 @@
-export const assets = {};
+export const assets = {
+  tiles: {},
+  ship: {},
+  city: null,
+};
 let gridSize = 16;
 
 export async function loadAssets(tileSize){

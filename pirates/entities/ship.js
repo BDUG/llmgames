@@ -1,3 +1,5 @@
+import { assets } from '../assets.js';
+
 export class Ship {
   constructor(x, y, nation = 'Pirate') {
     this.x = x;
@@ -22,7 +24,16 @@ export class Ship {
   }
 
   draw(ctx) {
-    ctx.fillStyle = 'brown';
-    ctx.fillRect(this.x - 5, this.y - 5, 10, 10);
+    const img = assets.ship?.Sloop?.[this.nation] || assets.ship?.Sloop?.England;
+    if (img) {
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.rotate(this.angle);
+      ctx.drawImage(img, -img.width / 2, -img.height / 2);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = 'brown';
+      ctx.fillRect(this.x - 5, this.y - 5, 10, 10);
+    }
   }
 }
