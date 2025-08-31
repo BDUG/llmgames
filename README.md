@@ -29,3 +29,13 @@ PY
 ```sh
 npx http-server . -p 8000 --cors
 ```
+
+### Node.js (CORS disabled)
+
+For debugging scenarios where cross-origin requests should be blocked, a small
+Node server is included. It serves files without adding any
+`Access-Control-Allow-Origin` headers.
+
+```sh
+node server.js
+```
