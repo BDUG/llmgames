@@ -1,5 +1,6 @@
 import { assets } from '../assets.js';
 import { Terrain } from '../world.js';
+import { Projectile } from './projectile.js';
 
 export class Ship {
   constructor(x, y, nation = 'Pirate') {
@@ -12,6 +13,9 @@ export class Ship {
     this.cargo = {};
     this.cargoCapacity = 20;
     this.gold = 100;
+    this.hull = 100;
+    this.sunk = false;
+    this.projectiles = [];
   }
 
   rotate(direction) {
@@ -61,19 +65,37 @@ export class Ship {
 
     this.x = newX;
     this.y = newY;
+
+    this.projectiles = this.projectiles.filter(p => p.update());
   }
 
   draw(ctx, offsetX = 0, offsetY = 0) {
-    const img = assets.ship?.Sloop?.[this.nation] || assets.ship?.Sloop?.England;
-    if (img) {
-      ctx.save();
-      ctx.translate(this.x - offsetX, this.y - offsetY);
-      ctx.rotate(this.angle);
-      ctx.drawImage(img, -img.width / 2, -img.height / 2);
-      ctx.restore();
-    } else {
-      ctx.fillStyle = 'brown';
-      ctx.fillRect(this.x - 5 - offsetX, this.y - 5 - offsetY, 10, 10);
+    if (!this.sunk) {
+      const img = assets.ship?.Sloop?.[this.nation] || assets.ship?.Sloop?.England;
+      if (img) {
+        ctx.save();
+        ctx.translate(this.x - offsetX, this.y - offsetY);
+        ctx.rotate(this.angle);
+        ctx.drawImage(img, -img.width / 2, -img.height / 2);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = 'brown';
+        ctx.fillRect(this.x - 5 - offsetX, this.y - 5 - offsetY, 10, 10);
+      }
+    }
+
+    this.projectiles.forEach(p => p.draw(ctx, offsetX, offsetY));
+  }
+
+  fireCannons() {
+    if (this.sunk) return;
+    this.projectiles.push(new Projectile(this.x, this.y, this.angle));
+  }
+
+  takeDamage(amount) {
+    this.hull -= amount;
+    if (this.hull <= 0) {
+      this.sunk = true;
     }
   }
 }

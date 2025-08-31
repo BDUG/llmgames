@@ -8,6 +8,7 @@ import { initMinimap, drawMinimap } from './ui/minimap.js';
 import { initLog } from './ui/log.js';
 import { bus } from './bus.js';
 import { openTradeMenu, closeTradeMenu } from './ui/trade.js';
+import { startBoarding } from './boarding.js';
 
 const worldWidth = 4800, worldHeight = 3200, gridSize = 128;
 const CSS_WIDTH = 800, CSS_HEIGHT = 600;
@@ -111,6 +112,7 @@ function loop(timestamp) {
   if (keys['ArrowRight']) player.rotate(1);
   if (keys['ArrowUp']) player.speed = Math.min(player.speed + 0.1, 5);
   if (keys['ArrowDown']) player.speed = Math.max(player.speed - 0.1, 0);
+  if (keys[' ']) player.fireCannons();
   player.update(1, tiles, gridSize); // simplistic update with collision
 
   const offsetX = player.x - CSS_WIDTH / 2;
@@ -120,9 +122,41 @@ function loop(timestamp) {
   cities.forEach(c => c.draw(ctx, offsetX, offsetY));
   npcShips.forEach(n => {
     n.update(1, tiles, gridSize, player);
+    const dist = Math.hypot(player.x - n.x, player.y - n.y);
+    if (dist < 200) n.fireCannons();
     n.draw(ctx, offsetX, offsetY);
   });
   player.draw(ctx, offsetX, offsetY);
+
+  // projectile collisions
+  npcShips.forEach(n => {
+    player.projectiles.forEach(p => {
+      if (!n.sunk && Math.hypot(p.x - n.x, p.y - n.y) < 20) {
+        n.takeDamage(25);
+        p.life = 0;
+        if (n.sunk) bus.emit('log', `${n.nation} ship sank!`);
+      }
+    });
+    n.projectiles.forEach(p => {
+      if (!player.sunk && Math.hypot(p.x - player.x, p.y - player.y) < 20) {
+        player.takeDamage(25);
+        p.life = 0;
+        if (player.sunk) bus.emit('log', 'You sank!');
+      }
+    });
+    n.projectiles = n.projectiles.filter(p => p.life > 0);
+  });
+  player.projectiles = player.projectiles.filter(p => p.life > 0);
+  npcShips = npcShips.filter(n => !n.sunk);
+
+  // boarding
+  npcShips.forEach(n => {
+    const dist = Math.hypot(player.x - n.x, player.y - n.y);
+    if (dist < 30 && (keys['b'] || keys['B'])) {
+      startBoarding(player, n);
+      keys['b'] = keys['B'] = false;
+    }
+  });
   updateHUD(player);
   drawMinimap(minimapCtx, tiles, player, worldWidth, worldHeight);
 
