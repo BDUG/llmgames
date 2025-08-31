@@ -3,7 +3,7 @@
   global.assets = assets;
 
   async function loadAssets(){
-    const response = await fetch('http://localhost:8000/pirates/assets.json');
+    const response = await fetch('/pirates/assets.json');
     const data = await response.json();
     await loadNested(data, assets);
     return assets;

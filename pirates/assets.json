@@ -1,31 +1,31 @@
 {
-  "city": "http://localhost:8000/pirates/assets/villageTB128.png",
-  "island": "http://localhost:8000/pirates/assets/grassTB128.png",
+  "city": "assets/villageTB128.png",
+  "island": "assets/grassTB128.png",
   "tiles": {
-    "water": "http://localhost:8000/pirates/assets/seaTB128.png",
-    "land": "http://localhost:8000/pirates/assets/grassTB128.png",
-    "village": "http://localhost:8000/pirates/assets/villageTB128.png",
-    "coast": "http://localhost:8000/pirates/assets/grassTB128.png",
-    "hill": "http://localhost:8000/pirates/assets/hillTB128.png"
+    "water": "assets/seaTB128.png",
+    "land": "assets/grassTB128.png",
+    "village": "assets/villageTB128.png",
+    "coast": "assets/grassTB128.png",
+    "hill": "assets/hillTB128.png"
   },
   "ship": {
     "Sloop": {
-      "Netherlands": "http://localhost:8000/pirates/assets/slopTB128.png",
-      "Spain": "http://localhost:8000/pirates/assets/slopTB128.png",
-      "France": "http://localhost:8000/pirates/assets/slopTB128.png",
-      "England": "http://localhost:8000/pirates/assets/slopTB128.png"
+      "Netherlands": "assets/slopTB128.png",
+      "Spain": "assets/slopTB128.png",
+      "France": "assets/slopTB128.png",
+      "England": "assets/slopTB128.png"
     },
     "Brig": {
-      "Netherlands":  "http://localhost:8000/pirates/assets/brigTB128.png",
-      "Spain": "http://localhost:8000/pirates/assets/brigTB128.png",
-      "France": "http://localhost:8000/pirates/assets/brigTB128.png",
-      "England": "http://localhost:8000/pirates/assets/brigTB128.png"
+      "Netherlands":  "assets/brigTB128.png",
+      "Spain": "assets/brigTB128.png",
+      "France": "assets/brigTB128.png",
+      "England": "assets/brigTB128.png"
     },
     "Galleon": {
-      "Netherlands": "http://localhost:8000/pirates/assets/galleonTB128.png",
-      "Spain": "http://localhost:8000/pirates/assets/galleonTB128.png",
-      "France": "http://localhost:8000/pirates/assets/galleonTB128.png",
-      "England": "http://localhost:8000/pirates/assets/galleonTB128.png"
+      "Netherlands": "assets/galleonTB128.png",
+      "Spain": "assets/galleonTB128.png",
+      "France": "assets/galleonTB128.png",
+      "England": "assets/galleonTB128.png"
     }
   }
 }
