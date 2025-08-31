@@ -12,6 +12,7 @@ import { questManager } from './questManager.js';
 import { bus } from './bus.js';
 import { openTradeMenu, closeTradeMenu } from './ui/trade.js';
 import { startBoarding } from './boarding.js';
+import { initCommandKeys, updateCommandKeys } from './ui/commandKeys.js';
 
 const worldWidth = 4800, worldHeight = 3200, gridSize = 128;
 const CSS_WIDTH = 800, CSS_HEIGHT = 600;
@@ -32,10 +33,10 @@ initHUD();
 initMinimap();
 initLog(bus);
 initQuestLog();
+initCommandKeys();
 bus.on('quest-updated', () => updateQuestLog(questManager));
 bus.on('quest-completed', ({ quest }) => {
   player.adjustReputation(quest.nation, quest.reputation);
-  bus.emit('log', `Quest completed: ${quest.description}`);
 });
 bus.on('npc-spotted', ({ npc }) => {
   bus.emit('log', `${npc.nation} ship spotted you!`);
@@ -148,6 +149,7 @@ function loop(timestamp) {
       if (!n.sunk && Math.hypot(p.x - n.x, p.y - n.y) < 20) {
         n.takeDamage(25);
         p.life = 0;
+        bus.emit('log', `Hit ${n.nation} ship for 25 damage`);
         if (n.sunk) bus.emit('log', `${n.nation} ship sank!`);
       }
     });
@@ -155,6 +157,7 @@ function loop(timestamp) {
       if (!player.sunk && Math.hypot(p.x - player.x, p.y - player.y) < 20) {
         player.takeDamage(25);
         p.life = 0;
+        bus.emit('log', `Hit by ${n.nation} ship!`);
         if (player.sunk) bus.emit('log', 'You sank!');
       }
     });
@@ -164,9 +167,11 @@ function loop(timestamp) {
   npcShips = npcShips.filter(n => !n.sunk);
 
   // boarding and capturing
+  let nearEnemy = false;
   for (let i = 0; i < npcShips.length; i++) {
     const n = npcShips[i];
     const dist = Math.hypot(player.x - n.x, player.y - n.y);
+    if (dist < 30) nearEnemy = true;
     if (dist < 30 && (keys['b'] || keys['B'])) {
       startBoarding(player, n);
       keys['b'] = keys['B'] = false;
@@ -184,6 +189,7 @@ function loop(timestamp) {
   drawMinimap(minimapCtx, tiles, player, worldWidth, worldHeight);
 
   const nearbyCity = cities.find(c => Math.hypot(player.x - c.x, player.y - c.y) < 32);
+  updateCommandKeys({ nearCity: !!nearbyCity, nearEnemy });
   if (nearbyCity) {
     openTradeMenu(player);
   } else {

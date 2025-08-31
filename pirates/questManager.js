@@ -8,6 +8,7 @@ class QuestManager {
 
   addQuest(quest) {
     this.active.push(quest);
+    bus.emit('log', `Quest added: ${quest.description}`);
     bus.emit('quest-updated');
   }
 
@@ -19,6 +20,7 @@ class QuestManager {
     this.active.splice(idx, 1);
     this.completed.push(quest);
     bus.emit('quest-completed', { quest });
+    bus.emit('log', `Quest completed: ${quest.description}`);
     bus.emit('quest-updated');
   }
 

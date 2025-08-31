@@ -1,0 +1,29 @@
+export function initCommandKeys() {
+  const div = document.getElementById('commandKeys');
+  if (!div) return;
+  div.innerHTML = `
+    <strong>Command Keys:</strong>
+    <div data-cmd="move">&uarr; : Move forward</div>
+    <div data-cmd="rotate">&larr; / &rarr; : Rotate ship</div>
+    <div data-cmd="fire">Space: Fire cannon</div>
+    <div data-cmd="pause">P: Pause/Unpause</div>
+    <div data-cmd="minimap">M: Toggle minimap</div>
+    <div data-cmd="trade" style="display:none">T: Trade (if near a city)</div>
+    <div data-cmd="board" style="display:none">B: Board enemy ship</div>
+    <div data-cmd="capture" style="display:none">C: Capture enemy ship</div>
+    <div data-cmd="save">S: Save game</div>
+    <div data-cmd="load">L: Load game</div>
+  `;
+}
+
+export function updateCommandKeys({ nearCity = false, nearEnemy = false }) {
+  const div = document.getElementById('commandKeys');
+  if (!div) return;
+  toggle(div.querySelector('[data-cmd="trade"]'), nearCity);
+  toggle(div.querySelector('[data-cmd="board"]'), nearEnemy);
+  toggle(div.querySelector('[data-cmd="capture"]'), nearEnemy);
+}
+
+function toggle(el, show) {
+  if (el) el.style.display = show ? 'block' : 'none';
+}

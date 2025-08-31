@@ -13,6 +13,7 @@ export class Ship {
     this.cargo = {};
     this.cargoCapacity = 20;
     this.gold = 100;
+    this.crew = 10;
     this.hull = 100;
     this.sunk = false;
     this.projectiles = [];
