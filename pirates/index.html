@@ -258,6 +258,23 @@
     let tiles = Array.from({ length: gridRows }, () => Array(gridCols).fill(Terrain.WATER));
     let navGrid = [];
 
+    const tileWidth = gridSize;
+    const tileHeight = gridSize / 2;
+
+    function worldToIso(x, y) {
+      return { x: (x - y) / 2, y: (x + y) / 4 };
+    }
+
+    function drawTile(row, col, offsetX, offsetY) {
+      const type = tiles[row][col];
+      const img = type === Terrain.LAND ? assets.tiles.land : assets.tiles.water;
+      const isoX = (col - row) * tileWidth / 2 - offsetX;
+      const isoY = (col + row) * tileHeight / 2 - offsetY;
+      if (img) {
+        ctx.drawImage(img, isoX, isoY, tileWidth, tileHeight);
+      }
+    }
+
     function buildNavGrid() {
       navGrid = tiles.map(row => row.map(cell => (cell === Terrain.LAND ? 1 : 0)));
       logMessage('Navigation grid generated.');
@@ -624,9 +641,11 @@
       draw(ctx, offsetX, offsetY) {
         ctx.fillStyle = "#228B22";
         ctx.beginPath();
-        ctx.moveTo(this.vertices[0].x - offsetX, this.vertices[0].y - offsetY);
+        const start = worldToIso(this.vertices[0].x, this.vertices[0].y);
+        ctx.moveTo(start.x - offsetX, start.y - offsetY);
         for (let i = 1; i < this.vertices.length; i++) {
-          ctx.lineTo(this.vertices[i].x - offsetX, this.vertices[i].y - offsetY);
+          const p = worldToIso(this.vertices[i].x, this.vertices[i].y);
+          ctx.lineTo(p.x - offsetX, p.y - offsetY);
         }
         ctx.closePath();
         ctx.fill();
@@ -695,21 +714,21 @@
         draw(ctx, offsetX, offsetY) {
           const width = CITY_ICON_SIZE;
           const height = CITY_ICON_SIZE;
+          const iso = worldToIso(this.x, this.y);
           if (assets.city) {
             ctx.drawImage(
               assets.city,
-              this.x - offsetX - width / 2,
-              this.y - offsetY - height / 2,
+              iso.x - offsetX - width / 2,
+              iso.y - offsetY - height / 2,
               width,
               height
             );
           } else {
             ctx.font = "16px sans-serif";
-            ctx.fillText("🏠", this.x - offsetX - 8, this.y - offsetY + 8);
+            ctx.fillText("🏠", iso.x - offsetX - 8, iso.y - offsetY + 8);
           }
-          // Draw the city name below the symbol using 12px font.
           ctx.font = "12px sans-serif";
-          ctx.fillText(this.name, this.x - offsetX - 8, this.y - offsetY + 22);
+          ctx.fillText(this.name, iso.x - offsetX - 8, iso.y - offsetY + 22);
         }
       drawMinimap(ctx, scale) {
         ctx.fillStyle = "black";
@@ -945,7 +964,8 @@
       }
       draw(ctx, offsetX, offsetY) {
         ctx.save();
-        ctx.translate(this.x - offsetX, this.y - offsetY);
+        const iso = worldToIso(this.x, this.y);
+        ctx.translate(iso.x - offsetX, iso.y - offsetY);
         ctx.rotate(this.angle);
         const sprite = getShipSprite(this.type, this.nation);
         if (sprite) {
@@ -973,7 +993,7 @@
         }
         ctx.restore();
         ctx.font = "12px sans-serif";
-        ctx.fillText(nations[this.nation], this.x - offsetX + 15, this.y - offsetY - 15);
+        ctx.fillText(nations[this.nation], iso.x - offsetX + 15, iso.y - offsetY - 15);
       }
       drawMinimap(ctx, scale) {
         ctx.fillStyle = this.isPlayer ? "blue" : "red";
@@ -1002,9 +1022,10 @@
         this.distanceTraveled += Math.hypot(dx, dy);
       }
       draw(ctx, offsetX, offsetY) {
+        const iso = worldToIso(this.x, this.y);
         ctx.fillStyle = "black";
         ctx.beginPath();
-        ctx.arc(this.x - offsetX, this.y - offsetY, 5, 0, 2 * Math.PI);
+        ctx.arc(iso.x - offsetX, iso.y - offsetY, 5, 0, 2 * Math.PI);
         ctx.fill();
       }
       drawMinimap(ctx, scale) {
@@ -1284,25 +1305,44 @@
     }
     
     function draw() {
-      let offsetX = playerShip ? playerShip.x - CSS_WIDTH / 2 : 0;
-      let offsetY = playerShip ? playerShip.y - CSS_HEIGHT / 2 : 0;
-      offsetX = Math.max(0, Math.min(worldWidth - CSS_WIDTH, offsetX));
-      offsetY = Math.max(0, Math.min(worldHeight - CSS_HEIGHT, offsetY));
+      let offsetX = 0, offsetY = 0;
+      if (playerShip) {
+        const pIso = worldToIso(playerShip.x, playerShip.y);
+        offsetX = pIso.x - CSS_WIDTH / 2;
+        offsetY = pIso.y - CSS_HEIGHT / 2;
+        const isoMinX = -worldHeight / 2;
+        const isoMaxX = worldWidth / 2;
+        const isoMinY = 0;
+        const isoMaxY = (worldWidth + worldHeight) / 4;
+        offsetX = Math.max(isoMinX, Math.min(isoMaxX - CSS_WIDTH, offsetX));
+        offsetY = Math.max(isoMinY, Math.min(isoMaxY - CSS_HEIGHT, offsetY));
+      }
 
       ctx.fillStyle = "#87CEEB";
       ctx.fillRect(0, 0, CSS_WIDTH, CSS_HEIGHT);
+
+      for (let sum = 0; sum < gridRows + gridCols - 1; sum++) {
+        for (let r = 0; r < gridRows; r++) {
+          const c = sum - r;
+          if (c >= 0 && c < gridCols) {
+            drawTile(r, c, offsetX, offsetY);
+          }
+        }
+      }
+
       islands.forEach(island => island.draw(ctx, offsetX, offsetY));
       cities.forEach(city => city.draw(ctx, offsetX, offsetY));
       ships.forEach(ship => ship.draw(ctx, offsetX, offsetY));
       cannonballs.forEach(cb => cb.draw(ctx, offsetX, offsetY));
       if (weatherState.condition === "fog" && playerShip) {
         const radius = viewDistance;
+        const pIso = worldToIso(playerShip.x, playerShip.y);
         const grad = ctx.createRadialGradient(
-          playerShip.x - offsetX,
-          playerShip.y - offsetY,
+          pIso.x - offsetX,
+          pIso.y - offsetY,
           radius * 0.2,
-          playerShip.x - offsetX,
-          playerShip.y - offsetY,
+          pIso.x - offsetX,
+          pIso.y - offsetY,
           radius
         );
         grad.addColorStop(0, "rgba(255,255,255,0)");
