@@ -1,6 +1,8 @@
 export const assets = {};
+let gridSize = 16;
 
-export async function loadAssets(){
+export async function loadAssets(tileSize){
+  if (typeof tileSize === 'number') gridSize = tileSize;
   try {
     const response = await fetch('/pirates/assets.json');
     const data = await response.json();
@@ -34,10 +36,10 @@ function loadImage(url, isTile = false){
       console.warn('Failed to load image:', url);
       if (isTile){
         const canvas = document.createElement('canvas');
-        canvas.width = canvas.height = 16;
+        canvas.width = canvas.height = gridSize;
         const ctx = canvas.getContext('2d');
         ctx.fillStyle = '#f0f';
-        ctx.fillRect(0, 0, 16, 16);
+        ctx.fillRect(0, 0, gridSize, gridSize);
         resolve(canvas);
       } else {
         resolve(null);
