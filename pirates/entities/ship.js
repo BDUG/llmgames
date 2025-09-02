@@ -69,6 +69,12 @@ export class Ship {
 
     this.x = newX;
     this.y = newY;
+
+    // Apply friction so ships gradually slow down
+    this.speed *= 0.98;
+    if (Math.abs(this.speed) < 0.01) {
+      this.speed = 0;
+    }
   }
 
   draw(ctx, offsetX = 0, offsetY = 0, tileWidth, tileIsoHeight, tileImageHeight) {
