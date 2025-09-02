@@ -58,6 +58,9 @@ let tiles, player, cities, cityMetadata, npcShips;
 const keys = {};
 
 window.addEventListener('keydown', e => {
+  if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].includes(e.key)) {
+    e.preventDefault();
+  }
   keys[e.key] = true;
 });
 
