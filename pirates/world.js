@@ -42,13 +42,15 @@ export function generateWorld(width, height, gridSize, seed=Math.random()) {
     }
   }
 
-  // Randomly assign hills and villages on interior land tiles.
+  // Randomly assign hills on interior land tiles and villages on coasts.
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       if (tiles[r][c] === Terrain.LAND) {
         const rand = seededRandom(seed++);
         if (rand < 0.1) tiles[r][c] = Terrain.HILL;
-        else if (rand < 0.13) tiles[r][c] = Terrain.VILLAGE;
+      } else if (tiles[r][c] === Terrain.COAST) {
+        const rand = seededRandom(seed++);
+        if (rand < 0.03) tiles[r][c] = Terrain.VILLAGE;
       }
     }
   }
