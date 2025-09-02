@@ -204,7 +204,8 @@ function loop(timestamp) {
   const nearbyCity = cities.find(c => Math.hypot(player.x - c.x, player.y - c.y) < 32);
   updateCommandKeys({ nearCity: !!nearbyCity, nearEnemy });
   if (nearbyCity) {
-    openTradeMenu(player);
+    const metadata = cityMetadata.get(nearbyCity);
+    openTradeMenu(player, nearbyCity, metadata);
   } else {
     closeTradeMenu();
   }
