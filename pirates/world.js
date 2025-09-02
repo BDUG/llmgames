@@ -114,6 +114,8 @@ export function drawWorld(ctx, tiles, tileWidth, tileIsoHeight, tileImageHeight,
   let firstCol = Math.max(0, Math.floor(Math.min(...cVals)));
   let lastCol = Math.min(tiles[0].length - 1, Math.ceil(Math.max(...cVals)));
 
+  const { isoX, isoY } = cartToIso(offsetX, offsetY, tileWidth, tileIsoHeight, tileImageHeight);
+
   for (let r = firstRow; r <= lastRow; r++) {
     for (let c = firstCol; c <= lastCol; c++) {
       const t = tiles[r][c];
@@ -124,7 +126,7 @@ export function drawWorld(ctx, tiles, tileWidth, tileIsoHeight, tileImageHeight,
       else if (t === Terrain.COAST) img = assets.tiles?.coast || assets.tiles?.land;
       else img = assets.tiles?.land;
       if (!img) continue;
-      const { x, y } = worldToIso(r, c, tileWidth, tileIsoHeight, tileImageHeight, offsetX, offsetY);
+      const { x, y } = worldToIso(r, c, tileWidth, tileIsoHeight, tileImageHeight, isoX, isoY);
       ctx.drawImage(img, x, y, img.width, tileImageHeight);
     }
   }
