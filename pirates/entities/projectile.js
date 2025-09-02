@@ -17,9 +17,16 @@ export class Projectile {
   }
 
   draw(ctx, offsetX = 0, offsetY = 0, tileWidth, tileIsoHeight, tileImageHeight) {
+    const { isoX: offX, isoY: offY } = cartToIso(
+      offsetX,
+      offsetY,
+      tileWidth,
+      tileIsoHeight,
+      tileImageHeight
+    );
     const { isoX, isoY } = cartToIso(this.x, this.y, tileWidth, tileIsoHeight, tileImageHeight);
     ctx.save();
-    ctx.translate(isoX - offsetX, isoY - offsetY);
+    ctx.translate(isoX - offX, isoY - offY);
     ctx.fillStyle = 'black';
     ctx.beginPath();
     ctx.arc(0, 0, 2, 0, Math.PI * 2);
