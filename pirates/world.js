@@ -127,7 +127,7 @@ export function drawWorld(ctx, tiles, tileWidth, tileIsoHeight, tileImageHeight,
       else img = assets.tiles?.land;
       if (!img) continue;
       const { x, y } = worldToIso(r, c, tileWidth, tileIsoHeight, tileImageHeight, isoX, isoY);
-      ctx.drawImage(img, x, y, img.width, tileImageHeight);
+      ctx.drawImage(img, x, y, tileWidth, tileImageHeight);
     }
   }
 }
