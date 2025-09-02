@@ -68,6 +68,15 @@ window.addEventListener('keyup', e => {
 const NATIONS = ['England', 'France', 'Spain', 'Netherlands'];
 const GOODS = ['Sugar', 'Rum', 'Tobacco', 'Cotton'];
 
+let wind = { speed: 0, angle: 0 };
+function updateWind() {
+  wind.speed = 0.5 + Math.random() * 2;
+  wind.angle = Math.random() * Math.PI * 2;
+}
+setInterval(updateWind, 10000);
+updateWind();
+Ship.wind = wind;
+
 function setup(seed=Math.random()) {
   const result = generateWorld(worldWidth, worldHeight, gridSize, seed);
   tiles = result.tiles;
@@ -143,11 +152,14 @@ function loop(timestamp) {
   if (keys['ArrowRight']) player.rotate(1);
   if (keys['ArrowUp']) player.speed = Math.min(player.speed + 0.1, 5);
   if (keys['ArrowDown']) player.speed = Math.max(player.speed - 0.1, 0);
+  if (keys['1']) { player.setSail(0); keys['1'] = false; }
+  if (keys['2']) { player.setSail(0.5); keys['2'] = false; }
+  if (keys['3']) { player.setSail(1); keys['3'] = false; }
   if (keys[' ']) player.fireCannons();
   player.update(dt, tiles, gridSize); // simplistic update with collision
 
   if (player.mutinied) {
-    updateHUD(player);
+    updateHUD(player, wind);
     return;
   }
 
@@ -210,7 +222,7 @@ function loop(timestamp) {
       i--;
     }
   }
-  updateHUD(player);
+  updateHUD(player, wind);
   drawMinimap(minimapCtx, tiles, player, worldWidth, worldHeight);
 
   const nearbyCity = cities.find(c => Math.hypot(player.x - c.x, player.y - c.y) < 32);

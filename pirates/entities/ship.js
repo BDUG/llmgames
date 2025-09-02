@@ -20,6 +20,9 @@ export class Ship {
     this.projectiles = [];
     this.reputation = {};
 
+    // sail control
+    this.sail = 1; // 0 = furled, 1 = full
+
     // supplies and crew management
     this.food = 100;
     this.morale = 100;
@@ -37,9 +40,19 @@ export class Ship {
   }
 
   forward(dt) {
+    const wind = Ship.wind || { speed: 0, angle: 0 };
+    const rel = wind.angle - this.angle;
+    const windAlong = Math.cos(rel) * wind.speed * this.sail;
+    const windSide = Math.sin(rel) * wind.speed * this.sail;
+    const forward = this.speed + windAlong;
+    const sideways = windSide;
     return {
-      x: Math.cos(this.angle) * this.speed * dt,
-      y: Math.sin(this.angle) * this.speed * dt
+      x:
+        Math.cos(this.angle) * forward * dt +
+        Math.cos(this.angle + Math.PI / 2) * sideways * dt,
+      y:
+        Math.sin(this.angle) * forward * dt +
+        Math.sin(this.angle + Math.PI / 2) * sideways * dt
     };
   }
 
@@ -100,6 +113,10 @@ export class Ship {
     if (Math.abs(this.speed) < 0.01) {
       this.speed = 0;
     }
+  }
+
+  setSail(state) {
+    this.sail = Math.max(0, Math.min(1, state));
   }
 
   draw(ctx, offsetX = 0, offsetY = 0, tileWidth, tileIsoHeight, tileImageHeight) {
@@ -173,6 +190,8 @@ export class Ship {
     this.reputation[nation] += amount;
   }
 }
+
+Ship.wind = { speed: 0, angle: 0 };
 
 function tileAt(tiles, x, y, gridSize) {
   const row = Math.floor(y / gridSize);
