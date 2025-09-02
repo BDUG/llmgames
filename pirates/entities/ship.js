@@ -18,6 +18,10 @@ export class Ship {
     this.sunk = false;
     this.projectiles = [];
     this.reputation = {};
+
+    // cannon fire control
+    this.fireCooldown = 0; // frames until next shot allowed
+    this.fireRate = 30; // cooldown frames between shots
   }
 
   rotate(direction) {
@@ -33,6 +37,10 @@ export class Ship {
 
   update(dt, tiles, gridSize) {
     this.projectiles = this.projectiles.filter(p => p.update());
+
+    if (this.fireCooldown > 0) {
+      this.fireCooldown = Math.max(this.fireCooldown - dt, 0);
+    }
 
     const { x: dx, y: dy } = this.forward(dt);
     let newX = this.x + dx;
@@ -98,8 +106,9 @@ export class Ship {
   }
 
   fireCannons() {
-    if (this.sunk) return;
+    if (this.sunk || this.fireCooldown > 0) return;
     this.projectiles.push(new Projectile(this.x, this.y, this.angle));
+    this.fireCooldown = this.fireRate;
   }
 
   takeDamage(amount) {
