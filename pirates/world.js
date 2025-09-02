@@ -85,8 +85,35 @@ export function drawWorld(ctx, tiles, tileWidth, tileIsoHeight, tileImageHeight,
   tileIsoHeight = tileIsoHeight ?? tileImageHeight / 2;
   if (!tileWidth || !tileIsoHeight || !tileImageHeight) return;
 
-  for (let r = 0; r < tiles.length; r++) {
-    for (let c = 0; c < tiles[0].length; c++) {
+  const canvasWidth = ctx.canvas?.width ?? 0;
+  const canvasHeight = ctx.canvas?.height ?? 0;
+
+  function screenToTile(x, y) {
+    const sy = y + offsetY + (tileImageHeight - tileIsoHeight);
+    const sx = x + offsetX;
+    return {
+      r: sy / tileIsoHeight - sx / tileWidth,
+      c: sy / tileIsoHeight + sx / tileWidth
+    };
+  }
+
+  const corners = [
+    screenToTile(-tileWidth, -tileImageHeight),
+    screenToTile(canvasWidth + tileWidth, -tileImageHeight),
+    screenToTile(-tileWidth, canvasHeight + tileImageHeight),
+    screenToTile(canvasWidth + tileWidth, canvasHeight + tileImageHeight)
+  ];
+
+  const rVals = corners.map(p => p.r);
+  const cVals = corners.map(p => p.c);
+
+  let firstRow = Math.max(0, Math.floor(Math.min(...rVals)));
+  let lastRow = Math.min(tiles.length - 1, Math.ceil(Math.max(...rVals)));
+  let firstCol = Math.max(0, Math.floor(Math.min(...cVals)));
+  let lastCol = Math.min(tiles[0].length - 1, Math.ceil(Math.max(...cVals)));
+
+  for (let r = firstRow; r <= lastRow; r++) {
+    for (let c = firstCol; c <= lastCol; c++) {
       const t = tiles[r][c];
       let img;
       if (t === Terrain.WATER) img = assets.tiles?.water;
