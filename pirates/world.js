@@ -87,12 +87,12 @@ export function drawWorld(ctx, tiles, tileWidth, tileIsoHeight, tileImageHeight,
   tileIsoHeight = tileIsoHeight ?? tileImageHeight / 2;
   if (!tileWidth || !tileIsoHeight || !tileImageHeight) return;
 
-  const canvasWidth = ctx.canvas?.width ?? 0;
-  const canvasHeight = ctx.canvas?.height ?? 0;
+  const canvasWidth = ctx.canvas?.clientWidth ?? ctx.canvas?.width ?? 0;
+  const canvasHeight = ctx.canvas?.clientHeight ?? ctx.canvas?.height ?? 0;
 
-  function screenToTile(x, y) {
-    const sy = y + offsetY + (tileImageHeight - tileIsoHeight);
-    const sx = x + offsetX;
+  function screenToTile(cssX, cssY) {
+    const sy = cssY + offsetY + (tileImageHeight - tileIsoHeight);
+    const sx = cssX + offsetX;
     return {
       r: sy / tileIsoHeight - sx / tileWidth,
       c: sy / tileIsoHeight + sx / tileWidth
