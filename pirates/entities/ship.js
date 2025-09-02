@@ -32,6 +32,8 @@ export class Ship {
   }
 
   update(dt, tiles, gridSize) {
+    this.projectiles = this.projectiles.filter(p => p.update());
+
     const { x: dx, y: dy } = this.forward(dt);
     let newX = this.x + dx;
     let newY = this.y + dy;
@@ -67,8 +69,6 @@ export class Ship {
 
     this.x = newX;
     this.y = newY;
-
-    this.projectiles = this.projectiles.filter(p => p.update());
   }
 
   draw(ctx, offsetX = 0, offsetY = 0, tileWidth, tileIsoHeight, tileImageHeight) {
