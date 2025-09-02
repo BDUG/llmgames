@@ -146,6 +146,11 @@ function loop(timestamp) {
   if (keys[' ']) player.fireCannons();
   player.update(dt, tiles, gridSize); // simplistic update with collision
 
+  if (player.mutinied) {
+    updateHUD(player);
+    return;
+  }
+
   const offsetX = player.x - CSS_WIDTH / 2;
   const offsetY = player.y - CSS_HEIGHT / 2;
 
@@ -166,7 +171,10 @@ function loop(timestamp) {
         n.takeDamage(25);
         p.life = 0;
         bus.emit('log', `Hit ${n.nation} ship for 25 damage`);
-        if (n.sunk) bus.emit('log', `${n.nation} ship sank!`);
+        if (n.sunk) {
+          bus.emit('log', `${n.nation} ship sank!`);
+          player.distributeLoot();
+        }
       }
     });
     n.projectiles.forEach(p => {
@@ -195,6 +203,7 @@ function loop(timestamp) {
     if (dist < 30 && (keys['c'] || keys['C'])) {
       bus.emit('log', `Captured ${n.nation} ship!`);
       player.adjustReputation(n.nation, -5);
+      player.distributeLoot();
       questManager.completeQuest('capture');
       npcShips.splice(i, 1);
       keys['c'] = keys['C'] = false;
@@ -205,6 +214,11 @@ function loop(timestamp) {
   drawMinimap(minimapCtx, tiles, player, worldWidth, worldHeight);
 
   const nearbyCity = cities.find(c => Math.hypot(player.x - c.x, player.y - c.y) < 32);
+  if (nearbyCity) {
+    if (!player.inPort) player.visitPort();
+  } else {
+    player.inPort = false;
+  }
   updateCommandKeys({ nearCity: !!nearbyCity, nearEnemy });
   if (nearbyCity) {
     const metadata = cityMetadata.get(nearbyCity);

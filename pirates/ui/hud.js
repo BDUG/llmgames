@@ -24,6 +24,8 @@ export function updateHUD(player) {
     `Ship: (${player.x.toFixed(0)}, ${player.y.toFixed(0)})` +
     `<br>Gold: ${player.gold}` +
     `<br>Crew: ${player.crew}` +
+    `<br>Morale: ${player.morale.toFixed(0)}` +
+    `<br>Food: ${player.food.toFixed(0)}` +
     `<br>Cargo: ${cargoSummary(player)}` +
     `<br>Quests: ${quests}`;
 }
