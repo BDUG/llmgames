@@ -120,23 +120,32 @@ export class Ship {
   }
 
   draw(ctx, offsetX = 0, offsetY = 0, tileWidth, tileIsoHeight, tileImageHeight) {
+    const { isoX: offX, isoY: offY } = cartToIso(
+      offsetX,
+      offsetY,
+      tileWidth,
+      tileIsoHeight,
+      tileImageHeight
+    );
+
     if (!this.sunk) {
       const img = assets.ship?.Sloop?.[this.nation] || assets.ship?.Sloop?.England;
+      const { isoX, isoY } = cartToIso(this.x, this.y, tileWidth, tileIsoHeight, tileImageHeight);
       if (img) {
-        const { isoX, isoY } = cartToIso(this.x, this.y, tileWidth, tileIsoHeight, tileImageHeight);
         ctx.save();
-        ctx.translate(isoX - offsetX, isoY - offsetY);
+        ctx.translate(isoX - offX, isoY - offY);
         ctx.rotate(this.angle);
         ctx.drawImage(img, -img.width / 2, -img.height / 2);
         ctx.restore();
       } else {
-        const { isoX, isoY } = cartToIso(this.x, this.y, tileWidth, tileIsoHeight, tileImageHeight);
         ctx.fillStyle = 'brown';
-        ctx.fillRect(isoX - 5 - offsetX, isoY - 5 - offsetY, 10, 10);
+        ctx.fillRect(isoX - 5 - offX, isoY - 5 - offY, 10, 10);
       }
     }
 
-    this.projectiles.forEach(p => p.draw(ctx, offsetX, offsetY, tileWidth, tileIsoHeight, tileImageHeight));
+    this.projectiles.forEach(p =>
+      p.draw(ctx, offsetX, offsetY, tileWidth, tileIsoHeight, tileImageHeight)
+    );
   }
 
   fireCannons() {

@@ -9,16 +9,24 @@ export class City {
   }
 
   draw(ctx, offsetX = 0, offsetY = 0, tileWidth, tileIsoHeight, tileImageHeight) {
+    const { isoX: offX, isoY: offY } = cartToIso(
+      offsetX,
+      offsetY,
+      tileWidth,
+      tileIsoHeight,
+      tileImageHeight
+    );
+
     const { isoX, isoY } = cartToIso(this.x, this.y, tileWidth, tileIsoHeight, tileImageHeight);
     const img = assets.tiles.village;
     if (img) {
       ctx.save();
-      ctx.translate(isoX - offsetX, isoY - offsetY);
+      ctx.translate(isoX - offX, isoY - offY);
       ctx.drawImage(img, -img.width / 2, -img.height / 2);
       ctx.restore();
     } else {
       ctx.fillStyle = 'gray';
-      ctx.fillRect(isoX - 8 - offsetX, isoY - 8 - offsetY, 16, 16);
+      ctx.fillRect(isoX - 8 - offX, isoY - 8 - offY, 16, 16);
     }
   }
 }
