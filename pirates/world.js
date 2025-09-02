@@ -61,28 +61,29 @@ function seededRandom(seed) {
   return x - Math.floor(x);
 }
 
-export function worldToHalfStep(r, c, tileWidth, tileHeight, offsetX = 0, offsetY = 0) {
-  const rowShift = (r % 2 === 0) ? -tileWidth / 2 : tileWidth / 2;
+export function worldToIso(r, c, tileWidth, tileIsoHeight, tileImageHeight, offsetX = 0, offsetY = 0) {
   return {
-    x: c * tileWidth / 2 + rowShift - offsetX,
-    y: r * tileHeight / 2 - offsetY
+    x: (c - r) * tileWidth / 2 - offsetX,
+    y: (c + r) * tileIsoHeight / 2 - (tileImageHeight - tileIsoHeight) - offsetY
   };
 }
 
-export function cartToIso(x, y, tileWidth, tileHeight) {
+export function cartToIso(x, y, tileWidth, tileIsoHeight, tileImageHeight) {
   tileWidth = tileWidth ?? assets.tiles?.land?.width ?? assets.tiles?.water?.width;
-  tileHeight = tileHeight ?? assets.tiles?.land?.height ?? assets.tiles?.water?.height ?? (tileWidth ? tileWidth / 2 : undefined);
-  if (!tileWidth || !tileHeight) return { isoX: x, isoY: y };
+  tileImageHeight = tileImageHeight ?? assets.tiles?.land?.height ?? assets.tiles?.water?.height ?? tileWidth;
+  tileIsoHeight = tileIsoHeight ?? tileImageHeight / 2;
+  if (!tileWidth || !tileIsoHeight) return { isoX: x, isoY: y };
   return {
     isoX: (x - y) / 2,
-    isoY: (x + y) * (tileHeight / (2 * tileWidth))
+    isoY: (x + y) * (tileIsoHeight / (2 * tileWidth)) - tileIsoHeight / 2
   };
 }
 
-export function drawWorld(ctx, tiles, tileWidth, tileHeight, assets, offsetX=0, offsetY=0) {
+export function drawWorld(ctx, tiles, tileWidth, tileIsoHeight, tileImageHeight, assets, offsetX=0, offsetY=0) {
   tileWidth = tileWidth ?? assets.tiles?.land?.width ?? assets.tiles?.water?.width;
-  tileHeight = tileHeight ?? assets.tiles?.land?.height ?? assets.tiles?.water?.height ?? (tileWidth ? tileWidth / 2 : undefined);
-  if (!tileWidth || !tileHeight) return;
+  tileImageHeight = tileImageHeight ?? assets.tiles?.land?.height ?? assets.tiles?.water?.height ?? tileWidth;
+  tileIsoHeight = tileIsoHeight ?? tileImageHeight / 2;
+  if (!tileWidth || !tileIsoHeight || !tileImageHeight) return;
 
   for (let r = 0; r < tiles.length; r++) {
     for (let c = 0; c < tiles[0].length; c++) {
@@ -94,8 +95,8 @@ export function drawWorld(ctx, tiles, tileWidth, tileHeight, assets, offsetX=0, 
       else if (t === Terrain.COAST) img = assets.tiles?.coast || assets.tiles?.land;
       else img = assets.tiles?.land;
       if (!img) continue;
-      const { x, y } = worldToHalfStep(r, c, tileWidth, tileHeight, offsetX, offsetY);
-      ctx.drawImage(img, x, y, tileWidth, tileHeight);
+      const { x, y } = worldToIso(r, c, tileWidth, tileIsoHeight, tileImageHeight, offsetX, offsetY);
+      ctx.drawImage(img, x, y, img.width, tileImageHeight);
     }
   }
 }
