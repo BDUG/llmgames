@@ -90,9 +90,11 @@ export function drawWorld(ctx, tiles, tileWidth, tileIsoHeight, tileImageHeight,
   const canvasWidth = ctx.canvas?.clientWidth ?? ctx.canvas?.width ?? 0;
   const canvasHeight = ctx.canvas?.clientHeight ?? ctx.canvas?.height ?? 0;
 
+  const { isoX, isoY } = cartToIso(offsetX, offsetY, tileWidth, tileIsoHeight, tileImageHeight);
+
   function screenToTile(cssX, cssY) {
-    const sy = cssY + offsetY + (tileImageHeight - tileIsoHeight);
-    const sx = cssX + offsetX;
+    const sy = cssY + isoY + (tileImageHeight - tileIsoHeight);
+    const sx = cssX + isoX;
     return {
       r: sy / tileIsoHeight - sx / tileWidth,
       c: sy / tileIsoHeight + sx / tileWidth
@@ -113,8 +115,6 @@ export function drawWorld(ctx, tiles, tileWidth, tileIsoHeight, tileImageHeight,
   let lastRow = Math.min(tiles.length - 1, Math.ceil(Math.max(...rVals)));
   let firstCol = Math.max(0, Math.floor(Math.min(...cVals)));
   let lastCol = Math.min(tiles[0].length - 1, Math.ceil(Math.max(...cVals)));
-
-  const { isoX, isoY } = cartToIso(offsetX, offsetY, tileWidth, tileIsoHeight, tileImageHeight);
 
   for (let r = firstRow; r <= lastRow; r++) {
     for (let c = firstCol; c <= lastCol; c++) {
