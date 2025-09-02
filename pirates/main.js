@@ -129,14 +129,19 @@ async function start() {
   requestAnimationFrame(loop);
 }
 
+let lastTime = 0;
+
 function loop(timestamp) {
+  if (!lastTime) lastTime = timestamp;
+  const dt = (timestamp - lastTime) / 16;
+  lastTime = timestamp;
   ctx.clearRect(0, 0, CSS_WIDTH, CSS_HEIGHT);
   if (keys['ArrowLeft']) player.rotate(-1);
   if (keys['ArrowRight']) player.rotate(1);
   if (keys['ArrowUp']) player.speed = Math.min(player.speed + 0.1, 5);
   if (keys['ArrowDown']) player.speed = Math.max(player.speed - 0.1, 0);
   if (keys[' ']) player.fireCannons();
-  player.update(1, tiles, gridSize); // simplistic update with collision
+  player.update(dt, tiles, gridSize); // simplistic update with collision
 
   const offsetX = player.x - CSS_WIDTH / 2;
   const offsetY = player.y - CSS_HEIGHT / 2;
@@ -144,7 +149,7 @@ function loop(timestamp) {
   drawWorld(ctx, tiles, tileWidth, tileIsoHeight, tileImageHeight, assets, offsetX, offsetY);
   cities.forEach(c => c.draw(ctx, offsetX, offsetY, tileWidth, tileIsoHeight, tileImageHeight));
   npcShips.forEach(n => {
-    n.update(1, tiles, gridSize, player);
+    n.update(dt, tiles, gridSize, player);
     const dist = Math.hypot(player.x - n.x, player.y - n.y);
     if (dist < 200) n.fireCannons();
     n.draw(ctx, offsetX, offsetY, tileWidth, tileIsoHeight, tileImageHeight);
