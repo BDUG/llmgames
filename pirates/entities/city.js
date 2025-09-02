@@ -8,8 +8,8 @@ export class City {
     this.name = name;
   }
 
-  draw(ctx, offsetX = 0, offsetY = 0) {
-    const { isoX, isoY } = cartToIso(this.x, this.y);
+  draw(ctx, offsetX = 0, offsetY = 0, tileWidth, tileIsoHeight, tileImageHeight) {
+    const { isoX, isoY } = cartToIso(this.x, this.y, tileWidth, tileIsoHeight, tileImageHeight);
     const img = assets.tiles.village;
     if (img) {
       ctx.save();

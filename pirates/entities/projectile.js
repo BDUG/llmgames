@@ -16,8 +16,8 @@ export class Projectile {
     return this.life > 0;
   }
 
-  draw(ctx, offsetX = 0, offsetY = 0) {
-    const { isoX, isoY } = cartToIso(this.x, this.y);
+  draw(ctx, offsetX = 0, offsetY = 0, tileWidth, tileIsoHeight, tileImageHeight) {
+    const { isoX, isoY } = cartToIso(this.x, this.y, tileWidth, tileIsoHeight, tileImageHeight);
     ctx.save();
     ctx.translate(isoX - offsetX, isoY - offsetY);
     ctx.fillStyle = 'black';

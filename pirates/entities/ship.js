@@ -71,24 +71,24 @@ export class Ship {
     this.projectiles = this.projectiles.filter(p => p.update());
   }
 
-  draw(ctx, offsetX = 0, offsetY = 0) {
+  draw(ctx, offsetX = 0, offsetY = 0, tileWidth, tileIsoHeight, tileImageHeight) {
     if (!this.sunk) {
       const img = assets.ship?.Sloop?.[this.nation] || assets.ship?.Sloop?.England;
       if (img) {
-        const { isoX, isoY } = cartToIso(this.x, this.y);
+        const { isoX, isoY } = cartToIso(this.x, this.y, tileWidth, tileIsoHeight, tileImageHeight);
         ctx.save();
         ctx.translate(isoX - offsetX, isoY - offsetY);
         ctx.rotate(this.angle);
         ctx.drawImage(img, -img.width / 2, -img.height / 2);
         ctx.restore();
       } else {
-        const { isoX, isoY } = cartToIso(this.x, this.y);
+        const { isoX, isoY } = cartToIso(this.x, this.y, tileWidth, tileIsoHeight, tileImageHeight);
         ctx.fillStyle = 'brown';
         ctx.fillRect(isoX - 5 - offsetX, isoY - 5 - offsetY, 10, 10);
       }
     }
 
-    this.projectiles.forEach(p => p.draw(ctx, offsetX, offsetY));
+    this.projectiles.forEach(p => p.draw(ctx, offsetX, offsetY, tileWidth, tileIsoHeight, tileImageHeight));
   }
 
   fireCannons() {
