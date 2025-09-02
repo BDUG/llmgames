@@ -1,6 +1,7 @@
 import { assets } from '../assets.js';
 import { Terrain, cartToIso } from '../world.js';
 import { Projectile } from './projectile.js';
+import { bus } from '../bus.js';
 
 export class Ship {
   constructor(x, y, nation = 'Pirate') {
@@ -18,6 +19,13 @@ export class Ship {
     this.sunk = false;
     this.projectiles = [];
     this.reputation = {};
+
+    // supplies and crew management
+    this.food = 100;
+    this.morale = 100;
+    this.timeAtSea = 0;
+    this.inPort = false;
+    this.mutinied = false;
 
     // cannon fire control
     this.fireCooldown = 0; // frames until next shot allowed
@@ -41,6 +49,15 @@ export class Ship {
     if (this.fireCooldown > 0) {
       this.fireCooldown = Math.max(this.fireCooldown - dt, 0);
     }
+
+    // time at sea and supplies affect morale
+    if (!this.inPort) this.timeAtSea += dt;
+    this.food = Math.max(this.food - dt * 0.05, 0);
+    let moraleLoss = dt * 0.02 + (this.timeAtSea / 1000) * dt * 0.01;
+    if (this.food <= 0) moraleLoss += dt * 0.1;
+    this.adjustMorale(-moraleLoss);
+
+    this.checkMutiny();
 
     const { x: dx, y: dy } = this.forward(dt);
     let newX = this.x + dx;
@@ -115,6 +132,39 @@ export class Ship {
     this.hull -= amount;
     if (this.hull <= 0) {
       this.sunk = true;
+    }
+  }
+
+  adjustMorale(amount) {
+    this.morale = Math.max(0, Math.min(100, this.morale + amount));
+  }
+
+  visitPort() {
+    this.inPort = true;
+    this.timeAtSea = 0;
+    this.food = 100;
+    this.adjustMorale(20);
+  }
+
+  distributeLoot(amount = 10) {
+    if (this.gold >= amount) {
+      this.gold -= amount;
+      this.adjustMorale(amount);
+      bus.emit('log', 'Crew shares the loot. Morale rises.');
+    }
+  }
+
+  checkMutiny() {
+    if (this.morale < 20 && Math.random() < 0.005) {
+      if (this.crew > 0) {
+        this.crew--;
+        bus.emit('log', 'Mutiny! A crew member deserted.');
+        this.adjustMorale(5);
+      }
+    }
+    if (this.crew <= 0 && !this.mutinied) {
+      this.mutinied = true;
+      bus.emit('log', 'Your crew has taken the ship! Game over.');
     }
   }
 
