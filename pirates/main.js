@@ -151,10 +151,10 @@ function loop(timestamp) {
   const dt = (timestamp - lastTime) / 16;
   lastTime = timestamp;
   ctx.clearRect(0, 0, CSS_WIDTH, CSS_HEIGHT);
-  if (keys['ArrowLeft']) player.rotate(-1);
-  if (keys['ArrowRight']) player.rotate(1);
-  if (keys['ArrowUp']) player.speed = Math.min(player.speed + 0.1, 5);
-  if (keys['ArrowDown']) player.speed = Math.max(player.speed - 0.1, 0);
+  if (keys['ArrowLeft']) player.rotate(-dt);
+  if (keys['ArrowRight']) player.rotate(dt);
+  if (keys['ArrowUp']) player.speed = Math.min(player.speed + 0.1 * dt, 5);
+  if (keys['ArrowDown']) player.speed = Math.max(player.speed - 0.1 * dt, 0);
   if (keys['1']) { player.setSail(0); keys['1'] = false; }
   if (keys['2']) { player.setSail(0.5); keys['2'] = false; }
   if (keys['3']) { player.setSail(1); keys['3'] = false; }

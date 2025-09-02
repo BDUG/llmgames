@@ -109,7 +109,7 @@ export class Ship {
     this.y = newY;
 
     // Apply friction so ships gradually slow down
-    this.speed *= 0.98;
+    this.speed *= Math.pow(0.98, dt);
     if (Math.abs(this.speed) < 0.01) {
       this.speed = 0;
     }
