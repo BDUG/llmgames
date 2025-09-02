@@ -14,7 +14,10 @@ import { openTradeMenu, closeTradeMenu } from './ui/trade.js';
 import { startBoarding } from './boarding.js';
 import { initCommandKeys, updateCommandKeys } from './ui/commandKeys.js';
 
-const worldWidth = 4800, worldHeight = 3200, gridSize = 128;
+const TILE_SIZE = 128;
+const worldWidth = 75 * TILE_SIZE;
+const worldHeight = 50 * TILE_SIZE;
+const gridSize = TILE_SIZE;
 let tileWidth = gridSize,
     tileIsoHeight = gridSize / 2,
     tileImageHeight = gridSize;
