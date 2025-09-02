@@ -9,10 +9,10 @@ export class Projectile {
     this.life = 120; // frames
   }
 
-  update() {
-    this.x += Math.cos(this.angle) * this.speed;
-    this.y += Math.sin(this.angle) * this.speed;
-    this.life--;
+  update(dt) {
+    this.x += Math.cos(this.angle) * this.speed * dt;
+    this.y += Math.sin(this.angle) * this.speed * dt;
+    this.life -= dt;
     return this.life > 0;
   }
 

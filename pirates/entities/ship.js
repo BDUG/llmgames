@@ -57,7 +57,7 @@ export class Ship {
   }
 
   update(dt, tiles, gridSize) {
-    this.projectiles = this.projectiles.filter(p => p.update());
+    this.projectiles = this.projectiles.filter(p => p.update(dt));
 
     if (this.fireCooldown > 0) {
       this.fireCooldown = Math.max(this.fireCooldown - dt, 0);
