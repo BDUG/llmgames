@@ -11,6 +11,9 @@ import { Quest } from './quest.js';
 import { questManager } from './questManager.js';
 import { bus } from './bus.js';
 import { openTradeMenu, closeTradeMenu } from './ui/trade.js';
+import { openGovernorMenu, closeGovernorMenu } from './ui/governor.js';
+import { openUpgradeMenu, closeUpgradeMenu } from './ui/upgrade.js';
+import { openTavernMenu, closeTavernMenu } from './ui/tavern.js';
 import { startBoarding } from './boarding.js';
 import { initCommandKeys, updateCommandKeys } from './ui/commandKeys.js';
 
@@ -205,9 +208,39 @@ function loop(timestamp) {
   updateCommandKeys({ nearCity: !!nearbyCity, nearEnemy });
   if (nearbyCity) {
     const metadata = cityMetadata.get(nearbyCity);
-    openTradeMenu(player, nearbyCity, metadata);
+    if (keys['t'] || keys['T']) {
+      closeGovernorMenu();
+      closeTavernMenu();
+      closeUpgradeMenu();
+      openTradeMenu(player, nearbyCity, metadata);
+      keys['t'] = keys['T'] = false;
+    }
+    if (keys['g'] || keys['G']) {
+      closeTradeMenu();
+      closeTavernMenu();
+      closeUpgradeMenu();
+      openGovernorMenu(player, nearbyCity, metadata);
+      keys['g'] = keys['G'] = false;
+    }
+    if (keys['v'] || keys['V']) {
+      closeTradeMenu();
+      closeGovernorMenu();
+      closeUpgradeMenu();
+      openTavernMenu(player, nearbyCity);
+      keys['v'] = keys['V'] = false;
+    }
+    if (keys['u'] || keys['U']) {
+      closeTradeMenu();
+      closeGovernorMenu();
+      closeTavernMenu();
+      openUpgradeMenu(player);
+      keys['u'] = keys['U'] = false;
+    }
   } else {
     closeTradeMenu();
+    closeGovernorMenu();
+    closeTavernMenu();
+    closeUpgradeMenu();
   }
   requestAnimationFrame(loop);
 }
