@@ -35,7 +35,17 @@ async function loadNested(src, target, path = []){
 function loadImage(url, isTile = false){
   return new Promise(resolve => {
     const img = new Image();
-    img.onload = () => resolve(img);
+    img.onload = () => {
+      if (isTile){
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = gridSize;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, gridSize, gridSize);
+        resolve(canvas);
+      } else {
+        resolve(img);
+      }
+    };
     img.onerror = () => {
       console.warn('Failed to load image:', url);
       if (isTile){

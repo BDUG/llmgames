@@ -123,12 +123,8 @@ function setup(seed=Math.random()) {
 
 async function start() {
   await loadAssets(gridSize);
-  const sampleTile = assets.tiles?.land || assets.tiles?.water;
-  if (sampleTile) {
-    tileWidth = sampleTile.width;
-    tileImageHeight = sampleTile.height;
-    tileIsoHeight = sampleTile.height / 2;
-  }
+  tileWidth = tileImageHeight = gridSize;
+  tileIsoHeight = gridSize / 2;
   setup();
   requestAnimationFrame(loop);
 }
