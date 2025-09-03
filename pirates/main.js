@@ -434,6 +434,7 @@ function loop(timestamp) {
           bus.emit('log', `${nation} merchants levy a surcharge due to your reputation.`);
         }
         openTradeMenu(player, nearbyCity, metadata, multiplier);
+        bus.emit('log', `Opened trade with ${nearbyCity.name}`);
       }
       keys['t'] = keys['T'] = false;
     }
