@@ -1,7 +1,7 @@
 import { bus } from '../bus.js';
 import { updateHUD } from './hud.js';
 
-const PRICES = { Sugar: 10, Rum: 12, Tobacco: 15, Cotton: 8 };
+export const PRICES = { Sugar: 10, Rum: 12, Tobacco: 15, Cotton: 8 };
 
 function listGoods(metadata) {
   const goods = new Set();
@@ -10,13 +10,17 @@ function listGoods(metadata) {
   return Array.from(goods);
 }
 
+function basePriceFor(good, metadata) {
+  let price = PRICES[good];
+  if (metadata?.supplies?.includes(good)) price = Math.round(price * 0.8);
+  if (metadata?.demands?.includes(good)) price = Math.round(price * 1.2);
+  return price;
+}
+
 function priceFor(good, metadata, multiplier = 1) {
   metadata.prices = metadata.prices || {};
   if (metadata.prices[good] == null) {
-    let price = PRICES[good];
-    if (metadata?.supplies?.includes(good)) price = Math.round(price * 0.8);
-    if (metadata?.demands?.includes(good)) price = Math.round(price * 1.2);
-    metadata.prices[good] = price;
+    metadata.prices[good] = basePriceFor(good, metadata);
   }
   return Math.round(metadata.prices[good] * multiplier);
 }
@@ -60,11 +64,22 @@ export function openTradeMenu(player, city, metadata, priceMultiplier = 1) {
     if (metadata.inventory[good] == null) metadata.inventory[good] = 10;
     const stock = metadata.inventory[good];
 
-    const basePrice = priceFor(good, metadata);
-    const buyPrice = Math.round(basePrice * priceMultiplier);
+    const basePrice = basePriceFor(good, metadata);
+    const currentPrice = priceFor(good, metadata);
+    const buyPrice = Math.round(currentPrice * priceMultiplier);
     const sellPrice = Math.floor(buyPrice * 0.9);
+    const trend = currentPrice - basePrice;
 
-    row.innerHTML = `<td>${good}</td><td>${qty}</td><td>${stock}</td><td>${buyPrice}g</td><td>${sellPrice}g</td>`;
+    row.innerHTML = `<td>${good}</td><td>${qty}</td><td>${stock}</td><td class="buyPrice">${buyPrice}g</td><td>${sellPrice}g</td>`;
+
+    const priceCell = row.querySelector('.buyPrice');
+    if (trend > 0) {
+      priceCell.style.color = 'red';
+      priceCell.textContent += ' \u2191';
+    } else if (trend < 0) {
+      priceCell.style.color = 'green';
+      priceCell.textContent += ' \u2193';
+    }
 
     const buyCell = document.createElement('td');
     const buyBtn = document.createElement('button');
@@ -84,8 +99,10 @@ export function openTradeMenu(player, city, metadata, priceMultiplier = 1) {
       player.gold -= buyPrice;
       player.cargo[good] = (player.cargo[good] || 0) + 1;
       metadata.inventory[good] -= 1;
-      metadata.prices[good] = Math.round(basePrice * 1.1);
+      const oldPrice = metadata.prices[good];
+      metadata.prices[good] = Math.round(oldPrice * 1.1);
       bus.emit('log', `Bought 1 ${good} for ${buyPrice}g`);
+      bus.emit('price-change', { city, good, delta: metadata.prices[good] - oldPrice });
       updateHUD(player);
       openTradeMenu(player, city, metadata, priceMultiplier);
     };
@@ -106,8 +123,10 @@ export function openTradeMenu(player, city, metadata, priceMultiplier = 1) {
       player.cargo[good] -= 1;
       player.gold += sellPrice;
       metadata.inventory[good] += 1;
-      metadata.prices[good] = Math.max(1, Math.round(basePrice * 0.9));
+      const oldPrice = metadata.prices[good];
+      metadata.prices[good] = Math.max(1, Math.round(oldPrice * 0.9));
       bus.emit('log', `Sold 1 ${good} for ${sellPrice}g`);
+      bus.emit('price-change', { city, good, delta: metadata.prices[good] - oldPrice });
       updateHUD(player);
       openTradeMenu(player, city, metadata, priceMultiplier);
     };

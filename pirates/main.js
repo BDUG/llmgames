@@ -10,7 +10,7 @@ import { initQuestLog, updateQuestLog } from './ui/questLog.js';
 import { Quest } from './quest.js';
 import { questManager } from './questManager.js';
 import { bus } from './bus.js';
-import { openTradeMenu, closeTradeMenu } from './ui/trade.js';
+import { openTradeMenu, closeTradeMenu, PRICES } from './ui/trade.js';
 import { openGovernorMenu, closeGovernorMenu } from './ui/governor.js';
 import { openUpgradeMenu, closeUpgradeMenu } from './ui/upgrade.js';
 import { openTavernMenu, closeTavernMenu } from './ui/tavern.js';
@@ -56,8 +56,12 @@ bus.on('npc-flee', ({ npc }) => {
   bus.emit('log', `${npc.nation} ship fled!`);
 });
 
-let tiles, player, cities, cityMetadata, npcShips;
+let tiles, player, cities, cityMetadata, npcShips, priceEvents = [];
 const keys = {};
+
+bus.on('price-change', ({ city, good, delta }) => {
+  priceEvents.push({ origin: city, good, strength: delta });
+});
 let paused = false;
 let showMinimap = true;
 let currentSeed = Math.random();
@@ -80,6 +84,8 @@ const REP_SURCHARGE_THRESHOLD = 0;
 const REP_DENY_THRESHOLD = -20;
 const REP_SURCHARGE_RATE = 1.2;
 
+const DAY_MS = 5000;
+
 let wind = { speed: 0, angle: 0 };
 function updateWind() {
   wind.speed = 0.5 + Math.random() * 2;
@@ -88,12 +94,63 @@ function updateWind() {
 setInterval(updateWind, 10000);
 updateWind();
 Ship.wind = wind;
+setInterval(updateMarkets, DAY_MS);
 
 function getCameraOffset(player) {
   return {
     x: Math.max(0, Math.min(player.x - CSS_WIDTH / 2, maxOffsetX)),
     y: Math.max(0, Math.min(player.y - CSS_HEIGHT / 2, maxOffsetY))
   };
+}
+
+function basePriceFor(good, metadata) {
+  let price = PRICES[good];
+  if (metadata?.supplies?.includes(good)) price = Math.round(price * 0.8);
+  if (metadata?.demands?.includes(good)) price = Math.round(price * 1.2);
+  return price;
+}
+
+function baseStockFor(good, metadata) {
+  let stock = 10;
+  if (metadata?.supplies?.includes(good)) stock = 15;
+  if (metadata?.demands?.includes(good)) stock = 5;
+  return stock;
+}
+
+function processPriceEvents() {
+  priceEvents = priceEvents.filter(event => {
+    const effect = Math.round(event.strength);
+    if (effect) {
+      for (const [city, metadata] of cityMetadata.entries()) {
+        if (city === event.origin) continue;
+        metadata.prices = metadata.prices || {};
+        const base = basePriceFor(event.good, metadata);
+        const current = metadata.prices[event.good] ?? base;
+        metadata.prices[event.good] = Math.max(1, current + effect);
+      }
+    }
+    event.strength *= 0.5;
+    return Math.abs(event.strength) >= 1;
+  });
+}
+
+function updateMarkets() {
+  if (!cityMetadata) return;
+  for (const [city, metadata] of cityMetadata.entries()) {
+    metadata.prices = metadata.prices || {};
+    metadata.inventory = metadata.inventory || {};
+    GOODS.forEach(good => {
+      const base = basePriceFor(good, metadata);
+      const current = metadata.prices[good] ?? base;
+      metadata.prices[good] = Math.round(current + (base - current) * 0.1);
+
+      const baseStock = baseStockFor(good, metadata);
+      const stock = metadata.inventory[good] ?? baseStock;
+      if (stock < baseStock) metadata.inventory[good] = stock + 1;
+      else if (stock > baseStock) metadata.inventory[good] = stock - 1;
+    });
+  }
+  processPriceEvents();
 }
 
 function setup(seed = currentSeed) {
@@ -108,6 +165,7 @@ function setup(seed = currentSeed) {
   cities = [];
   cityMetadata = new Map();
   npcShips = [];
+  priceEvents = [];
   questManager.active = [];
   questManager.completed = [];
   bus.emit('quest-updated');
