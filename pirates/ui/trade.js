@@ -50,7 +50,7 @@ export function openTradeMenu(player, city, metadata, priceMultiplier = 1) {
 
   const table = document.createElement('table');
   const header = document.createElement('tr');
-  header.innerHTML = '<th>Good</th><th>Qty</th><th>Stock</th><th>Price</th><th></th><th></th>';
+  header.innerHTML = '<th>Good</th><th>Qty</th><th>Stock</th><th>Buy Price</th><th>Sell Price</th><th></th><th></th>';
   table.appendChild(header);
 
   metadata.inventory = metadata.inventory || {};
@@ -59,23 +59,27 @@ export function openTradeMenu(player, city, metadata, priceMultiplier = 1) {
     const qty = player.cargo[good] || 0;
     if (metadata.inventory[good] == null) metadata.inventory[good] = 10;
     const stock = metadata.inventory[good];
-    const price = priceFor(good, metadata, priceMultiplier);
-    row.innerHTML = `<td>${good}</td><td>${qty}</td><td>${stock}</td><td>${price}g</td>`;
+
+    const basePrice = priceFor(good, metadata);
+    const buyPrice = Math.round(basePrice * priceMultiplier);
+    const sellPrice = Math.floor(buyPrice * 0.9);
+
+    row.innerHTML = `<td>${good}</td><td>${qty}</td><td>${stock}</td><td>${buyPrice}g</td><td>${sellPrice}g</td>`;
 
     const buyCell = document.createElement('td');
     const buyBtn = document.createElement('button');
     buyBtn.textContent = 'Buy';
     buyBtn.onclick = () => {
       if (
-        player.gold >= price &&
+        player.gold >= buyPrice &&
         cargoUsed(player) < player.cargoCapacity &&
         metadata.inventory[good] > 0
       ) {
-        player.gold -= price;
+        player.gold -= buyPrice;
         player.cargo[good] = (player.cargo[good] || 0) + 1;
         metadata.inventory[good] -= 1;
-        metadata.prices[good] = Math.round(metadata.prices[good] * 1.1);
-        bus.emit('log', `Bought 1 ${good} for ${price}g`);
+        metadata.prices[good] = Math.round(basePrice * 1.1);
+        bus.emit('log', `Bought 1 ${good} for ${buyPrice}g`);
         updateHUD(player);
         openTradeMenu(player, city, metadata, priceMultiplier);
       }
@@ -89,10 +93,10 @@ export function openTradeMenu(player, city, metadata, priceMultiplier = 1) {
     sellBtn.onclick = () => {
       if ((player.cargo[good] || 0) > 0) {
         player.cargo[good] -= 1;
-        player.gold += price;
+        player.gold += sellPrice;
         metadata.inventory[good] += 1;
-        metadata.prices[good] = Math.max(1, Math.round(metadata.prices[good] * 0.9));
-        bus.emit('log', `Sold 1 ${good} for ${price}g`);
+        metadata.prices[good] = Math.max(1, Math.round(basePrice * 0.9));
+        bus.emit('log', `Sold 1 ${good} for ${sellPrice}g`);
         updateHUD(player);
         openTradeMenu(player, city, metadata, priceMultiplier);
       }
