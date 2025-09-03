@@ -56,6 +56,9 @@ bus.on('npc-flee', ({ npc }) => {
 
 let tiles, player, cities, cityMetadata, npcShips;
 const keys = {};
+let paused = false;
+let showMinimap = true;
+let currentSeed = Math.random();
 
 window.addEventListener('keydown', e => {
   if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].includes(e.key)) {
@@ -80,7 +83,8 @@ setInterval(updateWind, 10000);
 updateWind();
 Ship.wind = wind;
 
-function setup(seed=Math.random()) {
+function setup(seed = currentSeed) {
+  currentSeed = seed;
   const result = generateWorld(worldWidth, worldHeight, gridSize, seed);
   tiles = result.tiles;
   player = new Ship(worldWidth / 2, worldHeight / 2);
@@ -162,6 +166,50 @@ function setup(seed=Math.random()) {
   bus.emit('log', 'World generated');
 }
 
+function toggleMinimap() {
+  showMinimap = !showMinimap;
+  minimapCanvas.style.display = showMinimap ? 'block' : 'none';
+}
+
+function saveGame() {
+  if (!player) return;
+  const data = {
+    seed: currentSeed,
+    player: {
+      x: player.x,
+      y: player.y,
+      speed: player.speed,
+      angle: player.angle,
+      gold: player.gold,
+      crew: player.crew,
+      hull: player.hull,
+      cargo: player.cargo,
+      reputation: player.reputation
+    }
+  };
+  try {
+    localStorage.setItem('pirates-save', JSON.stringify(data));
+    bus.emit('log', 'Game saved');
+  } catch (e) {
+    console.error('Save failed', e);
+  }
+}
+
+function loadGame() {
+  try {
+    const raw = localStorage.getItem('pirates-save');
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    setup(data.seed);
+    Object.assign(player, data.player);
+    player.cargo = data.player.cargo || {};
+    player.reputation = data.player.reputation || {};
+    bus.emit('log', 'Game loaded');
+  } catch (e) {
+    console.error('Load failed', e);
+  }
+}
+
 async function start() {
   await loadAssets(gridSize);
   tileWidth = tileImageHeight = gridSize;
@@ -176,6 +224,16 @@ function loop(timestamp) {
   if (!lastTime) lastTime = timestamp;
   const dt = (timestamp - lastTime) / 16;
   lastTime = timestamp;
+  if (keys['p'] || keys['P']) { paused = !paused; keys['p'] = keys['P'] = false; }
+  if (keys['m'] || keys['M']) { toggleMinimap(); keys['m'] = keys['M'] = false; }
+  if (keys['s'] || keys['S']) { saveGame(); keys['s'] = keys['S'] = false; }
+  if (keys['l'] || keys['L']) { loadGame(); keys['l'] = keys['L'] = false; }
+
+  if (paused) {
+    requestAnimationFrame(loop);
+    return;
+  }
+
   ctx.clearRect(0, 0, CSS_WIDTH, CSS_HEIGHT);
   if (keys['ArrowLeft']) player.rotate(-dt);
   if (keys['ArrowRight']) player.rotate(dt);
@@ -252,7 +310,9 @@ function loop(timestamp) {
     }
   }
   updateHUD(player, wind);
-  drawMinimap(minimapCtx, tiles, player, worldWidth, worldHeight);
+  if (showMinimap) {
+    drawMinimap(minimapCtx, tiles, player, worldWidth, worldHeight);
+  }
 
   const nearbyCity = cities.find(c => Math.hypot(player.x - c.x, player.y - c.y) < 32);
   if (nearbyCity) {
