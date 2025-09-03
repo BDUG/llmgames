@@ -18,13 +18,15 @@ import { startBoarding } from './boarding.js';
 import { initCommandKeys, updateCommandKeys } from './ui/commandKeys.js';
 
 const TILE_SIZE = 128;
-const worldWidth = 75 * TILE_SIZE;
-const worldHeight = 50 * TILE_SIZE;
+let worldWidth = 75 * TILE_SIZE;
+let worldHeight = 50 * TILE_SIZE;
 const gridSize = TILE_SIZE;
 let tileWidth = gridSize,
     tileIsoHeight = gridSize / 2,
     tileImageHeight = gridSize;
 const CSS_WIDTH = 800, CSS_HEIGHT = 600;
+let maxOffsetX = worldWidth - CSS_WIDTH;
+let maxOffsetY = worldHeight - CSS_HEIGHT;
 
 const canvas = document.getElementById('gameCanvas');
 const dpr = window.devicePixelRatio || 1;
@@ -89,8 +91,8 @@ Ship.wind = wind;
 
 function getCameraOffset(player) {
   return {
-    x: player.x - CSS_WIDTH / 2,
-    y: player.y - CSS_HEIGHT / 2
+    x: Math.max(0, Math.min(player.x - CSS_WIDTH / 2, maxOffsetX)),
+    y: Math.max(0, Math.min(player.y - CSS_HEIGHT / 2, maxOffsetY))
   };
 }
 
@@ -98,6 +100,10 @@ function setup(seed = currentSeed) {
   currentSeed = seed;
   const result = generateWorld(worldWidth, worldHeight, gridSize, seed);
   tiles = result.tiles;
+  worldWidth = result.cols * gridSize;
+  worldHeight = result.rows * gridSize;
+  maxOffsetX = Math.max(0, worldWidth - CSS_WIDTH);
+  maxOffsetY = Math.max(0, worldHeight - CSS_HEIGHT);
   player = new Ship(worldWidth / 2, worldHeight / 2);
   cities = [];
   cityMetadata = new Map();
@@ -112,21 +118,18 @@ function setup(seed = currentSeed) {
     return x - Math.floor(x);
   };
 
-  // Collect water tiles for NPC spawning and convert village tiles into cities.
-  const waterTiles = [], villageTiles = [];
+  // Collect water tiles for NPC spawning.
+  const waterTiles = [];
   for (let r = 0; r < tiles.length; r++) {
     for (let c = 0; c < tiles[0].length; c++) {
       if (tiles[r][c] === Terrain.WATER) {
         waterTiles.push({ r, c });
       }
-      if (tiles[r][c] === Terrain.VILLAGE) {
-        villageTiles.push({ r, c });
-      }
     }
   }
 
-  // Create city objects for all village tiles first.
-  villageTiles.forEach(({ r, c }, i) => {
+  // Create city objects for all village tiles provided by generateWorld.
+  result.villages.forEach(({ r, c }, i) => {
     const x = c * gridSize + gridSize / 2;
     const y = r * gridSize + gridSize / 2;
     const name = `Village ${i + 1}`;
