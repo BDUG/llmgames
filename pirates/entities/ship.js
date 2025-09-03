@@ -1,5 +1,5 @@
 import { assets } from '../assets.js';
-import { Terrain, cartToIso } from '../world.js';
+import { Terrain, cartToIso, tileAt } from '../world.js';
 import { Projectile } from './projectile.js';
 import { bus } from '../bus.js';
 
@@ -246,11 +246,3 @@ export class Ship {
 Ship.wind = { speed: 0, angle: 0 };
 Ship.TYPES = SHIP_TYPES;
 
-function tileAt(tiles, x, y, gridSize) {
-  const row = Math.floor(y / gridSize);
-  const col = Math.floor(x / gridSize);
-  if (row < 0 || row >= tiles.length || col < 0 || col >= tiles[0].length) {
-    return Terrain.LAND;
-  }
-  return tiles[row][col];
-}

@@ -121,6 +121,57 @@ export function cartToIso(x, y, tileWidth, tileIsoHeight, tileImageHeight) {
   };
 }
 
+// Convert isometric coordinates back into cartesian world space.
+export function isoToCart(isoX, isoY, tileWidth, tileIsoHeight, tileImageHeight) {
+  tileWidth = tileWidth ?? assets.tiles?.land?.width ?? assets.tiles?.water?.width;
+  tileImageHeight = tileImageHeight ?? assets.tiles?.land?.height ?? assets.tiles?.water?.height ?? tileWidth;
+  tileIsoHeight = tileIsoHeight ?? tileImageHeight / 2;
+  if (!tileWidth || !tileIsoHeight) return { x: isoX, y: isoY };
+  const cartX =
+    isoX + ((isoY + tileIsoHeight / 2) * tileWidth) / tileIsoHeight;
+  const cartY =
+    ((isoY + tileIsoHeight / 2) * tileWidth) / tileIsoHeight - isoX;
+  return { x: cartX, y: cartY };
+}
+
+// Translate canvas/screen coordinates into fractional tile indices.
+export function screenToTile(
+  cssX,
+  cssY,
+  tileWidth,
+  tileIsoHeight,
+  tileImageHeight,
+  offsetX = 0,
+  offsetY = 0
+) {
+  tileWidth = tileWidth ?? assets.tiles?.land?.width ?? assets.tiles?.water?.width;
+  tileImageHeight = tileImageHeight ?? assets.tiles?.land?.height ?? assets.tiles?.water?.height ?? tileWidth;
+  tileIsoHeight = tileIsoHeight ?? tileImageHeight / 2;
+  const { isoX, isoY } = cartToIso(
+    offsetX,
+    offsetY,
+    tileWidth,
+    tileIsoHeight,
+    tileImageHeight
+  );
+  const sy = cssY + isoY + (tileImageHeight - tileIsoHeight);
+  const sx = cssX + isoX;
+  return {
+    r: sy / tileIsoHeight - sx / tileWidth,
+    c: sy / tileIsoHeight + sx / tileWidth
+  };
+}
+
+// Safely fetch the tile type for a cartesian world coordinate.
+export function tileAt(tiles, x, y, gridSize) {
+  const row = Math.floor(y / gridSize);
+  const col = Math.floor(x / gridSize);
+  if (row < 0 || row >= tiles.length || col < 0 || col >= tiles[0].length) {
+    return Terrain.LAND;
+  }
+  return tiles[row][col];
+}
+
 export function drawWorld(ctx, tiles, tileWidth, tileIsoHeight, tileImageHeight, assets, offsetX=0, offsetY=0) {
   tileWidth = tileWidth ?? assets.tiles?.land?.width ?? assets.tiles?.water?.width;
   tileImageHeight = tileImageHeight ?? assets.tiles?.land?.height ?? assets.tiles?.water?.height ?? tileWidth;
@@ -132,20 +183,11 @@ export function drawWorld(ctx, tiles, tileWidth, tileIsoHeight, tileImageHeight,
 
   const { isoX, isoY } = cartToIso(offsetX, offsetY, tileWidth, tileIsoHeight, tileImageHeight);
 
-  function screenToTile(cssX, cssY) {
-    const sy = cssY + isoY + (tileImageHeight - tileIsoHeight);
-    const sx = cssX + isoX;
-    return {
-      r: sy / tileIsoHeight - sx / tileWidth,
-      c: sy / tileIsoHeight + sx / tileWidth
-    };
-  }
-
   const corners = [
-    screenToTile(-tileWidth, -tileImageHeight),
-    screenToTile(canvasWidth + tileWidth, -tileImageHeight),
-    screenToTile(-tileWidth, canvasHeight + tileImageHeight),
-    screenToTile(canvasWidth + tileWidth, canvasHeight + tileImageHeight)
+    screenToTile(-tileWidth, -tileImageHeight, tileWidth, tileIsoHeight, tileImageHeight, offsetX, offsetY),
+    screenToTile(canvasWidth + tileWidth, -tileImageHeight, tileWidth, tileIsoHeight, tileImageHeight, offsetX, offsetY),
+    screenToTile(-tileWidth, canvasHeight + tileImageHeight, tileWidth, tileIsoHeight, tileImageHeight, offsetX, offsetY),
+    screenToTile(canvasWidth + tileWidth, canvasHeight + tileImageHeight, tileWidth, tileIsoHeight, tileImageHeight, offsetX, offsetY)
   ];
 
   const rVals = corners.map(p => p.r);
