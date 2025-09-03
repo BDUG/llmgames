@@ -3,19 +3,28 @@ import { Terrain, cartToIso } from '../world.js';
 import { Projectile } from './projectile.js';
 import { bus } from '../bus.js';
 
+export const SHIP_TYPES = {
+  Sloop: { speed: 5, hull: 100, cargo: 20, crew: 10, cost: 0 },
+  Brig: { speed: 4, hull: 150, cargo: 40, crew: 20, cost: 300 },
+  Galleon: { speed: 3, hull: 200, cargo: 60, crew: 40, cost: 600 }
+};
+
 export class Ship {
-  constructor(x, y, nation = 'Pirate') {
+  constructor(x, y, nation = 'Pirate', type = 'Sloop') {
     this.x = x;
     this.y = y;
     this.nation = nation;
+    this.type = type;
+    const stats = SHIP_TYPES[type] || SHIP_TYPES.Sloop;
     this.speed = 0;
+    this.maxSpeed = stats.speed;
     this.angle = 0;
     this.turnSpeed = 0.05;
     this.cargo = {};
-    this.cargoCapacity = 20;
+    this.cargoCapacity = stats.cargo;
     this.gold = 100;
-    this.crew = 10;
-    this.hullMax = 100;
+    this.crew = stats.crew;
+    this.hullMax = stats.hull;
     this.hull = this.hullMax;
     this.sunk = false;
     this.projectiles = [];
@@ -120,6 +129,27 @@ export class Ship {
     this.sail = Math.max(0, Math.min(1, state));
   }
 
+  changeType(type) {
+    const stats = SHIP_TYPES[type];
+    if (!stats) return;
+    this.type = type;
+    this.maxSpeed = stats.speed;
+    this.hullMax = stats.hull;
+    this.hull = Math.min(this.hull, this.hullMax);
+    this.cargoCapacity = stats.cargo;
+    this.crew = Math.min(this.crew, stats.crew);
+    let used = Object.values(this.cargo).reduce((a, b) => a + b, 0);
+    if (used > this.cargoCapacity) {
+      for (const good of Object.keys(this.cargo)) {
+        if (used <= this.cargoCapacity) break;
+        const remove = Math.min(this.cargo[good], used - this.cargoCapacity);
+        this.cargo[good] -= remove;
+        if (this.cargo[good] <= 0) delete this.cargo[good];
+        used -= remove;
+      }
+    }
+  }
+
   draw(ctx, offsetX = 0, offsetY = 0, tileWidth, tileIsoHeight, tileImageHeight) {
     const { isoX: offX, isoY: offY } = cartToIso(
       offsetX,
@@ -130,7 +160,9 @@ export class Ship {
     );
 
     if (!this.sunk) {
-      const img = assets.ship?.Sloop?.[this.nation] || assets.ship?.Sloop?.England;
+      const img =
+        assets.ship?.[this.type]?.[this.nation] ||
+        assets.ship?.[this.type]?.England;
       const { isoX, isoY } = cartToIso(this.x, this.y, tileWidth, tileIsoHeight, tileImageHeight);
       if (img) {
         ctx.save();
@@ -202,6 +234,7 @@ export class Ship {
 }
 
 Ship.wind = { speed: 0, angle: 0 };
+Ship.TYPES = SHIP_TYPES;
 
 function tileAt(tiles, x, y, gridSize) {
   const row = Math.floor(y / gridSize);

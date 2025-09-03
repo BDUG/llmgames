@@ -172,7 +172,11 @@ function setup(seed = currentSeed) {
     const { r, c } = waterTiles[idx];
     const x = c * gridSize + gridSize / 2;
     const y = r * gridSize + gridSize / 2;
-    npcShips.push(new NpcShip(x, y, NATIONS[Math.floor(rand() * NATIONS.length)]));
+    const typeNames = Object.keys(Ship.TYPES);
+    const type = typeNames[Math.floor(rand() * typeNames.length)];
+    npcShips.push(
+      new NpcShip(x, y, NATIONS[Math.floor(rand() * NATIONS.length)], type)
+    );
   }
 
   questManager.addQuest(new Quest('capture', 'Capture an enemy ship', 'England', 10));
@@ -194,6 +198,9 @@ function saveGame() {
       y: player.y,
       speed: player.speed,
       angle: player.angle,
+      type: player.type,
+      maxSpeed: player.maxSpeed,
+      cargoCapacity: player.cargoCapacity,
       gold: player.gold,
       crew: player.crew,
       hull: player.hull,
@@ -252,7 +259,7 @@ function loop(timestamp) {
   ctx.clearRect(0, 0, CSS_WIDTH, CSS_HEIGHT);
   if (keys['ArrowLeft']) player.rotate(-dt);
   if (keys['ArrowRight']) player.rotate(dt);
-  if (keys['ArrowUp']) player.speed = Math.min(player.speed + 0.1 * dt, 5);
+  if (keys['ArrowUp']) player.speed = Math.min(player.speed + 0.1 * dt, player.maxSpeed);
   if (keys['ArrowDown']) player.speed = Math.max(player.speed - 0.1 * dt, 0);
   if (keys['1']) { player.setSail(0); keys['1'] = false; }
   if (keys['2']) { player.setSail(0.5); keys['2'] = false; }
