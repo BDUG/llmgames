@@ -1,9 +1,26 @@
 import { bus } from './bus.js';
 import { updateHUD } from './ui/hud.js';
 
+// Attempt to start a duel-based boarding sequence. If the duel UI fails to
+// load or throws an error, fall back to the original random resolution.
 export function startBoarding(player, enemy) {
   if (!player || !enemy) return;
 
+  // Try to dynamically import the duel UI. If this fails for any reason we
+  // simply fall back to the original random system so boarding can still
+  // proceed.
+  import('./ui/duel.js')
+    .then(mod => mod.startDuel(player, enemy, bus))
+    .catch(err => {
+      console.warn('Duel UI failed, falling back to random resolution', err);
+      randomBoarding(player, enemy);
+    });
+}
+
+// Original random boarding logic retained as a fallback. This function mirrors
+// the previous implementation of startBoarding and will be used if the duel UI
+// cannot be loaded for any reason.
+function randomBoarding(player, enemy) {
   bus.emit('log', `Boarding ${enemy.nation} ship!`);
 
   let playerCrew = player.crew;
