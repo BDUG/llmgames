@@ -10,7 +10,7 @@ function listGoods(metadata) {
   return Array.from(goods);
 }
 
-function priceFor(good, metadata) {
+function priceFor(good, metadata, multiplier = 1) {
   metadata.prices = metadata.prices || {};
   if (metadata.prices[good] == null) {
     let price = PRICES[good];
@@ -18,14 +18,14 @@ function priceFor(good, metadata) {
     if (metadata?.demands?.includes(good)) price = Math.round(price * 1.2);
     metadata.prices[good] = price;
   }
-  return metadata.prices[good];
+  return Math.round(metadata.prices[good] * multiplier);
 }
 
 function cargoUsed(player) {
   return Object.values(player.cargo).reduce((a, b) => a + b, 0);
 }
 
-export function openTradeMenu(player, city, metadata) {
+export function openTradeMenu(player, city, metadata, priceMultiplier = 1) {
   const menu = document.getElementById('tradeMenu');
   if (!menu || !player) return;
 
@@ -59,7 +59,7 @@ export function openTradeMenu(player, city, metadata) {
     const qty = player.cargo[good] || 0;
     if (metadata.inventory[good] == null) metadata.inventory[good] = 10;
     const stock = metadata.inventory[good];
-    const price = priceFor(good, metadata);
+    const price = priceFor(good, metadata, priceMultiplier);
     row.innerHTML = `<td>${good}</td><td>${qty}</td><td>${stock}</td><td>${price}g</td>`;
 
     const buyCell = document.createElement('td');
@@ -77,7 +77,7 @@ export function openTradeMenu(player, city, metadata) {
         metadata.prices[good] = Math.round(metadata.prices[good] * 1.1);
         bus.emit('log', `Bought 1 ${good} for ${price}g`);
         updateHUD(player);
-        openTradeMenu(player, city, metadata);
+        openTradeMenu(player, city, metadata, priceMultiplier);
       }
     };
     buyCell.appendChild(buyBtn);
@@ -94,7 +94,7 @@ export function openTradeMenu(player, city, metadata) {
         metadata.prices[good] = Math.max(1, Math.round(metadata.prices[good] * 0.9));
         bus.emit('log', `Sold 1 ${good} for ${price}g`);
         updateHUD(player);
-        openTradeMenu(player, city, metadata);
+        openTradeMenu(player, city, metadata, priceMultiplier);
       }
     };
     sellCell.appendChild(sellBtn);
