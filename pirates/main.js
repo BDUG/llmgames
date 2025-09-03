@@ -121,9 +121,11 @@ Ship.wind = wind;
 setInterval(updateMarkets, DAY_MS);
 
 function getCameraOffset(player) {
+  // Center the camera on the player ship. Clamp the offset so we don't scroll
+  // past the world bounds when near the edges of the map.
   return {
-    x: player.x - CSS_WIDTH / 2,
-    y: player.y - CSS_HEIGHT / 2
+    x: Math.max(0, Math.min(player.x - CSS_WIDTH / 2, worldWidth - CSS_WIDTH)),
+    y: Math.max(0, Math.min(player.y - CSS_HEIGHT / 2, worldHeight - CSS_HEIGHT))
   };
 }
 
@@ -183,7 +185,10 @@ function setup(seed = currentSeed) {
   tiles = result.tiles;
   worldWidth = result.cols * gridSize;
   worldHeight = result.rows * gridSize;
-  player = new Ship(worldWidth / 2, worldHeight / 2, 'Pirate');
+  // Place the player's ship at the center of the generated world.
+  const spawnX = worldWidth / 2;
+  const spawnY = worldHeight / 2;
+  player = new Ship(spawnX, spawnY, 'Pirate');
   cities = [];
   cityMetadata = new Map();
   npcShips = [];
