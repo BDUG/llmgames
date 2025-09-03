@@ -2,10 +2,11 @@ import { assets } from '../assets.js';
 import { cartToIso } from '../world.js';
 
 export class City {
-  constructor(x, y, name) {
+  constructor(x, y, name, nation) {
     this.x = x;
     this.y = y;
     this.name = name;
+    this.nation = nation;
   }
 
   draw(ctx, offsetX = 0, offsetY = 0, tileWidth, tileIsoHeight, tileImageHeight) {
@@ -19,10 +20,14 @@ export class City {
 
     const { isoX, isoY } = cartToIso(this.x, this.y, tileWidth, tileIsoHeight, tileImageHeight);
     const img = assets.tiles.village;
+    const flag = assets.flags?.[this.nation];
     if (img) {
       ctx.save();
       ctx.translate(isoX - offX, isoY - offY);
       ctx.drawImage(img, -img.width / 2, -img.height / 2);
+      if (flag) {
+        ctx.drawImage(flag, -flag.width / 2, -img.height / 2 - flag.height);
+      }
       ctx.restore();
     } else {
       ctx.fillStyle = 'gray';

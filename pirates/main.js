@@ -183,7 +183,7 @@ function setup(seed = currentSeed) {
   tiles = result.tiles;
   worldWidth = result.cols * gridSize;
   worldHeight = result.rows * gridSize;
-  player = new Ship(worldWidth / 2, worldHeight / 2);
+  player = new Ship(worldWidth / 2, worldHeight / 2, 'Pirate');
   cities = [];
   cityMetadata = new Map();
   npcShips = [];
@@ -208,42 +208,38 @@ function setup(seed = currentSeed) {
     }
   }
 
-  // Create city objects for all village tiles provided by generateWorld.
+  // Prepare city metadata for all village tiles provided by generateWorld.
+  const cityConfigs = [];
   result.villages.forEach(({ r, c }, i) => {
     const x = c * gridSize + gridSize / 2;
     const y = r * gridSize + gridSize / 2;
     const name = `Village ${i + 1}`;
-    const city = new City(x, y, name);
-    cities.push(city);
-
     const supplies = GOODS.filter(() => rand() < 0.5);
     const demands = GOODS.filter(g => !supplies.includes(g) && rand() < 0.5);
-    // Assign a default nation; it will be overwritten below
-    cityMetadata.set(city, { nation: 'Unknown', supplies, demands });
+    cityConfigs.push({ x, y, name, supplies, demands });
   });
 
-  // Deterministically shuffle cities for nation assignment
-  const shuffledCities = [...cities];
-  for (let i = shuffledCities.length - 1; i > 0; i--) {
+  // Deterministically shuffle configs for nation assignment
+  for (let i = cityConfigs.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1));
-    [shuffledCities[i], shuffledCities[j]] = [shuffledCities[j], shuffledCities[i]];
+    [cityConfigs[i], cityConfigs[j]] = [cityConfigs[j], cityConfigs[i]];
   }
 
-  if (shuffledCities.length < NATIONS.length) {
-    bus.emit('log', `Warning: ${shuffledCities.length} cities for ${NATIONS.length} nations`);
+  if (cityConfigs.length < NATIONS.length) {
+    bus.emit('log', `Warning: ${cityConfigs.length} cities for ${NATIONS.length} nations`);
   }
 
-  // Assign nations: first ensure each nation gets one city
-  shuffledCities.forEach((city, i) => {
+  // Assign nations and instantiate cities
+  cityConfigs.forEach((cfg, i) => {
     let nation;
     if (i < NATIONS.length) {
       nation = NATIONS[i];
     } else {
       nation = NATIONS[Math.floor(rand() * NATIONS.length)];
     }
-    const metadata = cityMetadata.get(city) || { supplies: [], demands: [], nation: 'Unknown' };
-    metadata.nation = nation || metadata.nation || 'Unknown';
-    cityMetadata.set(city, metadata);
+    const city = new City(cfg.x, cfg.y, cfg.name, nation);
+    cities.push(city);
+    cityMetadata.set(city, { nation, supplies: cfg.supplies, demands: cfg.demands });
   });
 
   const numNpcs = 3;

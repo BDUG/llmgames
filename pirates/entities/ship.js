@@ -163,12 +163,22 @@ export class Ship {
       const img =
         assets.ship?.[this.type]?.[this.nation] ||
         assets.ship?.[this.type]?.England;
-      const { isoX, isoY } = cartToIso(this.x, this.y, tileWidth, tileIsoHeight, tileImageHeight);
+      const flag = assets.flags?.[this.nation];
+      const { isoX, isoY } = cartToIso(
+        this.x,
+        this.y,
+        tileWidth,
+        tileIsoHeight,
+        tileImageHeight
+      );
       if (img) {
         ctx.save();
         ctx.translate(isoX - offX, isoY - offY);
         ctx.rotate(this.angle);
         ctx.drawImage(img, -img.width / 2, -img.height / 2);
+        if (flag) {
+          ctx.drawImage(flag, -flag.width / 2, -img.height / 2 - flag.height);
+        }
         ctx.restore();
       } else {
         ctx.fillStyle = 'brown';
