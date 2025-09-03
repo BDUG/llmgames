@@ -9,20 +9,43 @@ export const Terrain = {
   COAST: 4
 };
 
-export function generateWorld(width, height, gridSize, seed=Math.random()) {
+export function generateWorld(width, height, gridSize, seed = Math.random()) {
   const rows = Math.floor(height / gridSize);
   const cols = Math.floor(width / gridSize);
-  const noise2D = createNoise2D(() => seededRandom(seed++));
-  // Basic heightmap using noise combined with a radial falloff to form an island.
-  const tiles = Array.from({ length: rows }, (_, r) =>
-    Array.from({ length: cols }, (_, c) => {
-      const nx = (c / cols) * 2 - 1;
-      const ny = (r / rows) * 2 - 1;
-      const dist = Math.sqrt(nx * nx + ny * ny); // 0 at center, ~1 at edges
-      const elevation = noise2D(c * 0.05, r * 0.05) - dist; // falloff creates island
-      return elevation > 0 ? Terrain.LAND : Terrain.WATER;
-    })
-  );
+  const tiles = Array.from({ length: rows }, () => Array(cols).fill(Terrain.WATER));
+  const islandIds = Array.from({ length: rows }, () => Array(cols).fill(-1));
+
+  let rngSeed = seed;
+  const numIslands = 3 + Math.floor(seededRandom(rngSeed++) * 3); // 3-5 islands
+  const islands = [];
+  for (let i = 0; i < numIslands; i++) {
+    const cx = Math.floor(seededRandom(rngSeed++) * cols);
+    const cy = Math.floor(seededRandom(rngSeed++) * rows);
+    const radius = Math.floor(6 + seededRandom(rngSeed++) * 10);
+    const noise = createNoise2D(() => seededRandom(rngSeed++));
+    islands.push({ cx, cy, radius, noise });
+  }
+
+  // Build islands
+  islands.forEach((island, id) => {
+    const { cx, cy, radius, noise } = island;
+    const rStart = Math.max(0, Math.floor(cy - radius * 2));
+    const rEnd = Math.min(rows - 1, Math.ceil(cy + radius * 2));
+    const cStart = Math.max(0, Math.floor(cx - radius * 2));
+    const cEnd = Math.min(cols - 1, Math.ceil(cx + radius * 2));
+    for (let r = rStart; r <= rEnd; r++) {
+      for (let c = cStart; c <= cEnd; c++) {
+        const nx = (c - cx) / radius;
+        const ny = (r - cy) / radius;
+        const dist = Math.sqrt(nx * nx + ny * ny);
+        const elevation = noise(c * 0.1, r * 0.1) - dist;
+        if (elevation > 0) {
+          tiles[r][c] = Terrain.LAND;
+          islandIds[r][c] = id;
+        }
+      }
+    }
+  });
 
   // Mark land tiles adjacent to water as coast.
   for (let r = 0; r < rows; r++) {
@@ -42,20 +65,37 @@ export function generateWorld(width, height, gridSize, seed=Math.random()) {
     }
   }
 
-  // Randomly assign hills on interior land tiles and villages on coasts.
+  // Randomly assign hills on interior land tiles.
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       if (tiles[r][c] === Terrain.LAND) {
-        const rand = seededRandom(seed++);
+        const rand = seededRandom(rngSeed++);
         if (rand < 0.1) tiles[r][c] = Terrain.HILL;
-      } else if (tiles[r][c] === Terrain.COAST) {
-        const rand = seededRandom(seed++);
-        if (rand < 0.03) tiles[r][c] = Terrain.VILLAGE;
       }
     }
   }
 
-  return { tiles, rows, cols };
+  // Choose one village on the coast of each island.
+  const coastByIsland = islands.map(() => []);
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (tiles[r][c] === Terrain.COAST) {
+        const id = islandIds[r][c];
+        if (id >= 0) coastByIsland[id].push({ r, c });
+      }
+    }
+  }
+
+  const villages = [];
+  coastByIsland.forEach((coasts) => {
+    if (!coasts.length) return;
+    const idx = Math.floor(seededRandom(rngSeed++) * coasts.length);
+    const { r, c } = coasts[idx];
+    tiles[r][c] = Terrain.VILLAGE;
+    villages.push({ r, c });
+  });
+
+  return { tiles, rows, cols, villages };
 }
 
 function seededRandom(seed) {
