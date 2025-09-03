@@ -110,6 +110,7 @@ function setup(seed=Math.random()) {
     }
   }
 
+  // Create city objects for all village tiles first.
   villageTiles.forEach(({ r, c }, i) => {
     const x = c * gridSize + gridSize / 2;
     const y = r * gridSize + gridSize / 2;
@@ -117,10 +118,34 @@ function setup(seed=Math.random()) {
     const city = new City(x, y, name);
     cities.push(city);
 
-    const nation = NATIONS[Math.floor(rand() * NATIONS.length)];
     const supplies = GOODS.filter(() => rand() < 0.5);
     const demands = GOODS.filter(g => !supplies.includes(g) && rand() < 0.5);
-    cityMetadata.set(city, { nation, supplies, demands });
+    // nation will be assigned after all cities are created
+    cityMetadata.set(city, { nation: null, supplies, demands });
+  });
+
+  // Deterministically shuffle cities for nation assignment
+  const shuffledCities = [...cities];
+  for (let i = shuffledCities.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [shuffledCities[i], shuffledCities[j]] = [shuffledCities[j], shuffledCities[i]];
+  }
+
+  if (shuffledCities.length < NATIONS.length) {
+    bus.emit('log', `Warning: ${shuffledCities.length} cities for ${NATIONS.length} nations`);
+  }
+
+  // Assign nations: first ensure each nation gets one city
+  shuffledCities.forEach((city, i) => {
+    let nation;
+    if (i < NATIONS.length) {
+      nation = NATIONS[i];
+    } else {
+      nation = NATIONS[Math.floor(rand() * NATIONS.length)];
+    }
+    const metadata = cityMetadata.get(city);
+    metadata.nation = nation;
+    cityMetadata.set(city, metadata);
   });
 
   const numNpcs = 3;
