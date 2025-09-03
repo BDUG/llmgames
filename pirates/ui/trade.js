@@ -69,20 +69,25 @@ export function openTradeMenu(player, city, metadata, priceMultiplier = 1) {
     const buyCell = document.createElement('td');
     const buyBtn = document.createElement('button');
     buyBtn.textContent = 'Buy';
+
+    const buyDisabledReasons = [];
+    if (player.gold < buyPrice) buyDisabledReasons.push('Not enough gold');
+    if (cargoUsed(player) >= player.cargoCapacity) buyDisabledReasons.push('No cargo space');
+    if (stock <= 0) buyDisabledReasons.push('Out of stock');
+    if (buyDisabledReasons.length) {
+      buyBtn.disabled = true;
+      buyBtn.title = buyDisabledReasons.join(', ');
+    }
+
     buyBtn.onclick = () => {
-      if (
-        player.gold >= buyPrice &&
-        cargoUsed(player) < player.cargoCapacity &&
-        metadata.inventory[good] > 0
-      ) {
-        player.gold -= buyPrice;
-        player.cargo[good] = (player.cargo[good] || 0) + 1;
-        metadata.inventory[good] -= 1;
-        metadata.prices[good] = Math.round(basePrice * 1.1);
-        bus.emit('log', `Bought 1 ${good} for ${buyPrice}g`);
-        updateHUD(player);
-        openTradeMenu(player, city, metadata, priceMultiplier);
-      }
+      if (buyBtn.disabled) return;
+      player.gold -= buyPrice;
+      player.cargo[good] = (player.cargo[good] || 0) + 1;
+      metadata.inventory[good] -= 1;
+      metadata.prices[good] = Math.round(basePrice * 1.1);
+      bus.emit('log', `Bought 1 ${good} for ${buyPrice}g`);
+      updateHUD(player);
+      openTradeMenu(player, city, metadata, priceMultiplier);
     };
     buyCell.appendChild(buyBtn);
     row.appendChild(buyCell);
@@ -90,16 +95,21 @@ export function openTradeMenu(player, city, metadata, priceMultiplier = 1) {
     const sellCell = document.createElement('td');
     const sellBtn = document.createElement('button');
     sellBtn.textContent = 'Sell';
+
+    if ((player.cargo[good] || 0) <= 0) {
+      sellBtn.disabled = true;
+      sellBtn.title = 'Nothing to sell';
+    }
+
     sellBtn.onclick = () => {
-      if ((player.cargo[good] || 0) > 0) {
-        player.cargo[good] -= 1;
-        player.gold += sellPrice;
-        metadata.inventory[good] += 1;
-        metadata.prices[good] = Math.max(1, Math.round(basePrice * 0.9));
-        bus.emit('log', `Sold 1 ${good} for ${sellPrice}g`);
-        updateHUD(player);
-        openTradeMenu(player, city, metadata, priceMultiplier);
-      }
+      if (sellBtn.disabled) return;
+      player.cargo[good] -= 1;
+      player.gold += sellPrice;
+      metadata.inventory[good] += 1;
+      metadata.prices[good] = Math.max(1, Math.round(basePrice * 0.9));
+      bus.emit('log', `Sold 1 ${good} for ${sellPrice}g`);
+      updateHUD(player);
+      openTradeMenu(player, city, metadata, priceMultiplier);
     };
     sellCell.appendChild(sellBtn);
     row.appendChild(sellCell);
