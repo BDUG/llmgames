@@ -187,6 +187,7 @@ function saveGame() {
       gold: player.gold,
       crew: player.crew,
       hull: player.hull,
+      hullMax: player.hullMax,
       cargo: player.cargo,
       reputation: player.reputation
     }

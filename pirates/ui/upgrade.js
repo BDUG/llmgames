@@ -15,15 +15,15 @@ export function openUpgradeMenu(player) {
   menu.appendChild(goldDiv);
 
   const hullDiv = document.createElement('div');
-  hullDiv.textContent = `Hull: ${player.hull}/100`;
+  hullDiv.textContent = `Hull: ${player.hull}/${player.hullMax}`;
   menu.appendChild(hullDiv);
 
   const repairBtn = document.createElement('button');
   repairBtn.textContent = 'Repair (10g for 10 hull)';
   repairBtn.onclick = () => {
-    if (player.gold >= 10 && player.hull < 100) {
+    if (player.gold >= 10 && player.hull < player.hullMax) {
       player.gold -= 10;
-      player.hull = Math.min(player.hull + 10, 100);
+      player.hull = Math.min(player.hull + 10, player.hullMax);
       bus.emit('log', 'Repaired ship for 10g');
       updateHUD(player);
       openUpgradeMenu(player);

@@ -15,7 +15,8 @@ export class Ship {
     this.cargoCapacity = 20;
     this.gold = 100;
     this.crew = 10;
-    this.hull = 100;
+    this.hullMax = 100;
+    this.hull = this.hullMax;
     this.sunk = false;
     this.projectiles = [];
     this.reputation = {};
