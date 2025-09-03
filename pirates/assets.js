@@ -2,6 +2,7 @@ export const assets = {
   tiles: {},
   ship: {},
   city: null,
+  flags: {},
 };
 let gridSize = 16;
 
