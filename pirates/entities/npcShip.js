@@ -1,13 +1,24 @@
 import { Ship } from './ship.js';
 import { bus } from '../bus.js';
+import { Projectile } from './projectile.js';
+
+// Tunable difficulty parameters for NPC behavior
+export const npcDifficulty = {
+  range: 200, // max distance to attempt firing
+  accuracy: Math.PI / 8 // required facing tolerance (radians)
+};
 
 export class NpcShip extends Ship {
-  constructor(x, y, nation = 'Pirate') {
+  constructor(x, y, nation = 'Pirate', difficulty = npcDifficulty) {
     super(x, y, nation);
     this.state = 'patrol';
     this.detectRadius = 300;
     this.fleeRadius = 80;
     this._changeTimer = 0;
+
+    // firing behavior parameters
+    this.fireRange = difficulty.range;
+    this.accuracy = difficulty.accuracy;
   }
 
   update(dt, tiles, gridSize, player) {
@@ -48,5 +59,31 @@ export class NpcShip extends Ship {
     }
 
     super.update(dt, tiles, gridSize);
+  }
+
+  fireCannons(target) {
+    if (!target || this.sunk || this.fireCooldown > 0) return;
+
+    const dist = Math.hypot(target.x - this.x, target.y - this.y);
+    if (dist > this.fireRange) return;
+
+    // predict target movement to lead shots
+    const projectileSpeed = 6; // matches Projectile default speed
+    const targetVx = Math.cos(target.angle) * target.speed;
+    const targetVy = Math.sin(target.angle) * target.speed;
+    const time = dist / projectileSpeed;
+    const predictedX = target.x + targetVx * time;
+    const predictedY = target.y + targetVy * time;
+    const aimAngle = Math.atan2(predictedY - this.y, predictedX - this.x);
+
+    // orientation check based on accuracy tolerance
+    const angleDiff = Math.atan2(
+      Math.sin(aimAngle - this.angle),
+      Math.cos(aimAngle - this.angle)
+    );
+    if (Math.abs(angleDiff) > this.accuracy) return;
+
+    this.projectiles.push(new Projectile(this.x, this.y, aimAngle));
+    this.fireCooldown = this.fireRate;
   }
 }
