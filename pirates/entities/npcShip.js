@@ -13,7 +13,6 @@ export class NpcShip extends Ship {
     super(x, y, nation, type);
     this.state = 'patrol';
     this.detectRadius = 300;
-    this.fleeRadius = 80;
     this._changeTimer = 0;
 
     // firing behavior parameters
@@ -23,6 +22,9 @@ export class NpcShip extends Ship {
 
   update(dt, tiles, gridSize, player) {
     const dist = Math.hypot(player.x - this.x, player.y - this.y);
+    const relation = bus.getRelation
+      ? bus.getRelation(this.nation, player.nation)
+      : 'peace';
 
     switch (this.state) {
       case 'patrol':
@@ -33,26 +35,37 @@ export class NpcShip extends Ship {
           this._changeTimer = 60 + Math.random() * 60;
         }
         if (dist < this.detectRadius) {
-          this.state = 'pursue';
-          bus.emit('npc-spotted', { npc: this });
+          if (relation === 'war') {
+            this.state = 'pursue';
+            bus.emit('npc-spotted', { npc: this });
+          } else if (relation === 'alliance') {
+            this.state = 'escort';
+          } else {
+            this.state = 'avoid';
+          }
         }
         break;
 
       case 'pursue':
         this.speed = 2.5;
         this.angle = Math.atan2(player.y - this.y, player.x - this.x);
-        if (dist < this.fleeRadius) {
-          this.state = 'flee';
-          bus.emit('npc-flee', { npc: this });
-        } else if (dist > this.detectRadius * 1.5) {
+        if (relation !== 'war' || dist > this.detectRadius * 1.5) {
           this.state = 'patrol';
         }
         break;
 
-      case 'flee':
+      case 'escort':
+        this.speed = 2;
+        this.angle = Math.atan2(player.y - this.y, player.x - this.x);
+        if (relation !== 'alliance' || dist > this.detectRadius * 1.5) {
+          this.state = 'patrol';
+        }
+        break;
+
+      case 'avoid':
         this.speed = 3;
         this.angle = Math.atan2(this.y - player.y, this.x - player.x);
-        if (dist > this.detectRadius * 2) {
+        if (relation !== 'peace' || dist > this.detectRadius) {
           this.state = 'patrol';
         }
         break;
@@ -63,6 +76,11 @@ export class NpcShip extends Ship {
 
   fireCannons(target) {
     if (!target || this.sunk || this.fireCooldown > 0) return;
+
+    const relation = bus.getRelation
+      ? bus.getRelation(this.nation, target.nation)
+      : 'peace';
+    if (relation !== 'war') return;
 
     const dist = Math.hypot(target.x - this.x, target.y - this.y);
     if (dist > this.fireRange) return;
