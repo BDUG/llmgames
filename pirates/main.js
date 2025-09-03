@@ -74,6 +74,10 @@ window.addEventListener('keyup', e => {
 const NATIONS = ['England', 'France', 'Spain', 'Netherlands'];
 const GOODS = ['Sugar', 'Rum', 'Tobacco', 'Cotton'];
 
+const REP_SURCHARGE_THRESHOLD = 0;
+const REP_DENY_THRESHOLD = -20;
+const REP_SURCHARGE_RATE = 1.2;
+
 let wind = { speed: 0, angle: 0 };
 function updateWind() {
   wind.speed = 0.5 + Math.random() * 2;
@@ -327,7 +331,18 @@ function loop(timestamp) {
       closeGovernorMenu();
       closeTavernMenu();
       closeUpgradeMenu();
-      openTradeMenu(player, nearbyCity, metadata);
+      const nation = metadata?.nation;
+      const rep = player.reputation?.[nation] || 0;
+      if (rep < REP_DENY_THRESHOLD) {
+        bus.emit('log', `${nation} merchants refuse to trade with you.`);
+      } else {
+        let multiplier = 1;
+        if (rep < REP_SURCHARGE_THRESHOLD) {
+          multiplier = REP_SURCHARGE_RATE;
+          bus.emit('log', `${nation} merchants levy a surcharge due to your reputation.`);
+        }
+        openTradeMenu(player, nearbyCity, metadata, multiplier);
+      }
       keys['t'] = keys['T'] = false;
     }
     if (keys['g'] || keys['G']) {
