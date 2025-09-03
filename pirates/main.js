@@ -87,6 +87,13 @@ setInterval(updateWind, 10000);
 updateWind();
 Ship.wind = wind;
 
+function getCameraOffset(player) {
+  return {
+    x: player.x - CSS_WIDTH / 2,
+    y: player.y - CSS_HEIGHT / 2
+  };
+}
+
 function setup(seed = currentSeed) {
   currentSeed = seed;
   const result = generateWorld(worldWidth, worldHeight, gridSize, seed);
@@ -255,8 +262,7 @@ function loop(timestamp) {
     return;
   }
 
-  const offsetX = player.x - CSS_WIDTH / 2;
-  const offsetY = player.y - CSS_HEIGHT / 2;
+  const { x: offsetX, y: offsetY } = getCameraOffset(player);
 
   drawWorld(ctx, tiles, tileWidth, tileIsoHeight, tileImageHeight, assets, offsetX, offsetY);
   cities.forEach(c => c.draw(ctx, offsetX, offsetY, tileWidth, tileIsoHeight, tileImageHeight));
