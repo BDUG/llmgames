@@ -97,22 +97,23 @@ function setup(seed=Math.random()) {
     return x - Math.floor(x);
   };
 
-  // Collect all land tiles eligible for city placement.
-  const landTiles = [], waterTiles = [];
+  // Collect water tiles for NPC spawning and convert village tiles into cities.
+  const waterTiles = [], villageTiles = [];
   for (let r = 0; r < tiles.length; r++) {
     for (let c = 0; c < tiles[0].length; c++) {
-      if (tiles[r][c] !== Terrain.WATER) landTiles.push({ r, c });
-      else waterTiles.push({ r, c });
+      if (tiles[r][c] === Terrain.WATER) {
+        waterTiles.push({ r, c });
+      }
+      if (tiles[r][c] === Terrain.VILLAGE) {
+        villageTiles.push({ r, c });
+      }
     }
   }
 
-  const numCities = Math.min(5, landTiles.length);
-  for (let i = 0; i < numCities; i++) {
-    const idx = Math.floor(rand() * landTiles.length);
-    const { r, c } = landTiles.splice(idx, 1)[0];
+  villageTiles.forEach(({ r, c }, i) => {
     const x = c * gridSize + gridSize / 2;
     const y = r * gridSize + gridSize / 2;
-    const name = `City ${i + 1}`;
+    const name = `Village ${i + 1}`;
     const city = new City(x, y, name);
     cities.push(city);
 
@@ -120,7 +121,7 @@ function setup(seed=Math.random()) {
     const supplies = GOODS.filter(() => rand() < 0.5);
     const demands = GOODS.filter(g => !supplies.includes(g) && rand() < 0.5);
     cityMetadata.set(city, { nation, supplies, demands });
-  }
+  });
 
   const numNpcs = 3;
   for (let i = 0; i < numNpcs && waterTiles.length; i++) {
