@@ -80,6 +80,32 @@ window.addEventListener('keyup', e => {
 const NATIONS = ['England', 'France', 'Spain', 'Netherlands'];
 const GOODS = ['Sugar', 'Rum', 'Tobacco', 'Cotton'];
 
+// Relationship map between nations. By default everyone is at peace.
+const ALL_NATIONS = [...NATIONS, 'Pirate'];
+const nationRelations = {};
+ALL_NATIONS.forEach(a => {
+  nationRelations[a] = {};
+  ALL_NATIONS.forEach(b => {
+    if (a !== b) nationRelations[a][b] = 'peace';
+  });
+});
+
+function setRelation(a, b, status) {
+  nationRelations[a][b] = status;
+  nationRelations[b][a] = status;
+  bus.emit('relations-updated', { from: a, to: b, status, map: nationRelations });
+}
+
+function getRelation(a, b) {
+  return nationRelations[a]?.[b] || 'peace';
+}
+
+// expose through bus
+bus.nationRelations = nationRelations;
+bus.getRelation = getRelation;
+bus.on('relation-change', ({ from, to, status }) => setRelation(from, to, status));
+bus.emit('relations-updated', { map: nationRelations });
+
 const REP_SURCHARGE_THRESHOLD = 0;
 const REP_DENY_THRESHOLD = -20;
 const REP_SURCHARGE_RATE = 1.2;
