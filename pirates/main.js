@@ -261,8 +261,7 @@ function loop(timestamp) {
   cities.forEach(c => c.draw(ctx, offsetX, offsetY, tileWidth, tileIsoHeight, tileImageHeight));
   npcShips.forEach(n => {
     n.update(dt, tiles, gridSize, player);
-    const dist = Math.hypot(player.x - n.x, player.y - n.y);
-    if (dist < 200) n.fireCannons();
+    n.fireCannons(player);
     n.draw(ctx, offsetX, offsetY, tileWidth, tileIsoHeight, tileImageHeight);
   });
   player.draw(ctx, offsetX, offsetY, tileWidth, tileIsoHeight, tileImageHeight);
