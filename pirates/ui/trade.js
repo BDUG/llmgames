@@ -24,6 +24,12 @@ function cargoUsed(player) {
 export function openTradeMenu(player, city, metadata) {
   const menu = document.getElementById('tradeMenu');
   if (!menu || !player) return;
+
+  if (!metadata?.nation) {
+    bus.emit('log', `Cannot open trade menu for ${city?.name || 'unknown city'}: nation unknown`);
+    return;
+  }
+
   menu.innerHTML = '';
 
   const title = document.createElement('div');

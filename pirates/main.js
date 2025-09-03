@@ -120,8 +120,8 @@ function setup(seed=Math.random()) {
 
     const supplies = GOODS.filter(() => rand() < 0.5);
     const demands = GOODS.filter(g => !supplies.includes(g) && rand() < 0.5);
-    // nation will be assigned after all cities are created
-    cityMetadata.set(city, { nation: null, supplies, demands });
+    // Assign a default nation; it will be overwritten below
+    cityMetadata.set(city, { nation: 'Unknown', supplies, demands });
   });
 
   // Deterministically shuffle cities for nation assignment
@@ -143,8 +143,8 @@ function setup(seed=Math.random()) {
     } else {
       nation = NATIONS[Math.floor(rand() * NATIONS.length)];
     }
-    const metadata = cityMetadata.get(city);
-    metadata.nation = nation;
+    const metadata = cityMetadata.get(city) || { supplies: [], demands: [], nation: 'Unknown' };
+    metadata.nation = nation || metadata.nation || 'Unknown';
     cityMetadata.set(city, metadata);
   });
 

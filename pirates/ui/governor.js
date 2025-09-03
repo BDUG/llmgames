@@ -6,13 +6,19 @@ import { updateHUD } from './hud.js';
 export function openGovernorMenu(player, city, metadata) {
   const menu = document.getElementById('governorMenu');
   if (!menu) return;
+
+  if (!metadata?.nation) {
+    bus.emit('log', `Cannot open governor menu for ${city?.name || 'unknown city'}: nation unknown`);
+    return;
+  }
+
   menu.innerHTML = '';
 
   const title = document.createElement('div');
   if (city?.name) title.textContent = `Governor of ${city.name}`;
   menu.appendChild(title);
 
-  const nation = metadata?.nation || 'Unknown';
+  const nation = metadata.nation;
   const rep = player.reputation?.[nation] || 0;
   const repDiv = document.createElement('div');
   repDiv.textContent = `Reputation with ${nation}: ${rep}`;
