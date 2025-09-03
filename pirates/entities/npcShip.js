@@ -9,8 +9,8 @@ export const npcDifficulty = {
 };
 
 export class NpcShip extends Ship {
-  constructor(x, y, nation = 'Pirate', difficulty = npcDifficulty) {
-    super(x, y, nation);
+  constructor(x, y, nation = 'Pirate', type = 'Sloop', difficulty = npcDifficulty) {
+    super(x, y, nation, type);
     this.state = 'patrol';
     this.detectRadius = 300;
     this.fleeRadius = 80;

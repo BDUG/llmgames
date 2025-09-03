@@ -57,6 +57,14 @@ export function startBoarding(player, enemy) {
 
         player.adjustReputation(enemy.nation, -5);
         logs.push(`Reputation with ${enemy.nation} decreased`);
+        flushLogs();
+        if (confirm(`Take the captured ${enemy.type || 'ship'}?`)) {
+          player.changeType(enemy.type);
+          player.hull = Math.min(enemy.hull, player.hullMax);
+          logs.push(`You now command the ${enemy.type}`);
+        } else {
+          logs.push('You keep your current ship.');
+        }
 
         enemy.sunk = true;
       } else {

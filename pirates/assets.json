@@ -7,18 +7,21 @@
   },
   "ship": {
     "Sloop": {
+      "Pirate": "assets/slopTB128.png",
       "Netherlands": "assets/slopTB128.png",
       "Spain": "assets/slopTB128.png",
       "France": "assets/slopTB128.png",
       "England": "assets/slopTB128.png"
     },
     "Brig": {
+      "Pirate": "assets/brigTB128.png",
       "Netherlands":  "assets/brigTB128.png",
       "Spain": "assets/brigTB128.png",
       "France": "assets/brigTB128.png",
       "England": "assets/brigTB128.png"
     },
     "Galleon": {
+      "Pirate": "assets/galleonTB128.png",
       "Netherlands": "assets/galleonTB128.png",
       "Spain": "assets/galleonTB128.png",
       "France": "assets/galleonTB128.png",

@@ -1,5 +1,6 @@
 import { bus } from '../bus.js';
 import { updateHUD } from './hud.js';
+import { Ship } from '../entities/ship.js';
 
 export function openUpgradeMenu(player) {
   const menu = document.getElementById('upgradeMenu');
@@ -17,6 +18,10 @@ export function openUpgradeMenu(player) {
   const hullDiv = document.createElement('div');
   hullDiv.textContent = `Hull: ${player.hull}/${player.hullMax}`;
   menu.appendChild(hullDiv);
+
+  const typeDiv = document.createElement('div');
+  typeDiv.textContent = `Ship: ${player.type}`;
+  menu.appendChild(typeDiv);
 
   const repairBtn = document.createElement('button');
   repairBtn.textContent = 'Repair (10g for 10 hull)';
@@ -56,6 +61,26 @@ export function openUpgradeMenu(player) {
     }
   };
   menu.appendChild(cannonBtn);
+
+  const shipTitle = document.createElement('div');
+  shipTitle.textContent = 'Buy new ship:';
+  menu.appendChild(shipTitle);
+
+  Object.entries(Ship.TYPES).forEach(([type, stats]) => {
+    if (type === player.type) return;
+    const btn = document.createElement('button');
+    btn.textContent = `${type} - ${stats.cost}g`;
+    btn.onclick = () => {
+      if (player.gold >= stats.cost) {
+        player.gold -= stats.cost;
+        player.changeType(type);
+        bus.emit('log', `Upgraded to a ${type}`);
+        updateHUD(player);
+        openUpgradeMenu(player);
+      }
+    };
+    menu.appendChild(btn);
+  });
 
   const closeBtn = document.createElement('button');
   closeBtn.textContent = 'Close';
