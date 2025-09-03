@@ -25,8 +25,6 @@ let tileWidth = gridSize,
     tileIsoHeight = gridSize / 2,
     tileImageHeight = gridSize;
 const CSS_WIDTH = 800, CSS_HEIGHT = 600;
-let maxOffsetX = worldWidth - CSS_WIDTH;
-let maxOffsetY = worldHeight - CSS_HEIGHT;
 
 const canvas = document.getElementById('gameCanvas');
 const dpr = window.devicePixelRatio || 1;
@@ -124,8 +122,8 @@ setInterval(updateMarkets, DAY_MS);
 
 function getCameraOffset(player) {
   return {
-    x: Math.max(0, Math.min(player.x - CSS_WIDTH / 2, maxOffsetX)),
-    y: Math.max(0, Math.min(player.y - CSS_HEIGHT / 2, maxOffsetY))
+    x: player.x - CSS_WIDTH / 2,
+    y: player.y - CSS_HEIGHT / 2
   };
 }
 
@@ -185,8 +183,6 @@ function setup(seed = currentSeed) {
   tiles = result.tiles;
   worldWidth = result.cols * gridSize;
   worldHeight = result.rows * gridSize;
-  maxOffsetX = Math.max(0, worldWidth - CSS_WIDTH);
-  maxOffsetY = Math.max(0, worldHeight - CSS_HEIGHT);
   player = new Ship(worldWidth / 2, worldHeight / 2);
   cities = [];
   cityMetadata = new Map();
