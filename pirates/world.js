@@ -141,6 +141,23 @@ export function isoToCart(isoX, isoY, tileWidth, tileIsoHeight, tileImageHeight)
   return { x: cartX, y: cartY };
 }
 
+// Calculate the Euclidean distance between two isometric points.
+export function isoDistance(
+  aIsoX,
+  aIsoY,
+  bIsoX,
+  bIsoY,
+  tileWidth,
+  tileIsoHeight,
+  tileImageHeight
+) {
+  const a = isoToCart(aIsoX, aIsoY, tileWidth, tileIsoHeight, tileImageHeight);
+  const b = isoToCart(bIsoX, bIsoY, tileWidth, tileIsoHeight, tileImageHeight);
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
 // Translate canvas/screen coordinates into fractional tile indices.
 export function screenToTile(
   cssX,
