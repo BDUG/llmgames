@@ -17,13 +17,7 @@ import { openTavernMenu, closeTavernMenu } from './ui/tavern.js';
 import { startBoarding } from './boarding.js';
 import { initCommandKeys, updateCommandKeys } from './ui/commandKeys.js';
 
-const TILE_SIZE = 128;
-let worldWidth = 75 * TILE_SIZE;
-let worldHeight = 50 * TILE_SIZE;
-const gridSize = TILE_SIZE;
-let tileWidth = gridSize,
-    tileIsoHeight = gridSize / 2,
-    tileImageHeight = gridSize;
+let worldWidth, worldHeight, gridSize, tileWidth, tileIsoHeight, tileImageHeight;
 const CSS_WIDTH = 800, CSS_HEIGHT = 600;
 
 const canvas = document.getElementById('gameCanvas');
@@ -318,10 +312,14 @@ function loadGame() {
 }
 
 async function start() {
-  const { tileWidth: tw, tileImageHeight: tih } = await loadAssets(gridSize);
-  tileWidth = tw;
-  tileImageHeight = tih;
-  tileIsoHeight = tw / 2;
+  await loadAssets();
+  const land = assets.tiles.land;
+  tileWidth = land.width;
+  tileImageHeight = land.height;
+  tileIsoHeight = tileWidth / 2;
+  gridSize = tileWidth;
+  worldWidth = 75 * tileWidth;
+  worldHeight = 50 * tileWidth;
   setup();
   requestAnimationFrame(loop);
 }
