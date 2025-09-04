@@ -419,9 +419,18 @@ function loop(timestamp) {
   if (showMinimap) {
     drawMinimap(minimapCtx, tiles, player, worldWidth, worldHeight);
   }
-
-  const nearbyCity = cities.find(c => Math.hypot(player.x - c.x, player.y - c.y) < 32);
+  const nearestCityInfo = cities.reduce(
+    (nearest, c) => {
+      const dist = Math.hypot(player.x - c.x, player.y - c.y);
+      return dist < nearest.dist ? { city: c, dist } : nearest;
+    },
+    { city: null, dist: Infinity }
+  );
+  const nearbyCity = nearestCityInfo.dist < 32 ? nearestCityInfo.city : null;
   if (nearbyCity) {
+    console.log(
+      `${nearbyCity.name} is ${nearestCityInfo.dist.toFixed(1)} units away`
+    );
     if (!player.inPort) {
       bus.emit('log', `Approaching ${nearbyCity.name}`);
       player.visitPort();
