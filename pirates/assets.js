@@ -12,7 +12,10 @@ export async function loadAssets(tileSize){
     const response = await fetch('/pirates/assets.json');
     const data = await response.json();
     await loadNested(data, assets);
-    return assets;
+    const sampleTile = assets.tiles && Object.values(assets.tiles)[0];
+    const tileWidth = sampleTile?.tileWidth || sampleTile?.width || gridSize;
+    const tileImageHeight = sampleTile?.tileImageHeight || sampleTile?.height || gridSize;
+    return { assets, tileWidth, tileImageHeight };
   } catch (err) {
     console.error('Failed to load asset manifest:', err);
     throw err;
@@ -39,9 +42,12 @@ function loadImage(url, isTile = false){
     img.onload = () => {
       if (isTile){
         const canvas = document.createElement('canvas');
-        canvas.width = canvas.height = gridSize;
+        canvas.width = img.width;
+        canvas.height = img.height;
         const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, gridSize, gridSize);
+        ctx.drawImage(img, 0, 0);
+        canvas.tileWidth = img.width;
+        canvas.tileImageHeight = img.height;
         resolve(canvas);
       } else {
         resolve(img);
@@ -55,6 +61,8 @@ function loadImage(url, isTile = false){
         const ctx = canvas.getContext('2d');
         ctx.fillStyle = '#f0f';
         ctx.fillRect(0, 0, gridSize, gridSize);
+        canvas.tileWidth = gridSize;
+        canvas.tileImageHeight = gridSize;
         resolve(canvas);
       } else {
         resolve(null);
