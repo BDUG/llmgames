@@ -346,7 +346,7 @@ function loop(timestamp) {
   if (keys['2']) { player.setSail(0.5); keys['2'] = false; }
   if (keys['3']) { player.setSail(1); keys['3'] = false; }
   if (keys[' ']) player.fireCannons();
-  player.update(dt, tiles, gridSize); // simplistic update with collision
+  player.update(dt, tiles, gridSize, worldWidth, worldHeight); // simplistic update with collision
 
   if (player.mutinied) {
     updateHUD(player, wind);
@@ -358,7 +358,7 @@ function loop(timestamp) {
   drawWorld(ctx, tiles, tileWidth, tileIsoHeight, tileImageHeight, assets, offsetX, offsetY);
   cities.forEach(c => c.draw(ctx, offsetX, offsetY, tileWidth, tileIsoHeight, tileImageHeight));
   npcShips.forEach(n => {
-    n.update(dt, tiles, gridSize, player);
+    n.update(dt, tiles, gridSize, player, worldWidth, worldHeight);
     n.fireCannons(player);
     n.draw(ctx, offsetX, offsetY, tileWidth, tileIsoHeight, tileImageHeight);
   });

@@ -66,7 +66,7 @@ export class Ship {
     };
   }
 
-  update(dt, tiles, gridSize) {
+  update(dt, tiles, gridSize, worldWidth, worldHeight) {
     this.projectiles = this.projectiles.filter(p => p.update(dt));
 
     if (this.fireCooldown > 0) {
@@ -102,21 +102,23 @@ export class Ship {
           tileX !== Terrain.HILL &&
           tileX !== Terrain.VILLAGE
         ) {
-          this.x += dx;
+          this.x = Math.max(0, Math.min(this.x + dx, worldWidth));
         } else if (
           tileY !== Terrain.LAND &&
           tileY !== Terrain.COAST &&
           tileY !== Terrain.HILL &&
           tileY !== Terrain.VILLAGE
         ) {
-          this.y += dy;
+          this.y = Math.max(0, Math.min(this.y + dy, worldHeight));
         }
+        this.x = Math.max(0, Math.min(this.x, worldWidth));
+        this.y = Math.max(0, Math.min(this.y, worldHeight));
         return;
       }
     }
 
-    this.x = newX;
-    this.y = newY;
+    this.x = Math.max(0, Math.min(newX, worldWidth));
+    this.y = Math.max(0, Math.min(newY, worldHeight));
 
     // Apply friction so ships gradually slow down
     this.speed *= Math.pow(0.98, dt);

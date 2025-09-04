@@ -20,7 +20,7 @@ export class NpcShip extends Ship {
     this.accuracy = difficulty.accuracy;
   }
 
-  update(dt, tiles, gridSize, player) {
+  update(dt, tiles, gridSize, player, worldWidth, worldHeight) {
     const dist = Math.hypot(player.x - this.x, player.y - this.y);
     const relation = bus.getRelation
       ? bus.getRelation(this.nation, player.nation)
@@ -71,7 +71,7 @@ export class NpcShip extends Ship {
         break;
     }
 
-    super.update(dt, tiles, gridSize);
+    super.update(dt, tiles, gridSize, worldWidth, worldHeight);
   }
 
   fireCannons(target) {
