@@ -14,10 +14,36 @@ test('tileAt returns water for out-of-bounds coordinates', () => {
   assert.equal(tileAt(waterTiles, 0, gridSize + 1, gridSize), Terrain.WATER);
 });
 
-test('ship can move beyond grid without collision', () => {
-  const ship = new Ship(5, 5);
-  ship.speed = 10; // move east fast enough to leave the grid
+test('ship is clamped within world bounds', () => {
+  const ship = new Ship(50, 50);
+  const worldWidth = 100;
+  const worldHeight = 100;
+
+  // move west beyond 0
+  ship.speed = 100;
+  ship.angle = Math.PI; // west
+  ship.update(1, waterTiles, gridSize, worldWidth, worldHeight);
+  assert.equal(ship.x, 0);
+
+  // move east beyond width
+  ship.x = 95;
+  ship.speed = 100;
   ship.angle = 0; // east
-  ship.update(1, waterTiles, gridSize);
-  assert.ok(ship.x > gridSize, `Ship did not move beyond grid: ${ship.x}`);
+  ship.update(1, waterTiles, gridSize, worldWidth, worldHeight);
+  assert.equal(ship.x, worldWidth);
+
+  // move north beyond 0
+  ship.x = 50;
+  ship.y = 5;
+  ship.speed = 100;
+  ship.angle = -Math.PI / 2; // north
+  ship.update(1, waterTiles, gridSize, worldWidth, worldHeight);
+  assert.equal(ship.y, 0);
+
+  // move south beyond height
+  ship.y = 95;
+  ship.speed = 100;
+  ship.angle = Math.PI / 2; // south
+  ship.update(1, waterTiles, gridSize, worldWidth, worldHeight);
+  assert.equal(ship.y, worldHeight);
 });
