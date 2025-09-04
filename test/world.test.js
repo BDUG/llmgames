@@ -47,3 +47,16 @@ test('ship is clamped within world bounds', () => {
   ship.update(1, waterTiles, gridSize, worldWidth, worldHeight);
   assert.equal(ship.y, worldHeight);
 });
+
+test('ship cannot move past corner boundaries', () => {
+  const ship = new Ship(5, 5);
+  const worldWidth = 100;
+  const worldHeight = 100;
+
+  // attempt to move northwest beyond the top-left corner
+  ship.speed = 100;
+  ship.angle = -Math.PI * 0.75; // northwest
+  ship.update(1, waterTiles, gridSize, worldWidth, worldHeight);
+  assert.equal(ship.x, 0);
+  assert.equal(ship.y, 0);
+});
