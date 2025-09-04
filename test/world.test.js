@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { tileAt, Terrain, drawWorld } from '../pirates/world.js';
+import { tileAt, Terrain, drawWorld, isoDistance, cartToIso } from '../pirates/world.js';
 import { Ship } from '../pirates/entities/ship.js';
 
 // Helper tiles: single water tile
@@ -59,6 +59,44 @@ test('ship cannot move past corner boundaries', () => {
   ship.update(1, waterTiles, gridSize, worldWidth, worldHeight);
   assert.equal(ship.x, 0);
   assert.equal(ship.y, 0);
+});
+
+test('isoDistance returns 0 for the same isometric point', () => {
+  const tileWidth = 64;
+  const tileImageHeight = 64;
+  const tileIsoHeight = 32;
+  const { isoX, isoY } = cartToIso(10, 20, tileWidth, tileIsoHeight, tileImageHeight);
+  const dist = isoDistance(
+    isoX,
+    isoY,
+    isoX,
+    isoY,
+    tileWidth,
+    tileIsoHeight,
+    tileImageHeight
+  );
+  assert.equal(dist, 0);
+});
+
+test('isoDistance matches cartesian distance for diagonal movement', () => {
+  const tileWidth = 64;
+  const tileImageHeight = 64;
+  const tileIsoHeight = 32;
+  const a = { x: 0, y: 0 };
+  const b = { x: 64, y: 64 };
+  const isoA = cartToIso(a.x, a.y, tileWidth, tileIsoHeight, tileImageHeight);
+  const isoB = cartToIso(b.x, b.y, tileWidth, tileIsoHeight, tileImageHeight);
+  const expected = Math.hypot(b.x - a.x, b.y - a.y);
+  const dist = isoDistance(
+    isoA.isoX,
+    isoA.isoY,
+    isoB.isoX,
+    isoB.isoY,
+    tileWidth,
+    tileIsoHeight,
+    tileImageHeight
+  );
+  assert.equal(dist, expected);
 });
 
 test('drawWorld renders edge tile near map boundary', () => {
