@@ -148,12 +148,30 @@ export function screenToTile(
   tileWidth,
   tileIsoHeight,
   tileImageHeight,
-  offsetX = 0,
-  offsetY = 0
+  isoX = 0,
+  isoY = 0
 ) {
   tileWidth = tileWidth ?? assets.tiles?.land?.width ?? assets.tiles?.water?.width;
   tileImageHeight = tileImageHeight ?? assets.tiles?.land?.height ?? assets.tiles?.water?.height ?? tileWidth;
   tileIsoHeight = tileIsoHeight ?? tileImageHeight / 2;
+  const sy = cssY + isoY + (tileImageHeight - tileIsoHeight);
+  const sx = cssX + isoX;
+  return {
+    r: sy / tileIsoHeight - sx / tileWidth,
+    c: sy / tileIsoHeight + sx / tileWidth
+  };
+}
+
+// Backward compatibility: accept cartesian offsets and convert internally.
+export function screenToTileWithOffset(
+  cssX,
+  cssY,
+  tileWidth,
+  tileIsoHeight,
+  tileImageHeight,
+  offsetX = 0,
+  offsetY = 0
+) {
   const { isoX, isoY } = cartToIso(
     offsetX,
     offsetY,
@@ -161,12 +179,15 @@ export function screenToTile(
     tileIsoHeight,
     tileImageHeight
   );
-  const sy = cssY + isoY + (tileImageHeight - tileIsoHeight);
-  const sx = cssX + isoX;
-  return {
-    r: sy / tileIsoHeight - sx / tileWidth,
-    c: sy / tileIsoHeight + sx / tileWidth
-  };
+  return screenToTile(
+    cssX,
+    cssY,
+    tileWidth,
+    tileIsoHeight,
+    tileImageHeight,
+    isoX,
+    isoY
+  );
 }
 
 // Safely fetch the tile type for a cartesian world coordinate.
@@ -191,10 +212,10 @@ export function drawWorld(ctx, tiles, tileWidth, tileIsoHeight, tileImageHeight,
   const { isoX, isoY } = cartToIso(offsetX, offsetY, tileWidth, tileIsoHeight, tileImageHeight);
 
   const corners = [
-    screenToTile(-tileWidth, -tileImageHeight, tileWidth, tileIsoHeight, tileImageHeight, offsetX, offsetY),
-    screenToTile(canvasWidth + tileWidth, -tileImageHeight, tileWidth, tileIsoHeight, tileImageHeight, offsetX, offsetY),
-    screenToTile(-tileWidth, canvasHeight + tileImageHeight, tileWidth, tileIsoHeight, tileImageHeight, offsetX, offsetY),
-    screenToTile(canvasWidth + tileWidth, canvasHeight + tileImageHeight, tileWidth, tileIsoHeight, tileImageHeight, offsetX, offsetY)
+    screenToTile(-tileWidth, -tileImageHeight, tileWidth, tileIsoHeight, tileImageHeight, isoX, isoY),
+    screenToTile(canvasWidth + tileWidth, -tileImageHeight, tileWidth, tileIsoHeight, tileImageHeight, isoX, isoY),
+    screenToTile(-tileWidth, canvasHeight + tileImageHeight, tileWidth, tileIsoHeight, tileImageHeight, isoX, isoY),
+    screenToTile(canvasWidth + tileWidth, canvasHeight + tileImageHeight, tileWidth, tileIsoHeight, tileImageHeight, isoX, isoY)
   ];
 
   const rVals = corners.map(p => p.r);
