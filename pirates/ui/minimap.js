@@ -1,3 +1,5 @@
+import { Terrain } from '../world.js';
+
 export function initMinimap() {
   // nothing needed for now
 }
@@ -12,7 +14,7 @@ export function drawMinimap(ctx, tiles, player, worldWidth, worldHeight) {
   ctx.fillStyle = '#070';
   for (let r = 0; r < tiles.length; r++) {
     for (let c = 0; c < tiles[0].length; c++) {
-      if (tiles[r][c] !== 0) {
+      if (tiles[r][c] !== Terrain.WATER) {
         const x = c / tiles[0].length * width;
         const y = r / tiles.length * height;
         ctx.fillRect(x, y, width / tiles[0].length, height / tiles.length);
