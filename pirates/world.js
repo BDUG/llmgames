@@ -1,5 +1,12 @@
-import { createNoise2D } from 'https://cdn.skypack.dev/simplex-noise';
 import { assets } from './assets.js';
+
+// Attempt to import simplex-noise locally for Node environments; fall back to CDN for browsers.
+let createNoise2D;
+try {
+  ({ createNoise2D } = await import('simplex-noise'));
+} catch {
+  ({ createNoise2D } = await import('https://cdn.skypack.dev/simplex-noise'));
+}
 
 export const Terrain = {
   WATER: 0,
@@ -167,7 +174,7 @@ export function tileAt(tiles, x, y, gridSize) {
   const row = Math.floor(y / gridSize);
   const col = Math.floor(x / gridSize);
   if (row < 0 || row >= tiles.length || col < 0 || col >= tiles[0].length) {
-    return Terrain.LAND;
+    return Terrain.WATER;
   }
   return tiles[row][col];
 }

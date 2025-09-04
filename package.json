@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Sharing games generated via language models",
   "scripts": {
-    "test": "echo 'No tests'",
+    "test": "node --test",
     "start": "node server.js"
   },
   "keywords": [],
