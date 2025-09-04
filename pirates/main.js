@@ -318,9 +318,10 @@ function loadGame() {
 }
 
 async function start() {
-  await loadAssets(gridSize);
-  tileWidth = tileImageHeight = gridSize;
-  tileIsoHeight = gridSize / 2;
+  const { tileWidth: tw, tileImageHeight: tih } = await loadAssets(gridSize);
+  tileWidth = tw;
+  tileImageHeight = tih;
+  tileIsoHeight = tw / 2;
   setup();
   requestAnimationFrame(loop);
 }
