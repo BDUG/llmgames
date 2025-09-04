@@ -29,6 +29,11 @@ function cargoUsed(player) {
   return Object.values(player.cargo).reduce((a, b) => a + b, 0);
 }
 
+export function closeTradeMenu() {
+  const menu = document.getElementById('tradeMenu');
+  if (menu) menu.style.display = 'none';
+}
+
 export function openTradeMenu(player, city, metadata, priceMultiplier = 1) {
   const menu = document.getElementById('tradeMenu');
   if (!menu || !player) return;
@@ -140,15 +145,9 @@ export function openTradeMenu(player, city, metadata, priceMultiplier = 1) {
 
   const closeBtn = document.createElement('button');
   closeBtn.textContent = 'Close';
-  closeBtn.addEventListener('click', () => {
-    menu.style.display = 'none';
-  });
+  closeBtn.addEventListener('click', closeTradeMenu);
   menu.appendChild(closeBtn);
 
   menu.style.display = 'block';
-}
-
-export function closeTradeMenu() {
-  const menu = document.getElementById('tradeMenu');
-  if (menu) menu.style.display = 'none';
+  return menu;
 }
