@@ -417,7 +417,10 @@ function loop(timestamp) {
 
   const nearbyCity = cities.find(c => Math.hypot(player.x - c.x, player.y - c.y) < 32);
   if (nearbyCity) {
-    if (!player.inPort) player.visitPort();
+    if (!player.inPort) {
+      bus.emit('log', `Approaching ${nearbyCity.name}`);
+      player.visitPort();
+    }
   } else {
     player.inPort = false;
   }
