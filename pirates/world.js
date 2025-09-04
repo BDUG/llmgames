@@ -221,10 +221,18 @@ export function drawWorld(ctx, tiles, tileWidth, tileIsoHeight, tileImageHeight,
   const rVals = corners.map(p => p.r);
   const cVals = corners.map(p => p.c);
 
+  // Determine visible tile bounds.
   let firstRow = Math.max(0, Math.floor(Math.min(...rVals)));
   let lastRow = Math.min(tiles.length - 1, Math.ceil(Math.max(...rVals)));
   let firstCol = Math.max(0, Math.floor(Math.min(...cVals)));
   let lastCol = Math.min(tiles[0].length - 1, Math.ceil(Math.max(...cVals)));
+
+  // Expand bounds by one tile in all directions to ensure edge tiles are drawn
+  // when the camera pans near map boundaries.
+  firstRow = Math.max(0, firstRow - 1);
+  firstCol = Math.max(0, firstCol - 1);
+  lastRow = Math.min(tiles.length - 1, lastRow + 1);
+  lastCol = Math.min(tiles[0].length - 1, lastCol + 1);
 
   for (let r = firstRow; r <= lastRow; r++) {
     for (let c = firstCol; c <= lastCol; c++) {

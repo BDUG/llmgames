@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { tileAt, Terrain } from '../pirates/world.js';
+import { tileAt, Terrain, drawWorld } from '../pirates/world.js';
 import { Ship } from '../pirates/entities/ship.js';
 
 // Helper tiles: single water tile
@@ -59,4 +59,41 @@ test('ship cannot move past corner boundaries', () => {
   ship.update(1, waterTiles, gridSize, worldWidth, worldHeight);
   assert.equal(ship.x, 0);
   assert.equal(ship.y, 0);
+});
+
+test('drawWorld renders edge tile near map boundary', () => {
+  // bottom-right tile is land to test drawing at edge
+  const tiles = [
+    [Terrain.WATER, Terrain.WATER],
+    [Terrain.WATER, Terrain.LAND]
+  ];
+  const tileWidth = 64;
+  const tileImageHeight = 64;
+  const tileIsoHeight = 32;
+  const assets = {
+    tiles: {
+      land: { width: tileWidth, height: tileImageHeight },
+      water: { width: tileWidth, height: tileImageHeight }
+    }
+  };
+  const calls = [];
+  const ctx = {
+    canvas: { clientWidth: tileWidth, clientHeight: tileImageHeight },
+    drawImage: (...args) => calls.push(args)
+  };
+  // Pan close to the bottom-right corner
+  drawWorld(
+    ctx,
+    tiles,
+    tileWidth,
+    tileIsoHeight,
+    tileImageHeight,
+    assets,
+    tileWidth - 1,
+    tileImageHeight - 1
+  );
+  assert.ok(
+    calls.some(args => args[0] === assets.tiles.land),
+    'edge tile should be drawn'
+  );
 });
