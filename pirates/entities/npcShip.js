@@ -1,6 +1,7 @@
 import { Ship } from './ship.js';
 import { bus } from '../bus.js';
 import { Projectile } from './projectile.js';
+import { cartesian } from '../utils/distance.js';
 
 // Tunable difficulty parameters for NPC behavior
 export const npcDifficulty = {
@@ -21,7 +22,7 @@ export class NpcShip extends Ship {
   }
 
   update(dt, tiles, gridSize, player, worldWidth, worldHeight) {
-    const dist = Math.hypot(player.x - this.x, player.y - this.y);
+    const dist = cartesian(player.x, player.y, this.x, this.y);
     const relation = bus.getRelation
       ? bus.getRelation(this.nation, player.nation)
       : 'peace';
@@ -82,7 +83,7 @@ export class NpcShip extends Ship {
       : 'peace';
     if (relation !== 'war') return;
 
-    const dist = Math.hypot(target.x - this.x, target.y - this.y);
+    const dist = cartesian(target.x, target.y, this.x, this.y);
     if (dist > this.fireRange) return;
 
     // predict target movement to lead shots

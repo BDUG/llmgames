@@ -1,5 +1,6 @@
 import { assets, loadAssets } from './assets.js';
 import { generateWorld, drawWorld, Terrain, cartToIso } from './world.js';
+import { cartesian } from './utils/distance.js';
 import { Ship } from './entities/ship.js';
 import { NpcShip } from './entities/npcShip.js';
 import { City } from './entities/city.js';
@@ -380,7 +381,7 @@ function loop(timestamp) {
   // projectile collisions
   npcShips.forEach(n => {
     player.projectiles.forEach(p => {
-      if (!n.sunk && Math.hypot(p.x - n.x, p.y - n.y) < 20) {
+      if (!n.sunk && cartesian(p.x, p.y, n.x, n.y) < 20) {
         n.takeDamage(25);
         p.life = 0;
         bus.emit('log', `Hit ${n.nation} ship for 25 damage`);
@@ -391,7 +392,7 @@ function loop(timestamp) {
       }
     });
     n.projectiles.forEach(p => {
-      if (!player.sunk && Math.hypot(p.x - player.x, p.y - player.y) < 20) {
+      if (!player.sunk && cartesian(p.x, p.y, player.x, player.y) < 20) {
         player.takeDamage(25);
         p.life = 0;
         bus.emit('log', `Hit by ${n.nation} ship!`);
@@ -407,7 +408,7 @@ function loop(timestamp) {
   let nearEnemy = false;
   for (let i = 0; i < npcShips.length; i++) {
     const n = npcShips[i];
-    const dist = Math.hypot(player.x - n.x, player.y - n.y);
+    const dist = cartesian(player.x, player.y, n.x, n.y);
     if (dist < 30) nearEnemy = true;
     if (dist < 30 && (keys['b'] || keys['B'])) {
       startBoarding(player, n);
@@ -429,7 +430,7 @@ function loop(timestamp) {
   }
   const nearestCityInfo = cities.reduce(
     (nearest, c) => {
-      const dist = Math.hypot(player.x - c.x, player.y - c.y);
+      const dist = cartesian(player.x, player.y, c.x, c.y);
       return dist < nearest.dist ? { city: c, dist } : nearest;
     },
     { city: null, dist: Infinity }
