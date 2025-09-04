@@ -451,6 +451,7 @@ function loop(timestamp) {
   if (nearbyCity) {
     const metadata = cityMetadata.get(nearbyCity);
     if (keys['t'] || keys['T']) {
+      closeTradeMenu();
       closeGovernorMenu();
       closeTavernMenu();
       closeUpgradeMenu();
