@@ -350,7 +350,8 @@ function loop(timestamp) {
   if (keys['2']) { player.setSail(0.5); keys['2'] = false; }
   if (keys['3']) { player.setSail(1); keys['3'] = false; }
   if (keys[' ']) player.fireCannons();
-  player.update(dt, tiles, gridSize, worldWidth, worldHeight); // simplistic update with collision
+  // Update the player and clamp to the generated world's size
+  player.update(dt, tiles, gridSize, worldWidth, worldHeight);
 
   if (player.mutinied) {
     updateHUD(player, wind);

@@ -88,37 +88,38 @@ export class Ship {
 
     if (tiles && gridSize) {
       const tile = tileAt(tiles, newX, newY, gridSize);
-      if (
-        tile === Terrain.LAND ||
-        tile === Terrain.COAST ||
-        tile === Terrain.HILL ||
-        tile === Terrain.VILLAGE
-      ) {
+      const isBlocked = t =>
+        t === Terrain.LAND ||
+        t === Terrain.COAST ||
+        t === Terrain.HILL ||
+        t === Terrain.VILLAGE;
+
+      if (isBlocked(tile)) {
         const tileX = tileAt(tiles, this.x + dx, this.y, gridSize);
         const tileY = tileAt(tiles, this.x, this.y + dy, gridSize);
-        if (
-          tileX !== Terrain.LAND &&
-          tileX !== Terrain.COAST &&
-          tileX !== Terrain.HILL &&
-          tileX !== Terrain.VILLAGE
-        ) {
-          this.x = Math.max(0, Math.min(this.x + dx, worldWidth));
-        } else if (
-          tileY !== Terrain.LAND &&
-          tileY !== Terrain.COAST &&
-          tileY !== Terrain.HILL &&
-          tileY !== Terrain.VILLAGE
-        ) {
-          this.y = Math.max(0, Math.min(this.y + dy, worldHeight));
+        if (!isBlocked(tileX)) {
+          newX = this.x + dx;
+          newY = this.y;
+        } else if (!isBlocked(tileY)) {
+          newX = this.x;
+          newY = this.y + dy;
+        } else {
+          newX = this.x;
+          newY = this.y;
         }
-        this.x = Math.max(0, Math.min(this.x, worldWidth));
-        this.y = Math.max(0, Math.min(this.y, worldHeight));
-        return;
       }
     }
 
-    this.x = Math.max(0, Math.min(newX, worldWidth));
-    this.y = Math.max(0, Math.min(newY, worldHeight));
+    // Clamp to world bounds before committing
+    if (typeof worldWidth === 'number') {
+      newX = Math.max(0, Math.min(newX, worldWidth));
+    }
+    if (typeof worldHeight === 'number') {
+      newY = Math.max(0, Math.min(newY, worldHeight));
+    }
+
+    this.x = newX;
+    this.y = newY;
 
     // Apply friction so ships gradually slow down
     this.speed *= Math.pow(0.98, dt);
