@@ -68,11 +68,15 @@ window.addEventListener('keydown', e => {
   if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].includes(e.key)) {
     e.preventDefault();
   }
-  keys[e.key] = true;
+  const map = { w: 'ArrowUp', a: 'ArrowLeft', s: 'ArrowDown', d: 'ArrowRight' };
+  if (map[e.key]) keys[map[e.key]] = true;
+  else keys[e.key] = true;
 });
 
 window.addEventListener('keyup', e => {
-  keys[e.key] = false;
+  const map = { w: 'ArrowUp', a: 'ArrowLeft', s: 'ArrowDown', d: 'ArrowRight' };
+  if (map[e.key]) keys[map[e.key]] = false;
+  else keys[e.key] = false;
 });
 
 const NATIONS = ['England', 'France', 'Spain', 'Netherlands'];

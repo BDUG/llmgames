@@ -3,9 +3,9 @@ export function initCommandKeys() {
   if (!div) return;
   div.innerHTML = `
     <strong>Command Keys:</strong>
-    <div data-cmd="move">&uarr; : Move forward</div>
-    <div data-cmd="slow">&darr; : Slow down</div>
-    <div data-cmd="rotate">&larr; / &rarr; : Rotate ship</div>
+    <div data-cmd="move">&uarr; / W : Move forward</div>
+    <div data-cmd="slow">&darr; / S : Slow down</div>
+    <div data-cmd="rotate">&larr; / &rarr; or A / D : Rotate ship</div>
     <div data-cmd="fire">Space: Fire cannon</div>
     <div data-cmd="pause">P: Pause/Unpause</div>
     <div data-cmd="minimap">M: Toggle minimap</div>
