@@ -1,5 +1,5 @@
 import { assets, loadAssets } from './assets.js';
-import { generateWorld, drawWorld, Terrain } from './world.js';
+import { generateWorld, drawWorld, Terrain, cartToIso } from './world.js';
 import { Ship } from './entities/ship.js';
 import { NpcShip } from './entities/npcShip.js';
 import { City } from './entities/city.js';
@@ -362,13 +362,22 @@ function loop(timestamp) {
   const { x: offsetX, y: offsetY } = getCameraOffset(player);
 
   drawWorld(ctx, tiles, tileWidth, tileIsoHeight, tileImageHeight, assets, offsetX, offsetY);
-  cities.forEach(c => c.draw(ctx, offsetX, offsetY, tileWidth, tileIsoHeight, tileImageHeight));
+
   npcShips.forEach(n => {
     n.update(dt, tiles, gridSize, player, worldWidth, worldHeight);
     n.fireCannons(player);
-    n.draw(ctx, offsetX, offsetY, tileWidth, tileIsoHeight, tileImageHeight);
   });
-  player.draw(ctx, offsetX, offsetY, tileWidth, tileIsoHeight, tileImageHeight);
+
+  const drawables = [...cities, ...npcShips, player];
+  drawables
+    .sort(
+      (a, b) =>
+        cartToIso(a.x, a.y, tileWidth, tileIsoHeight, tileImageHeight).isoY -
+        cartToIso(b.x, b.y, tileWidth, tileIsoHeight, tileImageHeight).isoY
+    )
+    .forEach(d =>
+      d.draw(ctx, offsetX, offsetY, tileWidth, tileIsoHeight, tileImageHeight)
+    );
 
   // projectile collisions
   npcShips.forEach(n => {
