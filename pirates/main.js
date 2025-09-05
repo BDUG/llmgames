@@ -21,7 +21,7 @@ import {
   nationEconomy
 } from './npcEconomy.js';
 import { spawnEuropeanTrader, EUROPE_TRADER_INTERVAL } from './europeTraders.js';
-import { foundVillage } from './foundVillage.js';
+import { foundVillage, foundVillageAt, computeIslands } from './foundVillage.js';
 import { initHUD, updateHUD } from './ui/hud.js';
 import { initMinimap, drawMinimap } from './ui/minimap.js';
 import { initLog } from './ui/log.js';
@@ -655,7 +655,8 @@ function loop(timestamp) {
     return;
   }
 
-  let nearLand = false;
+  let nearLand = false,
+    canBuildVillage = false;
   ctx.clearRect(0, 0, CSS_WIDTH, CSS_HEIGHT);
   if (keys['ArrowLeft']) player.rotate(-dt);
   if (keys['ArrowRight']) player.rotate(dt);
@@ -724,6 +725,65 @@ function loop(timestamp) {
     }
     updateHUD(player, wind);
     keys['q'] = keys['Q'] = false;
+  }
+
+  if (player instanceof LandUnit) {
+    const r = Math.floor(player.y / gridSize);
+    const c = Math.floor(player.x / gridSize);
+    const { islandMap } = computeIslands(tiles);
+    if (tiles[r]?.[c] === Terrain.COAST) {
+      let blocked = false;
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          const nr = r + dr;
+          const nc = c + dc;
+          if (
+            nr >= 0 &&
+            nr < tiles.length &&
+            nc >= 0 &&
+            nc < tiles[0].length &&
+            tiles[nr][nc] === Terrain.VILLAGE
+          ) {
+            blocked = true;
+          }
+        }
+      }
+      if (!blocked) {
+        const islandId = islandMap[r]?.[c];
+        const owners = new Set();
+        cityMetadata.forEach(meta => {
+          if (meta.islandId === islandId) owners.add(meta.nation);
+        });
+        if (
+          owners.size === 0 ||
+          (owners.size === 1 && owners.has(player.nation))
+        ) {
+          canBuildVillage = true;
+          if (keys['b'] || keys['B']) {
+            const city = foundVillageAt(
+              tiles,
+              gridSize,
+              cities,
+              cityMetadata,
+              player.nation,
+              GOODS,
+              { r, c }
+            );
+            if (city) {
+              bus.emit('log', `Founded ${city.name}`);
+            } else {
+              bus.emit('log', 'Cannot build village here');
+            }
+            keys['b'] = keys['B'] = false;
+          }
+        }
+      }
+    }
+    if (keys['b'] || keys['B']) {
+      bus.emit('log', 'Cannot build village here');
+      keys['b'] = keys['B'] = false;
+    }
   }
 
   if (player.mutinied) {
@@ -846,7 +906,8 @@ function loop(timestamp) {
     nearCity: !!nearbyCity,
     nearEnemy,
     shipyard: !!metadata?.shipyard,
-    nearLand
+    nearLand,
+    canBuildVillage
   });
   if (nearbyCity) {
     if (keys['t'] || keys['T']) {
