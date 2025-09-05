@@ -20,14 +20,14 @@ function listGoods(metadata) {
   return Array.from(goods);
 }
 
-function basePriceFor(good, metadata) {
+export function basePriceFor(good, metadata) {
   let price = PRICES[good];
   if (metadata?.supplies?.includes(good)) price = Math.round(price * 0.8);
   if (metadata?.demands?.includes(good)) price = Math.round(price * 1.2);
   return price;
 }
 
-function priceFor(good, metadata, multiplier = 1) {
+export function priceFor(good, metadata, multiplier = 1) {
   metadata.prices = metadata.prices || {};
   if (metadata.prices[good] == null) {
     metadata.prices[good] = basePriceFor(good, metadata);

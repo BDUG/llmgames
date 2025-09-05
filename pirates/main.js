@@ -534,7 +534,7 @@ function loop(timestamp) {
   drawWorld(ctx, tiles, tileWidth, tileIsoHeight, tileImageHeight, assets, offsetX, offsetY);
 
   npcShips.forEach(n => {
-    n.update(dt, tiles, gridSize, player, worldWidth, worldHeight);
+    n.update(dt, tiles, gridSize, player, worldWidth, worldHeight, cityMetadata);
     n.fireCannons(player);
   });
 

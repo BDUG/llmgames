@@ -2,6 +2,7 @@ import { Ship } from './ship.js';
 import { bus } from '../bus.js';
 import { Projectile } from './projectile.js';
 import { cartesian } from '../utils/distance.js';
+import { priceFor } from '../ui/trade.js';
 
 // Tunable difficulty parameters for NPC behavior
 export const npcDifficulty = {
@@ -15,17 +16,110 @@ export class NpcShip extends Ship {
     this.state = 'patrol';
     this.detectRadius = 300;
     this._changeTimer = 0;
+    this.tradeRoute = null;
+    this.targetCity = null;
+    this.loaded = false;
+    this.prevState = null;
 
     // firing behavior parameters
     this.fireRange = difficulty.range;
     this.accuracy = difficulty.accuracy;
   }
 
-  update(dt, tiles, gridSize, player, worldWidth, worldHeight) {
+  chooseTradeRoute(cityMetadata, fromCity = null) {
+    const cities = Array.from(cityMetadata?.keys?.() || []);
+    if (cities.length < 2) return null;
+    const source = fromCity || cities[Math.floor(Math.random() * cities.length)];
+    let dest = source;
+    while (dest === source) dest = cities[Math.floor(Math.random() * cities.length)];
+    return { source, dest };
+  }
+
+  cargoUsed() {
+    return Object.values(this.cargo).reduce((a, b) => a + b, 0);
+  }
+
+  loadCargo(city, metadata) {
+    if (!metadata) return;
+    metadata.inventory = metadata.inventory || {};
+    const goods = (metadata.supplies || []).filter(
+      g => (metadata.inventory[g] || 0) > 0
+    );
+    if (!goods.length) return;
+    const good = goods[Math.floor(Math.random() * goods.length)];
+    while (
+      this.cargoUsed() < this.cargoCapacity &&
+      metadata.inventory[good] > 0
+    ) {
+      const price = priceFor(good, metadata);
+      if (this.gold < price) break;
+      this.gold -= price;
+      this.cargo[good] = (this.cargo[good] || 0) + 1;
+      metadata.inventory[good] -= 1;
+      const oldPrice = metadata.prices[good];
+      metadata.prices[good] = Math.round(oldPrice * 1.1);
+      bus.emit('price-change', {
+        city,
+        good,
+        delta: metadata.prices[good] - oldPrice
+      });
+    }
+  }
+
+  unloadCargo(city, metadata) {
+    if (!metadata) return;
+    metadata.inventory = metadata.inventory || {};
+    for (const good of Object.keys(this.cargo)) {
+      while (this.cargo[good] > 0) {
+        const sellPrice = Math.floor(priceFor(good, metadata) * 0.9);
+        this.cargo[good] -= 1;
+        this.gold += sellPrice;
+        metadata.inventory[good] = (metadata.inventory[good] || 0) + 1;
+        const oldPrice = metadata.prices[good];
+        metadata.prices[good] = Math.max(
+          1,
+          Math.round(oldPrice * 0.9)
+        );
+        bus.emit('price-change', {
+          city,
+          good,
+          delta: metadata.prices[good] - oldPrice
+        });
+      }
+      if (this.cargo[good] <= 0) delete this.cargo[good];
+    }
+  }
+
+  update(
+    dt,
+    tiles,
+    gridSize,
+    player,
+    worldWidth,
+    worldHeight,
+    cityMetadata
+  ) {
     const dist = cartesian(player.x, player.y, this.x, this.y);
     const relation = bus.getRelation
       ? bus.getRelation(this.nation, player.nation)
       : 'peace';
+
+    if (
+      this.state !== 'pursue' &&
+      this.state !== 'escort' &&
+      this.state !== 'avoid' &&
+      dist < this.detectRadius
+    ) {
+      this.prevState = this.state;
+      if (relation === 'war') {
+        this.state = 'pursue';
+        bus.emit('npc-spotted', { npc: this });
+      } else if (relation === 'alliance') {
+        this.state = 'escort';
+      } else {
+        this.state = 'avoid';
+      }
+    }
 
     switch (this.state) {
       case 'patrol':
@@ -35,15 +129,45 @@ export class NpcShip extends Ship {
           this.angle = Math.random() * Math.PI * 2;
           this._changeTimer = 60 + Math.random() * 60;
         }
-        if (dist < this.detectRadius) {
-          if (relation === 'war') {
-            this.state = 'pursue';
-            bus.emit('npc-spotted', { npc: this });
-          } else if (relation === 'alliance') {
-            this.state = 'escort';
-          } else {
-            this.state = 'avoid';
+        if (!this.tradeRoute && cityMetadata?.size >= 2) {
+          this.tradeRoute = this.chooseTradeRoute(cityMetadata);
+          this.targetCity = this.tradeRoute?.source || null;
+          this.state = this.tradeRoute ? 'trade' : 'patrol';
+        }
+        break;
+
+      case 'trade':
+        if (!this.tradeRoute || !cityMetadata?.size) {
+          this.state = 'patrol';
+          break;
+        }
+        if (!this.targetCity) this.targetCity = this.tradeRoute.source;
+        const target = this.targetCity;
+        this.speed = 2;
+        this.angle = Math.atan2(target.y - this.y, target.x - this.x);
+        const cityDist = cartesian(target.x, target.y, this.x, this.y);
+        if (cityDist < gridSize) {
+          this.inPort = true;
+          this.speed = 0;
+          const metadata = cityMetadata.get(target);
+          if (!this.loaded && target === this.tradeRoute.source) {
+            this.loadCargo(target, metadata);
+            this.loaded = true;
+            this.targetCity = this.tradeRoute.dest;
+          } else if (this.loaded && target === this.tradeRoute.dest) {
+            this.unloadCargo(target, metadata);
+            const route = this.chooseTradeRoute(cityMetadata, target);
+            if (route) {
+              this.tradeRoute = route;
+              this.targetCity = route.dest;
+              this.loadCargo(route.source, cityMetadata.get(route.source));
+              this.loaded = true;
+            } else {
+              this.state = 'patrol';
+            }
           }
+        } else {
+          this.inPort = false;
         }
         break;
 
@@ -51,7 +175,7 @@ export class NpcShip extends Ship {
         this.speed = 2.5;
         this.angle = Math.atan2(player.y - this.y, player.x - this.x);
         if (relation !== 'war' || dist > this.detectRadius * 1.5) {
-          this.state = 'patrol';
+          this.state = this.prevState || 'patrol';
         }
         break;
 
@@ -59,7 +183,7 @@ export class NpcShip extends Ship {
         this.speed = 2;
         this.angle = Math.atan2(player.y - this.y, player.x - this.x);
         if (relation !== 'alliance' || dist > this.detectRadius * 1.5) {
-          this.state = 'patrol';
+          this.state = this.prevState || 'patrol';
         }
         break;
 
@@ -67,7 +191,7 @@ export class NpcShip extends Ship {
         this.speed = 3;
         this.angle = Math.atan2(this.y - player.y, this.x - player.x);
         if (relation !== 'peace' || dist > this.detectRadius) {
-          this.state = 'patrol';
+          this.state = this.prevState || 'patrol';
         }
         break;
     }
