@@ -16,6 +16,7 @@ export function initCommandKeys() {
     <div data-cmd="upgrade" style="display:none">U: Shipwright</div>
     <div data-cmd="board" style="display:none">B: Board enemy ship</div>
     <div data-cmd="capture" style="display:none">C: Capture enemy ship</div>
+    <div data-cmd="fleet">F: Manage fleet</div>
     <div data-cmd="save">S: Save game</div>
     <div data-cmd="load">L: Load game</div>
   `;

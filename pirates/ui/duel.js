@@ -1,5 +1,6 @@
 import { updateHUD } from './hud.js';
 import { bus as defaultBus } from '../bus.js';
+import { Ship } from '../entities/ship.js';
 
 // Starts a simple duel UI where the player and enemy exchange attacks/blocks
 // via key presses. Returns a promise that resolves when the duel completes.
@@ -152,13 +153,15 @@ export function startDuel(player, enemy, bus = defaultBus) {
           player.adjustReputation(enemy.nation, -5);
           logs.push(`Reputation with ${enemy.nation} decreased`);
           flushLogs();
-          if (confirm(`Take the captured ${enemy.type || 'ship'}?`)) {
-            player.changeType(enemy.type);
-            player.hull = Math.min(enemy.hull, player.hullMax);
-            logs.push(`You now command the ${enemy.type}`);
-          } else {
-            logs.push('You keep your current ship.');
-          }
+
+          const captured = new Ship(enemy.x, enemy.y, 'Pirate', enemy.type);
+          captured.hull = Math.min(enemy.hull, captured.hullMax);
+          captured.cargo = { ...enemy.cargo };
+          captured.gold = 0;
+          captured.crew = 0;
+          captured.fleet = player.fleet || (player.fleet = [player]);
+          player.fleet.push(captured);
+          logs.push(`Captured ${enemy.type} added to fleet.`);
 
           enemy.sunk = true;
         } else {

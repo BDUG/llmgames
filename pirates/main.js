@@ -24,6 +24,7 @@ import { openUpgradeMenu, closeUpgradeMenu } from './ui/upgrade.js';
 import { openTavernMenu, closeTavernMenu } from './ui/tavern.js';
 import { startBoarding } from './boarding.js';
 import { initCommandKeys, updateCommandKeys } from './ui/commandKeys.js';
+import { openFleetMenu, closeFleetMenu } from './ui/fleet.js';
 
 let worldWidth, worldHeight, gridSize, tileWidth, tileIsoHeight, tileImageHeight;
 const CSS_WIDTH = 800, CSS_HEIGHT = 600;
@@ -54,6 +55,12 @@ bus.on('npc-spotted', ({ npc }) => {
 });
 bus.on('npc-flee', ({ npc }) => {
   bus.emit('log', `${npc.nation} ship fled!`);
+});
+bus.on('switch-flagship', ({ ship }) => {
+  const fleet = player.fleet;
+  player = ship;
+  player.fleet = fleet;
+  updateHUD(player, wind);
 });
 
 // Dynamic game state collections
@@ -329,6 +336,7 @@ function setup(options = {}) {
   }
 
   player = new Ship(spawnX, spawnY, 'Pirate');
+  player.fleet = [player];
   cities = [];
   cityMetadata = new Map();
   npcShips = [];
@@ -477,6 +485,7 @@ function loadGame() {
     Object.assign(player, data.player);
     player.cargo = data.player.cargo || {};
     player.reputation = data.player.reputation || {};
+    player.fleet = [player];
     bus.emit('log', 'Game loaded');
   } catch (e) {
     console.error('Load failed', e);
@@ -506,6 +515,14 @@ function loop(timestamp) {
   if (keys['m'] || keys['M']) { toggleMinimap(); keys['m'] = keys['M'] = false; }
   if (keys['s'] || keys['S']) { saveGame(); keys['s'] = keys['S'] = false; }
   if (keys['l'] || keys['L']) { loadGame(); keys['l'] = keys['L'] = false; }
+  if (keys['f'] || keys['F']) {
+    closeTradeMenu();
+    closeGovernorMenu();
+    closeTavernMenu();
+    closeUpgradeMenu();
+    openFleetMenu(player);
+    keys['f'] = keys['F'] = false;
+  }
 
   if (paused) {
     requestAnimationFrame(loop);
@@ -529,8 +546,8 @@ function loop(timestamp) {
     });
     keys['r'] = keys['R'] = false;
   }
-  // Update the player and clamp to the generated world's size
-  player.update(dt, tiles, gridSize, worldWidth, worldHeight);
+  // Update all player ships and clamp to the generated world's size
+  player.fleet.forEach(s => s.update(dt, tiles, gridSize, worldWidth, worldHeight));
 
   if (player.mutinied) {
     updateHUD(player, wind);
@@ -546,7 +563,7 @@ function loop(timestamp) {
     n.fireCannons(player);
   });
 
-  const drawables = [...cities, ...npcShips, player];
+  const drawables = [...cities, ...npcShips, ...player.fleet];
   drawables
     .sort(
       (a, b) =>
@@ -559,30 +576,34 @@ function loop(timestamp) {
 
   // projectile collisions
   npcShips.forEach(n => {
-    player.projectiles.forEach(p => {
-      if (!n.sunk && cartesian(p.x, p.y, n.x, n.y) < 20) {
-        const damage = Math.max(0, p.damage * (1 - p.traveled / p.range));
-        n.takeDamage(damage);
-        p.traveled = p.range;
-        bus.emit('log', `Hit ${n.nation} ship for ${damage.toFixed(0)} damage`);
-        if (n.sunk) {
-          bus.emit('log', `${n.nation} ship sank!`);
-          player.distributeLoot();
+    player.fleet.forEach(ship => {
+      ship.projectiles.forEach(p => {
+        if (!n.sunk && cartesian(p.x, p.y, n.x, n.y) < 20) {
+          const damage = Math.max(0, p.damage * (1 - p.traveled / p.range));
+          n.takeDamage(damage);
+          p.traveled = p.range;
+          bus.emit('log', `Hit ${n.nation} ship for ${damage.toFixed(0)} damage`);
+          if (n.sunk) {
+            bus.emit('log', `${n.nation} ship sank!`);
+            player.distributeLoot();
+          }
         }
-      }
-    });
-    n.projectiles.forEach(p => {
-      if (!player.sunk && cartesian(p.x, p.y, player.x, player.y) < 20) {
-        const damage = Math.max(0, p.damage * (1 - p.traveled / p.range));
-        player.takeDamage(damage);
-        p.traveled = p.range;
-        bus.emit('log', `Hit by ${n.nation} ship!`);
-        if (player.sunk) bus.emit('log', 'You sank!');
-      }
+      });
+      n.projectiles.forEach(p => {
+        if (!ship.sunk && cartesian(p.x, p.y, ship.x, ship.y) < 20) {
+          const damage = Math.max(0, p.damage * (1 - p.traveled / p.range));
+          ship.takeDamage(damage);
+          p.traveled = p.range;
+          bus.emit('log', `Hit by ${n.nation} ship!`);
+          if (ship === player && player.sunk) bus.emit('log', 'You sank!');
+        }
+      });
     });
     n.projectiles = n.projectiles.filter(p => p.traveled < p.range);
   });
-  player.projectiles = player.projectiles.filter(p => p.traveled < p.range);
+  player.fleet.forEach(ship => {
+    ship.projectiles = ship.projectiles.filter(p => p.traveled < p.range);
+  });
   npcShips = npcShips.filter(n => !n.sunk);
 
   // boarding and capturing
@@ -600,6 +621,14 @@ function loop(timestamp) {
       player.adjustReputation(n.nation, -5);
       player.distributeLoot();
       questManager.completeQuest('capture');
+      const captured = new Ship(n.x, n.y, 'Pirate', n.type);
+      captured.hull = Math.min(n.hull, captured.hullMax);
+      captured.cargo = { ...n.cargo };
+      captured.gold = 0;
+      captured.crew = 0;
+      captured.fleet = player.fleet;
+      player.fleet.push(captured);
+      bus.emit('log', `${n.type} added to fleet`);
       npcShips.splice(i, 1);
       keys['c'] = keys['C'] = false;
       i--;
@@ -638,6 +667,7 @@ function loop(timestamp) {
       closeGovernorMenu();
       closeTavernMenu();
       closeUpgradeMenu();
+      closeFleetMenu();
       const nation = metadata?.nation;
       const rep = player.reputation?.[nation] || 0;
       if (rep < REP_DENY_THRESHOLD) {
@@ -657,6 +687,7 @@ function loop(timestamp) {
       closeTradeMenu();
       closeTavernMenu();
       closeUpgradeMenu();
+      closeFleetMenu();
       openGovernorMenu(player, nearbyCity, metadata);
       keys['g'] = keys['G'] = false;
     }
@@ -664,6 +695,7 @@ function loop(timestamp) {
       closeTradeMenu();
       closeGovernorMenu();
       closeUpgradeMenu();
+      closeFleetMenu();
       openTavernMenu(player, nearbyCity);
       keys['v'] = keys['V'] = false;
     }
@@ -671,6 +703,7 @@ function loop(timestamp) {
       closeTradeMenu();
       closeGovernorMenu();
       closeTavernMenu();
+      closeFleetMenu();
       openUpgradeMenu(player);
       keys['u'] = keys['U'] = false;
     }
@@ -679,6 +712,7 @@ function loop(timestamp) {
     closeGovernorMenu();
     closeTavernMenu();
     closeUpgradeMenu();
+    closeFleetMenu();
   }
   requestAnimationFrame(loop);
 }
