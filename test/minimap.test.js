@@ -38,3 +38,20 @@ test('minimap draws land tiles', () => {
   drawMinimap(ctx, tiles, null, 10, 10);
   assert.equal(calls.length, 2);
 });
+
+test('minimap draws city markers', () => {
+  const tiles = [[Terrain.LAND]];
+  const calls = [];
+  const ctx = {
+    canvas: { width: 10, height: 10 },
+    clearRect() {},
+    fillStyle: '',
+    fillRect(x, y, w, h) {
+      calls.push({ x, y, w, h, fillStyle: this.fillStyle });
+    }
+  };
+  const cities = [{ x: 5, y: 5 }];
+  drawMinimap(ctx, tiles, null, 10, 10, cities);
+  // Expect background + land + city marker
+  assert.equal(calls.length, 3);
+});
