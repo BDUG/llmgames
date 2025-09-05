@@ -20,7 +20,8 @@ export const Terrain = {
   DESERT: 7,
   FOREST: 8,
   ROAD: 9,
-  NATIVE: 10
+  NATIVE: 10,
+  MISSION: 11
 };
 
 export function generateWorld(width, height, gridSize, options = {}) {
@@ -93,7 +94,8 @@ export function generateWorld(width, height, gridSize, options = {}) {
     t === Terrain.DESERT ||
     t === Terrain.FOREST ||
     t === Terrain.ROAD ||
-    t === Terrain.NATIVE;
+    t === Terrain.NATIVE ||
+    t === Terrain.MISSION;
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       if (!isLand(tiles[r][c])) continue;
@@ -129,7 +131,8 @@ export function generateWorld(width, height, gridSize, options = {}) {
     t === Terrain.FOREST ||
     t === Terrain.COAST ||
     t === Terrain.ROAD ||
-    t === Terrain.NATIVE;
+    t === Terrain.NATIVE ||
+    t === Terrain.MISSION;
 
   let islandId = 0;
   for (let r = 0; r < rows; r++) {
@@ -243,7 +246,25 @@ export function generateWorld(width, height, gridSize, options = {}) {
     }
   }
 
-  return { tiles, rows, cols, villages, natives };
+  // Ensure at least one mission tile exists. Prefer converting a village
+  // (so missions appear on settled coasts) but fall back to any coastal tile.
+  const missions = [];
+  if (villages.length) {
+    const first = villages.shift();
+    tiles[first.r][first.c] = Terrain.MISSION;
+    missions.push(first);
+  } else {
+    for (let r = 0; r < rows && missions.length === 0; r++) {
+      for (let c = 0; c < cols && missions.length === 0; c++) {
+        if (tiles[r][c] === Terrain.COAST || tiles[r][c] === Terrain.LAND) {
+          tiles[r][c] = Terrain.MISSION;
+          missions.push({ r, c, islandId: islandMap?.[r]?.[c] ?? -1 });
+        }
+      }
+    }
+  }
+
+  return { tiles, rows, cols, villages, natives, missions };
 }
 
 function seededRandom(seed) {
@@ -384,6 +405,7 @@ export function drawWorld(ctx, tiles, tileWidth, tileIsoHeight, tileImageHeight,
       if (t === Terrain.WATER || t === Terrain.RIVER) img = assets.tiles?.water;
       else if (t === Terrain.HILL) img = assets.tiles?.hill;
       else if (t === Terrain.VILLAGE) img = assets.tiles?.village;
+      else if (t === Terrain.MISSION) img = assets.tiles?.mission || assets.tiles?.village;
       else if (t === Terrain.NATIVE) img = assets.tiles?.native || assets.tiles?.village;
       else if (t === Terrain.ROAD) img = assets.tiles?.road || assets.tiles?.land;
       else if (t === Terrain.COAST || t === Terrain.REEF) img = assets.tiles?.coast || assets.tiles?.land;

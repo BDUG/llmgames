@@ -3,7 +3,8 @@
     "water": "assets/seaTB128.png",
     "land": "assets/grassTB128.png",
     "village": "assets/villageTB128.png",
-    "hill": "assets/hillTB128.png"
+    "hill": "assets/hillTB128.png",
+    "mission": "assets/villageTB128.png"
   },
   "ship": {
     "Sloop": {

@@ -21,6 +21,9 @@ export async function loadAssets(tileSize){
     const response = await fetch('/pirates/assets.json');
     const data = await response.json();
     await loadNested(data, assets);
+    if (!assets.tiles.mission) {
+      assets.tiles.mission = assets.tiles.village;
+    }
     ensureFlags();
     const sampleTile = assets.tiles && Object.values(assets.tiles)[0];
     const tileWidth = sampleTile?.tileWidth || sampleTile?.width || gridSize;
