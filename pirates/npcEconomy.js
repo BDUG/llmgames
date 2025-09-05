@@ -1,4 +1,6 @@
 import { NpcShip } from './entities/npcShip.js';
+import { SHIP_TYPES } from './entities/ship.js';
+import { isUnlocked } from './research.js';
 
 export const nationEconomy = new Map();
 
@@ -18,7 +20,12 @@ export function earnIncome(amount = 100) {
 export function restockShipyards(cityMetadata, amount = 1) {
   cityMetadata.forEach(meta => {
     if (meta.shipyard) {
-      Object.values(meta.shipyard).forEach(info => {
+      Object.entries(meta.shipyard).forEach(([type, info]) => {
+        const required = SHIP_TYPES[type]?.tech;
+        if (required && !isUnlocked(required)) {
+          info.stock = 0;
+          return;
+        }
         info.stock += amount;
       });
     }
@@ -29,7 +36,8 @@ export function restockShipyards(cityMetadata, amount = 1) {
 // connection. Each connection increases output by 50%.
 export function calculateProduction(metadata) {
   const connections = metadata?.roads?.size || 0;
-  const multiplier = 1 + connections * 0.5;
+  const techBonus = isUnlocked('villageImprovements') ? 1.25 : 1;
+  const multiplier = techBonus * (1 + connections * 0.5);
   const result = {};
   Object.entries(metadata?.production || {}).forEach(([good, amt]) => {
     result[good] = Math.round(amt * multiplier);
@@ -62,7 +70,11 @@ export function spawnNpcFromEconomy(
         cityCandidates[Math.floor(Math.random() * cityCandidates.length)];
       const meta = cityMetadata.get(city);
       const availableTypes = Object.entries(meta.shipyard).filter(
-        ([, info]) => info.stock > 0 && econ.gold >= info.price
+        ([type, info]) => {
+          const required = SHIP_TYPES[type]?.tech;
+          if (required && !isUnlocked(required)) return false;
+          return info.stock > 0 && econ.gold >= info.price;
+        }
       );
       if (!availableTypes.length) break;
       const [type, info] =

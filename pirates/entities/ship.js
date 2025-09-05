@@ -3,11 +3,26 @@ import { Terrain, cartToIso, tileAt } from '../world.js';
 import { Projectile } from './projectile.js';
 import { bus } from '../bus.js';
 import { cartesian } from '../utils/distance.js';
+import { isUnlocked } from '../research.js';
 
 export const SHIP_TYPES = {
   Sloop: { speed: 5, hull: 100, cargo: 20, crew: 10, cost: 0 },
-  Brig: { speed: 4, hull: 150, cargo: 40, crew: 20, cost: 300 },
-  Galleon: { speed: 3, hull: 200, cargo: 60, crew: 40, cost: 600 }
+  Brig: {
+    speed: 4,
+    hull: 150,
+    cargo: 40,
+    crew: 20,
+    cost: 300,
+    tech: 'brigDesign'
+  },
+  Galleon: {
+    speed: 3,
+    hull: 200,
+    cargo: 60,
+    crew: 40,
+    cost: 600,
+    tech: 'galleonDesign'
+  }
 };
 
 export class Ship {
@@ -154,6 +169,11 @@ export class Ship {
   changeType(type) {
     const stats = SHIP_TYPES[type];
     if (!stats) return;
+    const required = stats.tech;
+    if (required && !isUnlocked(required)) {
+      bus.emit('log', `${type} requires ${required} research`);
+      return;
+    }
     this.type = type;
     this.baseMaxSpeed = stats.speed;
     this.maxSpeed = stats.speed;

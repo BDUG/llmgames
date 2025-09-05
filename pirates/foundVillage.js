@@ -1,6 +1,7 @@
 import { Terrain } from './world.js';
 import { City } from './entities/city.js';
 import { bus } from './bus.js';
+import { isUnlocked } from './research.js';
 
 function isIslandLand(t) {
   return (
@@ -115,8 +116,11 @@ export function foundVillage(
   const demands = goods.filter(g => !supplies.includes(g) && rng() < 0.5);
   const production = {};
   const consumption = {};
+  const techBonus = isUnlocked('villageImprovements') ? 1 : 0;
   goods.forEach(g => {
-    production[g] = supplies.includes(g) ? Math.floor(rng() * 3) + 1 : 0;
+    production[g] = supplies.includes(g)
+      ? Math.floor(rng() * 3) + 1 + techBonus
+      : 0;
     consumption[g] = demands.includes(g) ? Math.floor(rng() * 3) + 1 : 0;
   });
   const city = new City(x, y, name, nation);
