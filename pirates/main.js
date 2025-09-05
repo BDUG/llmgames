@@ -12,6 +12,7 @@ import { Ship } from './entities/ship.js';
 import { City } from './entities/city.js';
 import { NativeSettlement } from './entities/nativeSettlement.js';
 import { Mission } from './entities/mission.js';
+import { LandUnit } from './entities/landUnit.js';
 import {
   initEconomy,
   earnIncome,
@@ -80,6 +81,7 @@ bus.on('switch-flagship', ({ ship }) => {
 
 // Dynamic game state collections
 let tiles, player, cities, cityMetadata, nativeSettlements, nativeMetadata, npcShips, missions, priceEvents = [], seasonalEvents = [];
+let storedShip = null;
 let fleetController;
 let npcSpawnIntervalId, europeTraderIntervalId;
 const keys = {};
@@ -380,6 +382,7 @@ function setup(options = {}) {
   player = new Ship(spawnX, spawnY, 'Pirate');
   player.fleet = [player];
   fleetController = new FleetController(player);
+  storedShip = null;
   cities = [];
   cityMetadata = new Map();
   nativeSettlements = [];
@@ -652,16 +655,17 @@ function loop(timestamp) {
     return;
   }
 
+  let nearLand = false;
   ctx.clearRect(0, 0, CSS_WIDTH, CSS_HEIGHT);
   if (keys['ArrowLeft']) player.rotate(-dt);
   if (keys['ArrowRight']) player.rotate(dt);
   if (keys['ArrowUp']) player.speed = Math.min(player.speed + 0.1 * dt, player.maxSpeed);
   if (keys['ArrowDown']) player.speed = Math.max(player.speed - 0.1 * dt, 0);
-  if (keys['1']) { player.setSail(0); keys['1'] = false; }
-  if (keys['2']) { player.setSail(0.5); keys['2'] = false; }
-  if (keys['3']) { player.setSail(1); keys['3'] = false; }
-  if (keys[' ']) player.fireCannons();
-  if (keys['r'] || keys['R']) {
+  if (keys['1'] && player.setSail) { player.setSail(0); keys['1'] = false; }
+  if (keys['2'] && player.setSail) { player.setSail(0.5); keys['2'] = false; }
+  if (keys['3'] && player.setSail) { player.setSail(1); keys['3'] = false; }
+  if (keys[' '] && player.fireCannons) player.fireCannons();
+  if ((keys['r'] || keys['R']) && player.ram) {
     npcShips.forEach(n => {
       if (cartesian(player.x, player.y, n.x, n.y) < 20) {
         player.ram(n);
@@ -671,6 +675,56 @@ function loop(timestamp) {
   }
   // Update all player ships via fleet controller
   fleetController.update(dt, tiles, gridSize, worldWidth, worldHeight);
+
+  if (!(player instanceof Ship)) {
+    player.update(dt, tiles, gridSize, worldWidth, worldHeight);
+  }
+
+  let disembarkPos = null;
+  if (player instanceof Ship) {
+    const dirs = [
+      [gridSize, 0],
+      [-gridSize, 0],
+      [0, gridSize],
+      [0, -gridSize]
+    ];
+    for (const [dx, dy] of dirs) {
+      const t = tileAt(tiles, player.x + dx, player.y + dy, gridSize);
+      if (t === Terrain.COAST) {
+        nearLand = true;
+        disembarkPos = { x: player.x + dx, y: player.y + dy };
+        break;
+      }
+    }
+  } else if (storedShip) {
+    const t = tileAt(tiles, player.x, player.y, gridSize);
+    const dist = cartesian(player.x, player.y, storedShip.x, storedShip.y);
+    if (t === Terrain.COAST && dist < gridSize) nearLand = true;
+  }
+
+  if (nearLand && (keys['q'] || keys['Q'])) {
+    if (player instanceof Ship && disembarkPos) {
+      const ship = player;
+      const unit = new LandUnit(disembarkPos.x, disembarkPos.y, ship.nation);
+      unit.cargo = { ...ship.cargo };
+      ship.cargo = {};
+      unit.gold = ship.gold;
+      ship.gold = 0;
+      unit.reputation = ship.reputation;
+      unit.fleet = ship.fleet;
+      unit.adjustReputation = (...args) => ship.adjustReputation(...args);
+      unit.distributeLoot = (...args) => ship.distributeLoot(...args);
+      storedShip = ship;
+      player = unit;
+    } else if (!(player instanceof Ship) && storedShip) {
+      storedShip.cargo = { ...player.cargo };
+      storedShip.gold += player.gold;
+      player = storedShip;
+      storedShip = null;
+    }
+    updateHUD(player, wind);
+    keys['q'] = keys['Q'] = false;
+  }
 
   if (player.mutinied) {
     updateHUD(player, wind);
@@ -686,7 +740,9 @@ function loop(timestamp) {
     n.fireCannons(player);
   });
 
-  const drawables = [...cities, ...nativeSettlements, ...npcShips, ...player.fleet];
+  const drawables = [...cities, ...nativeSettlements, ...npcShips];
+  if (player.fleet) drawables.push(...player.fleet);
+  if (!player.fleet || !player.fleet.includes(player)) drawables.push(player);
   drawables
     .sort(
       (a, b) =>
@@ -786,7 +842,12 @@ function loop(timestamp) {
   } else {
     player.inPort = false;
   }
-  updateCommandKeys({ nearCity: !!nearbyCity, nearEnemy, shipyard: !!metadata?.shipyard });
+  updateCommandKeys({
+    nearCity: !!nearbyCity,
+    nearEnemy,
+    shipyard: !!metadata?.shipyard,
+    nearLand
+  });
   if (nearbyCity) {
     if (keys['t'] || keys['T']) {
       closeTradeMenu();

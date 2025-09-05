@@ -12,10 +12,15 @@ export class LandUnit {
     this.cargo = {};
     this.cargoCapacity = 20;
     this.gold = 100;
+    this.inPort = false;
   }
 
   rotate(direction) {
     this.angle += this.turnSpeed * direction;
+  }
+
+  visitPort() {
+    this.inPort = true;
   }
 
   forward(dt) {
