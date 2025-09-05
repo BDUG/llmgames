@@ -127,8 +127,12 @@ Ship.wind = wind;
 setInterval(updateMarkets, DAY_MS);
 
 function getCameraOffset(player) {
-  // Convert the screen center from isometric screen pixels into cartesian
-  // space so we can center the camera on the player.
+  // Camera math works in cartesian world units, but the canvas is rendered in
+  // isometric pixels.  Convert both the origin and the screen centre from
+  // isometric space back into cartesian space so distances can be measured
+  // consistently.  isoToCart uses `tileIsoHeight` when converting the vertical
+  // axis – a larger value stretches the diamond-shaped tiles and pushes the
+  // calculated centre further down, changing the vertical offset of the camera.
   const origin = isoToCart(0, 0, tileWidth, tileIsoHeight, tileImageHeight);
   const center = isoToCart(
     CSS_WIDTH / 2,

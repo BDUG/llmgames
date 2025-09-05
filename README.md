@@ -39,3 +39,15 @@ Node server is included. It serves files without adding any
 ```sh
 node server.js
 ```
+
+## Isometric coordinates and camera
+
+The `pirates` demo renders its world using an isometric projection where
+diamond-shaped tiles are drawn on the canvas.  Helper functions such as
+`cartToIso` and `isoToCart` convert between world cartesian coordinates and
+screen isometric coordinates.  To keep the player's ship centred on screen the
+game converts the canvas midpoint from isometric pixels back into cartesian
+space with `isoToCart` and uses the resulting offset for the camera.  The
+conversion takes `tileIsoHeight` into account – this value defines the vertical
+size of a tile's diamond, so changing it raises or lowers the computed centre
+point and shifts the camera up or down in world units.
