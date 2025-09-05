@@ -507,7 +507,12 @@ function setup(options = {}) {
   fleetController = new FleetController(player);
 
   const worldTiles = result.rows * result.cols;
-  const perNation = Math.max(1, Math.floor((worldTiles / 5000) * difficulty));
+  // Ensure at least three NPC ships spawn for each nation by clamping the
+  // per-nation target to a minimum of three.
+  const perNation = Math.max(
+    3,
+    Math.floor((worldTiles / 5000) * difficulty)
+  );
   const targetCounts = {};
   NATIONS.forEach(n => (targetCounts[n] = perNation));
 
