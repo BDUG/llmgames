@@ -36,7 +36,9 @@ export function generateWorld(width, height, gridSize, options = {}, _attempt = 
     riverThreshold = 0.02,
     temperatureScale = 1,
     moistureScale = 1,
-    maxRetries = 10
+    maxRetries = 10,
+    // Limit for island size; islands exceeding this will be eroded.
+    maxIslandSize = 400
   } = options;
 
   const rows = Math.floor(height / gridSize);
@@ -179,55 +181,93 @@ export function generateWorld(width, height, gridSize, options = {}, _attempt = 
     }
   }
 
-  // Identify islands (contiguous land/coast masses) and place villages per island.
-  const islandMap = Array.from({ length: rows }, () => Array(cols).fill(-1));
-  const islands = [];
-  const isIslandLand = t =>
-    t === Terrain.LAND ||
-    t === Terrain.HILL ||
-    t === Terrain.DESERT ||
-    t === Terrain.FOREST ||
-    t === Terrain.COAST ||
-    t === Terrain.ROAD ||
-    t === Terrain.NATIVE ||
-    t === Terrain.MISSION;
+  // Identify islands (contiguous land/coast masses).
+  const buildIslands = () => {
+    const islandMap = Array.from({ length: rows }, () => Array(cols).fill(-1));
+    const islands = [];
+    const isIslandLand = t =>
+      t === Terrain.LAND ||
+      t === Terrain.HILL ||
+      t === Terrain.DESERT ||
+      t === Terrain.FOREST ||
+      t === Terrain.COAST ||
+      t === Terrain.ROAD ||
+      t === Terrain.NATIVE ||
+      t === Terrain.MISSION;
 
-  let islandId = 0;
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      if (islandMap[r][c] !== -1 || !isIslandLand(tiles[r][c])) continue;
-      const queue = [{ r, c }];
-      islandMap[r][c] = islandId;
-      const coast = [];
-      while (queue.length) {
-        const { r: qr, c: qc } = queue.shift();
-        if (tiles[qr][qc] === Terrain.COAST) coast.push({ r: qr, c: qc });
-        const dirs = [
-          [1, 0],
-          [-1, 0],
-          [0, 1],
-          [0, -1]
-        ];
-        for (const [dr, dc] of dirs) {
-          const nr = qr + dr,
-            nc = qc + dc;
-          if (
-            nr < 0 ||
-            nr >= rows ||
-            nc < 0 ||
-            nc >= cols ||
-            islandMap[nr][nc] !== -1 ||
-            !isIslandLand(tiles[nr][nc])
-          )
-            continue;
-          islandMap[nr][nc] = islandId;
-          queue.push({ r: nr, c: nc });
+    let islandId = 0;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (islandMap[r][c] !== -1 || !isIslandLand(tiles[r][c])) continue;
+        const queue = [{ r, c }];
+        islandMap[r][c] = islandId;
+        const coast = [];
+        let size = 0;
+        while (queue.length) {
+          const { r: qr, c: qc } = queue.shift();
+          size++;
+          if (tiles[qr][qc] === Terrain.COAST) coast.push({ r: qr, c: qc });
+          const dirs = [
+            [1, 0],
+            [-1, 0],
+            [0, 1],
+            [0, -1]
+          ];
+          for (const [dr, dc] of dirs) {
+            const nr = qr + dr,
+              nc = qc + dc;
+            if (
+              nr < 0 ||
+              nr >= rows ||
+              nc < 0 ||
+              nc >= cols ||
+              islandMap[nr][nc] !== -1 ||
+              !isIslandLand(tiles[nr][nc])
+            )
+              continue;
+            islandMap[nr][nc] = islandId;
+            queue.push({ r: nr, c: nc });
+          }
+        }
+        islands.push({ id: islandId, coast, size });
+        islandId++;
+      }
+    }
+    return { islands, islandMap };
+  };
+
+  let { islands, islandMap } = buildIslands();
+
+  // Erode islands that exceed the maximum allowed size.
+  for (const island of islands) {
+    if (island.size <= maxIslandSize) continue;
+    const erodeQueue = island.coast.slice();
+    while (island.size > maxIslandSize && erodeQueue.length) {
+      const { r, c } = erodeQueue.shift();
+      if (tiles[r][c] === Terrain.WATER) continue;
+      tiles[r][c] = Terrain.WATER;
+      oceanMask[r][c] = true;
+      islandMap[r][c] = -1;
+      island.size--;
+      for (const [dr, dc] of cardinals) {
+        const nr = r + dr,
+          nc = c + dc;
+        if (
+          nr >= 0 &&
+          nr < rows &&
+          nc >= 0 &&
+          nc < cols &&
+          islandMap[nr][nc] === island.id &&
+          tiles[nr][nc] !== Terrain.WATER
+        ) {
+          erodeQueue.push({ r: nr, c: nc });
         }
       }
-      islands.push({ id: islandId, coast });
-      islandId++;
     }
   }
+
+  // Recompute islands after erosion to reflect updated tiles.
+  ({ islands, islandMap } = buildIslands());
 
   const touchesOcean = island => {
     for (const { r, c } of island.coast) {

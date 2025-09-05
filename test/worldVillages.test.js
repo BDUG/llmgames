@@ -43,3 +43,17 @@ test('villages do not touch each other', () => {
     }
   }
 });
+
+test('generateWorld enforces maxIslandSize', () => {
+  const max = 20;
+  const { islands } = generateWorld(160, 160, 16, {
+    seed: 3,
+    maxIslandSize: max
+  });
+  for (const island of islands) {
+    assert.ok(
+      island.size <= max,
+      `island ${island.id} exceeds max size: ${island.size} > ${max}`
+    );
+  }
+});
