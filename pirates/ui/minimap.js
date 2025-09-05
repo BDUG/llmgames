@@ -12,11 +12,13 @@ export function drawMinimap(ctx, tiles, player, worldWidth, worldHeight) {
   ctx.fillStyle = '#0af';
   ctx.fillRect(0, 0, width, height);
   ctx.fillStyle = '#070';
+  const isWater = t =>
+    t === Terrain.WATER || t === Terrain.RIVER || t === Terrain.REEF;
   for (let r = 0; r < tiles.length; r++) {
     for (let c = 0; c < tiles[0].length; c++) {
-      if (tiles[r][c] !== Terrain.WATER) {
-        const x = c / tiles[0].length * width;
-        const y = r / tiles.length * height;
+      if (!isWater(tiles[r][c])) {
+        const x = (c / tiles[0].length) * width;
+        const y = (r / tiles.length) * height;
         ctx.fillRect(x, y, width / tiles[0].length, height / tiles.length);
       }
     }

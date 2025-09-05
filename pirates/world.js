@@ -14,58 +14,100 @@ export const Terrain = {
   LAND: 1,
   HILL: 2,
   VILLAGE: 3,
-  COAST: 4
+  COAST: 4,
+  RIVER: 5,
+  REEF: 6,
+  DESERT: 7,
+  FOREST: 8
 };
 
-export function generateWorld(width, height, gridSize, seed = Math.random()) {
+export function generateWorld(width, height, gridSize, options = {}) {
+  const {
+    seed = Math.random(),
+    octaves = 4,
+    persistence = 0.5,
+    lacunarity = 2,
+    seaLevel = 0,
+    reefLevel = -0.05,
+    hillLevel = 0.6,
+    riverThreshold = 0.02,
+    temperatureScale = 1,
+    moistureScale = 1
+  } = options;
+
   const rows = Math.floor(height / gridSize);
   const cols = Math.floor(width / gridSize);
   const tiles = Array.from({ length: rows }, () => Array(cols).fill(Terrain.WATER));
-  const islandIds = Array.from({ length: rows }, () => Array(cols).fill(-1));
 
   let rngSeed = seed;
-  const numIslands = 3 + Math.floor(seededRandom(rngSeed++) * 3); // 3-5 islands
-  const islands = [];
-  for (let i = 0; i < numIslands; i++) {
-    const cx = Math.floor(seededRandom(rngSeed++) * cols);
-    const cy = Math.floor(seededRandom(rngSeed++) * rows);
-    const radius = Math.floor(6 + seededRandom(rngSeed++) * 10);
-    const noise = createNoise2D(() => seededRandom(rngSeed++));
-    islands.push({ cx, cy, radius, noise });
-  }
+  const elevationNoise = createNoise2D(() => seededRandom(rngSeed++));
+  const moistureNoise = createNoise2D(() => seededRandom(rngSeed++));
+  const temperatureNoise = createNoise2D(() => seededRandom(rngSeed++));
+  const riverNoise = createNoise2D(() => seededRandom(rngSeed++));
 
-  // Build islands
-  islands.forEach((island, id) => {
-    const { cx, cy, radius, noise } = island;
-    const rStart = Math.max(0, Math.floor(cy - radius * 2));
-    const rEnd = Math.min(rows - 1, Math.ceil(cy + radius * 2));
-    const cStart = Math.max(0, Math.floor(cx - radius * 2));
-    const cEnd = Math.min(cols - 1, Math.ceil(cx + radius * 2));
-    for (let r = rStart; r <= rEnd; r++) {
-      for (let c = cStart; c <= cEnd; c++) {
-        const nx = (c - cx) / radius;
-        const ny = (r - cy) / radius;
-        const dist = Math.sqrt(nx * nx + ny * ny);
-        const elevation = noise(c * 0.1, r * 0.1) - dist;
-        if (elevation > 0) {
-          tiles[r][c] = Terrain.LAND;
-          islandIds[r][c] = id;
-        }
-      }
+  const fbm = (noiseFn, x, y) => {
+    let amp = 1;
+    let freq = 1;
+    let max = 0;
+    let total = 0;
+    for (let i = 0; i < octaves; i++) {
+      total += amp * noiseFn(x * freq, y * freq);
+      max += amp;
+      amp *= persistence;
+      freq *= lacunarity;
     }
-  });
+    return total / max; // roughly [-1,1]
+  };
 
-  // Mark land tiles adjacent to water as coast.
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      if (tiles[r][c] !== Terrain.LAND) continue;
+      const nx = c / cols;
+      const ny = r / rows;
+      const elevation = fbm(elevationNoise, nx, ny);
+      const moisture = ((fbm(moistureNoise, nx, ny) + 1) / 2) * moistureScale;
+      const temperature = ((fbm(temperatureNoise, nx, ny) + 1) / 2) * temperatureScale;
+      const riverVal = Math.abs(riverNoise(nx * 4, ny * 4));
+
+      if (elevation < seaLevel + reefLevel) {
+        tiles[r][c] = Terrain.WATER;
+      } else if (elevation < seaLevel) {
+        tiles[r][c] = Terrain.REEF;
+      } else if (riverVal < riverThreshold && elevation > seaLevel + 0.05) {
+        tiles[r][c] = Terrain.RIVER;
+      } else if (elevation > hillLevel) {
+        tiles[r][c] = Terrain.HILL;
+      } else {
+        if (moisture < 0.3 && temperature > 0.5) tiles[r][c] = Terrain.DESERT;
+        else if (moisture > 0.7) tiles[r][c] = Terrain.FOREST;
+        else tiles[r][c] = Terrain.LAND;
+      }
+    }
+  }
+
+  // Mark shoreline tiles as coast (adjacent to ocean or reefs but not rivers).
+  const isLand = t =>
+    t === Terrain.LAND ||
+    t === Terrain.HILL ||
+    t === Terrain.DESERT ||
+    t === Terrain.FOREST;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (!isLand(tiles[r][c])) continue;
       for (let dr = -1; dr <= 1; dr++) {
         for (let dc = -1; dc <= 1; dc++) {
           if (dr === 0 && dc === 0) continue;
-          const nr = r + dr, nc = c + dc;
-          if (nr < 0 || nr >= rows || nc < 0 || nc >= cols || tiles[nr][nc] === Terrain.WATER) {
+          const nr = r + dr,
+            nc = c + dc;
+          if (
+            nr < 0 ||
+            nr >= rows ||
+            nc < 0 ||
+            nc >= cols ||
+            tiles[nr][nc] === Terrain.WATER ||
+            tiles[nr][nc] === Terrain.REEF
+          ) {
             tiles[r][c] = Terrain.COAST;
-            dr = 2; // break out
+            dr = 2;
             break;
           }
         }
@@ -73,35 +115,22 @@ export function generateWorld(width, height, gridSize, seed = Math.random()) {
     }
   }
 
-  // Randomly assign hills on interior land tiles.
+  // Randomly place villages along the coast.
+  const coastTiles = [];
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      if (tiles[r][c] === Terrain.LAND) {
-        const rand = seededRandom(rngSeed++);
-        if (rand < 0.1) tiles[r][c] = Terrain.HILL;
-      }
-    }
-  }
-
-  // Choose one village on the coast of each island.
-  const coastByIsland = islands.map(() => []);
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      if (tiles[r][c] === Terrain.COAST) {
-        const id = islandIds[r][c];
-        if (id >= 0) coastByIsland[id].push({ r, c });
-      }
+      if (tiles[r][c] === Terrain.COAST) coastTiles.push({ r, c });
     }
   }
 
   const villages = [];
-  coastByIsland.forEach((coasts) => {
-    if (!coasts.length) return;
-    const idx = Math.floor(seededRandom(rngSeed++) * coasts.length);
-    const { r, c } = coasts[idx];
+  const villageCount = Math.min(3, coastTiles.length);
+  for (let i = 0; i < villageCount; i++) {
+    const idx = Math.floor(seededRandom(rngSeed++) * coastTiles.length);
+    const { r, c } = coastTiles.splice(idx, 1)[0];
     tiles[r][c] = Terrain.VILLAGE;
     villages.push({ r, c });
-  });
+  }
 
   return { tiles, rows, cols, villages };
 }
@@ -241,10 +270,10 @@ export function drawWorld(ctx, tiles, tileWidth, tileIsoHeight, tileImageHeight,
     for (let c = firstCol; c <= lastCol; c++) {
       const t = tiles[r][c];
       let img;
-      if (t === Terrain.WATER) img = assets.tiles?.water;
+      if (t === Terrain.WATER || t === Terrain.RIVER) img = assets.tiles?.water;
       else if (t === Terrain.HILL) img = assets.tiles?.hill;
       else if (t === Terrain.VILLAGE) img = assets.tiles?.village;
-      else if (t === Terrain.COAST) img = assets.tiles?.coast || assets.tiles?.land;
+      else if (t === Terrain.COAST || t === Terrain.REEF) img = assets.tiles?.coast || assets.tiles?.land;
       else img = assets.tiles?.land;
       if (!img) continue;
       const { x, y } = worldToIso(r, c, tileWidth, tileIsoHeight, tileImageHeight, isoX, isoY);
