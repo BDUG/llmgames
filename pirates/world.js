@@ -36,6 +36,10 @@ export function generateWorld(width, height, gridSize, options = {}, _attempt = 
     riverThreshold = 0.02,
     temperatureScale = 1,
     moistureScale = 1,
+    // Multiplies the normalised coordinates before feeding them into the noise
+    // function. Higher values produce more fragmented terrain by increasing the
+    // noise frequency. The default is tuned for small islands.
+    frequencyScale = 3,
     maxRetries = 10,
     // Limit for island size; islands exceeding this will be eroded.
     maxIslandSize = 400
@@ -76,9 +80,11 @@ export function generateWorld(width, height, gridSize, options = {}, _attempt = 
     for (let c = 0; c < cols; c++) {
       const nx = c / cols;
       const ny = r / rows;
-      const elevation = fbm(elevationNoise, nx, ny);
-      const moisture = ((fbm(moistureNoise, nx, ny) + 1) / 2) * moistureScale;
-      const temperature = ((fbm(temperatureNoise, nx, ny) + 1) / 2) * temperatureScale;
+      const fx = nx * frequencyScale;
+      const fy = ny * frequencyScale;
+      const elevation = fbm(elevationNoise, fx, fy);
+      const moisture = ((fbm(moistureNoise, fx, fy) + 1) / 2) * moistureScale;
+      const temperature = ((fbm(temperatureNoise, fx, fy) + 1) / 2) * temperatureScale;
       const riverVal = Math.abs(riverNoise(nx * 4, ny * 4));
 
       if (elevation < seaLevel + reefLevel) {
