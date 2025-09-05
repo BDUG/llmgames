@@ -11,6 +11,7 @@ import { cartesian } from './utils/distance.js';
 import { Ship } from './entities/ship.js';
 import { City } from './entities/city.js';
 import { NativeSettlement } from './entities/nativeSettlement.js';
+import { Mission } from './entities/mission.js';
 import {
   initEconomy,
   earnIncome,
@@ -76,7 +77,7 @@ bus.on('switch-flagship', ({ ship }) => {
 });
 
 // Dynamic game state collections
-let tiles, player, cities, cityMetadata, nativeSettlements, nativeMetadata, npcShips, priceEvents = [], seasonalEvents = [];
+let tiles, player, cities, cityMetadata, nativeSettlements, nativeMetadata, npcShips, missions, priceEvents = [], seasonalEvents = [];
 let fleetController;
 let npcSpawnIntervalId, europeTraderIntervalId;
 const keys = {};
@@ -323,9 +324,15 @@ function setup(options = {}) {
   tiles = result.tiles;
   worldWidth = result.cols * gridSize;
   worldHeight = result.rows * gridSize;
-  // Place the player's ship roughly at the center of the generated world.
-  let spawnX = worldWidth / 2;
-  let spawnY = worldHeight / 2;
+  // Spawn at mission coordinates if available, otherwise centre of the map.
+  let spawnX, spawnY;
+  if (result.missions && result.missions.length) {
+    spawnX = result.missions[0].c * gridSize + gridSize / 2;
+    spawnY = result.missions[0].r * gridSize + gridSize / 2;
+  } else {
+    spawnX = worldWidth / 2;
+    spawnY = worldHeight / 2;
+  }
 
   // Ensure the spawn point is on water; if not, search outward for the nearest
   // water tile using a simple breadth-first search.
@@ -380,6 +387,26 @@ function setup(options = {}) {
   questManager.active = [];
   questManager.completed = [];
   bus.emit('quest-updated');
+
+  missions = [];
+  if (result.missions && result.missions.length) {
+    const m = result.missions[0];
+    const mx = m.c * gridSize + gridSize / 2;
+    const my = m.r * gridSize + gridSize / 2;
+    const mission = new Mission(mx, my, 'Mission');
+    missions.push(mission);
+    cities.push(mission);
+    nativeSettlements.push(mission);
+    cityMetadata.set(mission, {
+      nation: 'Mission',
+      supplies: [],
+      demands: [],
+      production: {},
+      consumption: {},
+      islandId: m.islandId
+    });
+    nativeMetadata.set(mission, { tribe: 'Mission', supplies: [], demands: [], relation: 0 });
+  }
 
   let rngSeed = seed; // seeded randomness for deterministic placement
   const rand = () => {
