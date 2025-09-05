@@ -1,5 +1,12 @@
 import { assets, loadAssets } from './assets.js';
-import { generateWorld, drawWorld, Terrain, cartToIso, isoToCart } from './world.js';
+import {
+  generateWorld,
+  drawWorld,
+  Terrain,
+  cartToIso,
+  isoToCart,
+  tileAt
+} from './world.js';
 import { cartesian } from './utils/distance.js';
 import { Ship } from './entities/ship.js';
 import { NpcShip } from './entities/npcShip.js';
@@ -200,9 +207,48 @@ function setup(seed = currentSeed) {
   tiles = result.tiles;
   worldWidth = result.cols * gridSize;
   worldHeight = result.rows * gridSize;
-  // Place the player's ship at the center of the generated world.
-  const spawnX = worldWidth / 2;
-  const spawnY = worldHeight / 2;
+  // Place the player's ship roughly at the center of the generated world.
+  let spawnX = worldWidth / 2;
+  let spawnY = worldHeight / 2;
+
+  // Ensure the spawn point is on water; if not, search outward for the nearest
+  // water tile using a simple breadth-first search.
+  if (tileAt(tiles, spawnX, spawnY, gridSize) !== Terrain.WATER) {
+    const startR = Math.floor(spawnY / gridSize);
+    const startC = Math.floor(spawnX / gridSize);
+    const queue = [{ r: startR, c: startC }];
+    const visited = new Set([`${startR},${startC}`]);
+    const dirs = [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1]
+    ];
+
+    while (queue.length) {
+      const { r, c } = queue.shift();
+      if (tiles[r]?.[c] === Terrain.WATER) {
+        spawnX = c * gridSize + gridSize / 2;
+        spawnY = r * gridSize + gridSize / 2;
+        break;
+      }
+      for (const [dr, dc] of dirs) {
+        const nr = r + dr;
+        const nc = c + dc;
+        if (
+          nr >= 0 &&
+          nr < tiles.length &&
+          nc >= 0 &&
+          nc < tiles[0].length &&
+          !visited.has(`${nr},${nc}`)
+        ) {
+          visited.add(`${nr},${nc}`);
+          queue.push({ r: nr, c: nc });
+        }
+      }
+    }
+  }
+
   player = new Ship(spawnX, spawnY, 'Pirate');
   cities = [];
   cityMetadata = new Map();
