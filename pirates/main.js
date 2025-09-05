@@ -1,5 +1,5 @@
 import { assets, loadAssets } from './assets.js';
-import { generateWorld, drawWorld, Terrain, cartToIso } from './world.js';
+import { generateWorld, drawWorld, Terrain, cartToIso, isoToCart } from './world.js';
 import { cartesian } from './utils/distance.js';
 import { Ship } from './entities/ship.js';
 import { NpcShip } from './entities/npcShip.js';
@@ -120,12 +120,28 @@ Ship.wind = wind;
 setInterval(updateMarkets, DAY_MS);
 
 function getCameraOffset(player) {
-  // Center the camera on the player ship. Clamp the offset so we don't scroll
-  // past the world bounds when near the edges of the map.
-  return {
-    x: Math.max(0, Math.min(player.x - CSS_WIDTH / 2, worldWidth - CSS_WIDTH)),
-    y: Math.max(0, Math.min(player.y - CSS_HEIGHT / 2, worldHeight - CSS_HEIGHT))
-  };
+  // Convert the screen center from isometric screen pixels into cartesian
+  // space so we can center the camera on the player.
+  const origin = isoToCart(0, 0, tileWidth, tileIsoHeight, tileImageHeight);
+  const center = isoToCart(
+    CSS_WIDTH / 2,
+    CSS_HEIGHT / 2,
+    tileWidth,
+    tileIsoHeight,
+    tileImageHeight
+  );
+  const centerX = center.x - origin.x;
+  const centerY = center.y - origin.y;
+
+  // Viewable dimensions in cartesian coordinates for clamping.
+  const viewWidth = centerX * 2;
+  const viewHeight = centerY * 2;
+
+  // Center the camera on the player ship, clamping to the world bounds.
+  const x = Math.max(0, Math.min(player.x - centerX, worldWidth - viewWidth));
+  const y = Math.max(0, Math.min(player.y - centerY, worldHeight - viewHeight));
+
+  return { x, y };
 }
 
 function basePriceFor(good, metadata) {
