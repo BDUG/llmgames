@@ -49,6 +49,13 @@ export function generateWorld(width, height, gridSize, options = {}, _attempt = 
   const temperatureNoise = createNoise2D(() => seededRandom(rngSeed++));
   const riverNoise = createNoise2D(() => seededRandom(rngSeed++));
 
+  const cardinals = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1]
+  ];
+
   const fbm = (noiseFn, x, y) => {
     let amp = 1;
     let freq = 1;
@@ -84,6 +91,56 @@ export function generateWorld(width, height, gridSize, options = {}, _attempt = 
         if (moisture < 0.3 && temperature > 0.5) tiles[r][c] = Terrain.DESERT;
         else if (moisture > 0.7) tiles[r][c] = Terrain.FOREST;
         else tiles[r][c] = Terrain.LAND;
+      }
+    }
+  }
+
+  // Flood-fill from map borders to identify the main ocean and remove inland lakes.
+  const isWaterTile = t => t === Terrain.WATER || t === Terrain.REEF;
+  const oceanMask = Array.from({ length: rows }, () => Array(cols).fill(false));
+  const queue = [];
+  for (let r = 0; r < rows; r++) {
+    if (isWaterTile(tiles[r][0])) {
+      oceanMask[r][0] = true;
+      queue.push({ r, c: 0 });
+    }
+    if (isWaterTile(tiles[r][cols - 1])) {
+      oceanMask[r][cols - 1] = true;
+      queue.push({ r, c: cols - 1 });
+    }
+  }
+  for (let c = 0; c < cols; c++) {
+    if (isWaterTile(tiles[0][c])) {
+      oceanMask[0][c] = true;
+      queue.push({ r: 0, c });
+    }
+    if (isWaterTile(tiles[rows - 1][c])) {
+      oceanMask[rows - 1][c] = true;
+      queue.push({ r: rows - 1, c });
+    }
+  }
+  while (queue.length) {
+    const { r, c } = queue.shift();
+    for (const [dr, dc] of cardinals) {
+      const nr = r + dr;
+      const nc = c + dc;
+      if (
+        nr >= 0 &&
+        nr < rows &&
+        nc >= 0 &&
+        nc < cols &&
+        !oceanMask[nr][nc] &&
+        isWaterTile(tiles[nr][nc])
+      ) {
+        oceanMask[nr][nc] = true;
+        queue.push({ r: nr, c: nc });
+      }
+    }
+  }
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (isWaterTile(tiles[r][c]) && !oceanMask[r][c]) {
+        tiles[r][c] = Terrain.LAND;
       }
     }
   }
@@ -172,7 +229,29 @@ export function generateWorld(width, height, gridSize, options = {}, _attempt = 
     }
   }
 
-  if (islands.length < 10 && _attempt < maxRetries) {
+  const touchesOcean = island => {
+    for (const { r, c } of island.coast) {
+      for (const [dr, dc] of cardinals) {
+        const nr = r + dr;
+        const nc = c + dc;
+        if (
+          nr >= 0 &&
+          nr < rows &&
+          nc >= 0 &&
+          nc < cols &&
+          oceanMask[nr][nc]
+        ) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  if (
+    (islands.length < 10 || islands.some(i => !touchesOcean(i))) &&
+    _attempt < maxRetries
+  ) {
     return generateWorld(
       width,
       height,
