@@ -1,5 +1,6 @@
 import { bus } from '../bus.js';
 import { updateHUD } from './hud.js';
+import { isUnlocked } from '../research.js';
 
 export function openUpgradeMenu(player, metadata = {}) {
   const menu = document.getElementById('upgradeMenu');
@@ -50,7 +51,16 @@ export function openUpgradeMenu(player, metadata = {}) {
 
   const cannonBtn = document.createElement('button');
   cannonBtn.textContent = 'Improve cannons - 100g';
+  if (!isUnlocked('cannonFoundry')) {
+    cannonBtn.disabled = true;
+    cannonBtn.title = 'Requires cannonFoundry research';
+    bus.emit('log', 'Cannon upgrades require cannonFoundry research');
+  }
   cannonBtn.onclick = () => {
+    if (!isUnlocked('cannonFoundry')) {
+      bus.emit('log', 'Cannon upgrades require cannonFoundry research');
+      return;
+    }
     if (player.gold >= 100) {
       player.gold -= 100;
       player.baseFireRate = Math.max(5, player.baseFireRate - 5);
@@ -102,7 +112,17 @@ export function openUpgradeMenu(player, metadata = {}) {
     const level = player.upgrades?.[key] || 0;
     const btn = document.createElement('button');
     btn.textContent = `${info.label} - ${cost}g (Lv ${level})`;
+    const requiredTech = key; // upgrade id matches research id
+    if (['reinforcedHull', 'improvedSails'].includes(key) && !isUnlocked(requiredTech)) {
+      btn.disabled = true;
+      btn.title = `Requires ${requiredTech} research`;
+      bus.emit('log', `${info.label} requires ${requiredTech} research`);
+    }
     btn.onclick = () => {
+      if (['reinforcedHull', 'improvedSails'].includes(key) && !isUnlocked(requiredTech)) {
+        bus.emit('log', `${info.label} requires ${requiredTech} research`);
+        return;
+      }
       if (player.gold >= cost) {
         player.gold -= cost;
         info.apply();

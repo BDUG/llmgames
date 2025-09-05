@@ -17,6 +17,28 @@ nodes.set(
   new InnovationNode('reinforcedHull', 30, ['improvedSails'], [{ type: 'hull', value: 10 }])
 );
 
+// Village economy improvements add a small production bonus to all goods.
+nodes.set(
+  'villageImprovements',
+  new InnovationNode('villageImprovements', 40, [], [{ type: 'production', value: 0.25 }])
+);
+
+// Unlock additional ship designs for construction.
+nodes.set(
+  'brigDesign',
+  new InnovationNode('brigDesign', 35, [], [{ type: 'ship', value: 'Brig' }])
+);
+nodes.set(
+  'galleonDesign',
+  new InnovationNode('galleonDesign', 60, ['brigDesign'], [{ type: 'ship', value: 'Galleon' }])
+);
+
+// Cannon foundry speeds up reload time and increases damage.
+nodes.set(
+  'cannonFoundry',
+  new InnovationNode('cannonFoundry', 30, [], [{ type: 'cannon', value: 1 }])
+);
+
 export function getResearchNodes() {
   return Array.from(nodes.values());
 }
@@ -60,6 +82,16 @@ function applyResearch() {
     const finished = activeProject.id;
     activeProject = null;
     bus.emit('research-completed', { id: finished });
+    let msg = `${finished} research completed`;
+    if (node.effects) {
+      node.effects.forEach(effect => {
+        if (effect.type === 'ship')
+          msg += `; ${effect.value} class ships available`;
+        if (effect.type === 'cannon') msg += '; cannon performance improved';
+        if (effect.type === 'production') msg += '; village production increased';
+      });
+    }
+    bus.emit('log', msg);
   }
   bus.emit('research-updated');
 }

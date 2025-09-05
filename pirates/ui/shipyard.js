@@ -1,5 +1,7 @@
 import { bus } from '../bus.js';
 import { updateHUD } from './hud.js';
+import { SHIP_TYPES } from '../entities/ship.js';
+import { isUnlocked } from '../research.js';
 
 export function openShipyardMenu(player, city, metadata) {
   const menu = document.getElementById('shipyardMenu');
@@ -17,11 +19,21 @@ export function openShipyardMenu(player, city, metadata) {
   const ships = metadata.shipyard || {};
   Object.entries(ships).forEach(([type, info]) => {
     const btn = document.createElement('button');
-    btn.textContent = `${type} - ${info.price}g (${info.stock} available)`;
-    if (info.stock <= 0 || type === player.type || player.gold < info.price) {
+    const required = SHIP_TYPES[type]?.tech;
+    const unlocked = !required || isUnlocked(required);
+    btn.textContent = `${type} - ${info.price}g (${info.stock} available)` +
+      (unlocked ? '' : ' (Locked)');
+    if (info.stock <= 0 || type === player.type || player.gold < info.price || !unlocked) {
       btn.disabled = true;
     }
+    if (!unlocked) {
+      bus.emit('log', `${type} requires ${required} research`);
+    }
     btn.onclick = () => {
+      if (!unlocked) {
+        bus.emit('log', `${type} requires ${required} research`);
+        return;
+      }
       if (player.gold >= info.price && info.stock > 0) {
         player.gold -= info.price;
         player.changeType(type);
