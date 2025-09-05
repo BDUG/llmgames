@@ -25,6 +25,18 @@ export function restockShipyards(cityMetadata, amount = 1) {
   });
 }
 
+// Calculate effective production for a city, applying a bonus for each road
+// connection. Each connection increases output by 50%.
+export function calculateProduction(metadata) {
+  const connections = metadata?.roads?.size || 0;
+  const multiplier = 1 + connections * 0.5;
+  const result = {};
+  Object.entries(metadata?.production || {}).forEach(([good, amt]) => {
+    result[good] = Math.round(amt * multiplier);
+  });
+  return result;
+}
+
 export function spawnNpcFromEconomy(
   nations,
   cities,

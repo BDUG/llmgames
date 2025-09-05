@@ -8,7 +8,8 @@ function isIslandLand(t) {
     t === Terrain.DESERT ||
     t === Terrain.FOREST ||
     t === Terrain.COAST ||
-    t === Terrain.VILLAGE
+    t === Terrain.VILLAGE ||
+    t === Terrain.ROAD
   );
 }
 
@@ -126,7 +127,8 @@ export function foundVillage(
     consumption,
     islandId: choice.island.id,
     shipyard: null,
-    upgrades: {}
+    upgrades: {},
+    roads: new Set()
   });
   return city;
 }
