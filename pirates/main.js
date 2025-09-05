@@ -1123,13 +1123,16 @@ function loop(timestamp) {
     (metadata?.tribe || metadata?.nation === player.nation);
   const canTrade = !!nearbyCity && (player instanceof Ship || canLandUnitTrade);
   const canBuildRoad = player instanceof LandUnit && !!nearbyCity;
+  const canShareLoot =
+    player instanceof Ship && player.gold >= 10 && player.crew > 0;
   updateCommandKeys({
     nearCity: canTrade,
     nearEnemy,
     shipyard: !!metadata?.shipyard,
     nearLand,
     canBuildVillage,
-    canBuildRoad
+    canBuildRoad,
+    canShareLoot
   });
   if (player instanceof LandUnit && (keys['r'] || keys['R'])) {
     if (nearbyCity) {
@@ -1150,6 +1153,12 @@ function loop(timestamp) {
       roadStartCity = null;
     }
     keys['r'] = keys['R'] = false;
+  }
+  if (player instanceof Ship && (keys['h'] || keys['H'])) {
+    if (player.gold >= 10 && player.crew > 0) {
+      player.distributeLoot();
+    }
+    keys['h'] = keys['H'] = false;
   }
   if (canTrade) {
     if (keys['t'] || keys['T']) {
