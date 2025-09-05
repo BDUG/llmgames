@@ -205,9 +205,10 @@ function updateMarkets() {
   processPriceEvents();
 }
 
-function setup(seed = currentSeed) {
+function setup(options = {}) {
+  const { seed = currentSeed } = options;
   currentSeed = seed;
-  const result = generateWorld(worldWidth, worldHeight, gridSize, seed);
+  const result = generateWorld(worldWidth, worldHeight, gridSize, options);
   tiles = result.tiles;
   worldWidth = result.cols * gridSize;
   worldHeight = result.rows * gridSize;
@@ -217,7 +218,9 @@ function setup(seed = currentSeed) {
 
   // Ensure the spawn point is on water; if not, search outward for the nearest
   // water tile using a simple breadth-first search.
-  if (tileAt(tiles, spawnX, spawnY, gridSize) !== Terrain.WATER) {
+  const isWater = t =>
+    t === Terrain.WATER || t === Terrain.RIVER || t === Terrain.REEF;
+  if (!isWater(tileAt(tiles, spawnX, spawnY, gridSize))) {
     const startR = Math.floor(spawnY / gridSize);
     const startC = Math.floor(spawnX / gridSize);
     const queue = [{ r: startR, c: startC }];
@@ -231,7 +234,7 @@ function setup(seed = currentSeed) {
 
     while (queue.length) {
       const { r, c } = queue.shift();
-      if (tiles[r]?.[c] === Terrain.WATER) {
+      if (isWater(tiles[r]?.[c])) {
         spawnX = c * gridSize + gridSize / 2;
         spawnY = r * gridSize + gridSize / 2;
         break;
@@ -368,7 +371,7 @@ function loadGame() {
     const raw = localStorage.getItem('pirates-save');
     if (!raw) return;
     const data = JSON.parse(raw);
-    setup(data.seed);
+    setup({ seed: data.seed });
     Object.assign(player, data.player);
     player.cargo = data.player.cargo || {};
     player.reputation = data.player.reputation || {};
@@ -570,8 +573,8 @@ function loop(timestamp) {
 
 start();
 
-function startGame(seed) {
-  setup(seed);
+function startGame(opts) {
+  setup(opts);
 }
 
 window.startGame = startGame;
@@ -579,7 +582,16 @@ window.startGame = startGame;
 const startBtn = document.getElementById('startButton');
 if (startBtn) {
   startBtn.addEventListener('click', () => {
-    const seed = parseFloat(document.getElementById('seedInput').value);
-    startGame(seed);
+    const seedVal = parseFloat(document.getElementById('seedInput').value);
+    const octavesVal = parseInt(document.getElementById('octavesInput').value);
+    const tempVal = parseFloat(document.getElementById('tempInput').value);
+    const moistVal = parseFloat(document.getElementById('moistInput').value);
+    const options = {
+      seed: isNaN(seedVal) ? Math.random() : seedVal,
+      octaves: isNaN(octavesVal) ? undefined : octavesVal,
+      temperatureScale: isNaN(tempVal) ? undefined : tempVal,
+      moistureScale: isNaN(moistVal) ? undefined : moistVal
+    };
+    startGame(options);
   });
 }
