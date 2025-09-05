@@ -56,7 +56,8 @@ bus.on('npc-flee', ({ npc }) => {
   bus.emit('log', `${npc.nation} ship fled!`);
 });
 
-let tiles, player, cities, cityMetadata, npcShips, priceEvents = [];
+// Dynamic game state collections
+let tiles, player, cities, cityMetadata, npcShips, priceEvents = [], seasonalEvents = [];
 let npcSpawnIntervalId;
 let npcTypeIndex = 0;
 const keys = {};
@@ -84,7 +85,8 @@ window.addEventListener('keyup', e => {
 });
 
 const NATIONS = ['England', 'France', 'Spain', 'Netherlands'];
-const GOODS = ['Sugar', 'Rum', 'Tobacco', 'Cotton'];
+// All tradable goods in the world
+const GOODS = ['Sugar', 'Rum', 'Tobacco', 'Cotton', 'Spice', 'Tea', 'Coffee'];
 
 // Relationship map between nations. By default everyone is at peace.
 const ALL_NATIONS = [...NATIONS, 'Pirate'];
@@ -166,9 +168,11 @@ function basePriceFor(good, metadata) {
 
 function baseStockFor(good, metadata) {
   let stock = 10;
-  if (metadata?.supplies?.includes(good)) stock = 15;
-  if (metadata?.demands?.includes(good)) stock = 5;
-  return stock;
+  if (metadata?.production?.[good]) stock += metadata.production[good] * 2;
+  if (metadata?.consumption?.[good]) stock -= metadata.consumption[good];
+  if (metadata?.supplies?.includes(good)) stock += 5;
+  if (metadata?.demands?.includes(good)) stock -= 5;
+  return Math.max(0, stock);
 }
 
 function processPriceEvents() {
@@ -188,20 +192,82 @@ function processPriceEvents() {
   });
 }
 
+function handleSeasonalEvents() {
+  if (!cityMetadata) return;
+  // Apply existing events
+  seasonalEvents = seasonalEvents.filter(event => {
+    const metadata = cityMetadata.get(event.city);
+    if (metadata) {
+      metadata.inventory = metadata.inventory || {};
+      const base = baseStockFor(event.good, metadata);
+      const current = metadata.inventory[event.good] ?? base;
+      metadata.inventory[event.good] = Math.max(0, current + event.effect);
+    }
+    event.duration -= 1;
+    return event.duration > 0;
+  });
+
+  // Possibly trigger a new random event
+  if (Math.random() < 0.05 && cityMetadata.size) {
+    const citiesArr = Array.from(cityMetadata.keys());
+    const city = citiesArr[Math.floor(Math.random() * citiesArr.length)];
+    const good = GOODS[Math.floor(Math.random() * GOODS.length)];
+    const shortage = Math.random() < 0.5;
+    const effect = shortage ? -2 : 2; // change per tick
+    const duration = 5;
+    seasonalEvents.push({ city, good, effect, duration });
+
+    // Immediate price impact
+    const metadata = cityMetadata.get(city);
+    metadata.prices = metadata.prices || {};
+    const base = basePriceFor(good, metadata);
+    const oldPrice = metadata.prices[good] ?? base;
+    const newPrice = Math.max(1, Math.round(oldPrice + (shortage ? base * 0.3 : -base * 0.3)));
+    metadata.prices[good] = newPrice;
+    bus.emit('price-change', { city, good, delta: newPrice - oldPrice });
+  }
+}
+
 function updateMarkets() {
   if (!cityMetadata) return;
+  handleSeasonalEvents();
+
+  const totals = {};
+  for (const metadata of cityMetadata.values()) {
+    metadata.inventory = metadata.inventory || {};
+    GOODS.forEach(good => {
+      if (metadata.inventory[good] == null) {
+        metadata.inventory[good] = baseStockFor(good, metadata);
+      }
+      totals[good] = (totals[good] || 0) + metadata.inventory[good];
+    });
+  }
+  const averages = {};
+  GOODS.forEach(good => {
+    averages[good] = totals[good] / cityMetadata.size;
+  });
+
   for (const [city, metadata] of cityMetadata.entries()) {
     metadata.prices = metadata.prices || {};
     metadata.inventory = metadata.inventory || {};
     GOODS.forEach(good => {
+      const baseStock = baseStockFor(good, metadata);
+      const prod = metadata.production?.[good] || 0;
+      const cons = metadata.consumption?.[good] || 0;
+      let stock = metadata.inventory[good];
+      stock = stock + prod - cons;
+      if (stock < 0) stock = 0;
+      metadata.inventory[good] = stock;
+
       const base = basePriceFor(good, metadata);
       const current = metadata.prices[good] ?? base;
-      metadata.prices[good] = Math.round(current + (base - current) * 0.1);
-
-      const baseStock = baseStockFor(good, metadata);
-      const stock = metadata.inventory[good] ?? baseStock;
-      if (stock < baseStock) metadata.inventory[good] = stock + 1;
-      else if (stock > baseStock) metadata.inventory[good] = stock - 1;
+      const ratio = baseStock ? stock / baseStock : 1;
+      const deficit = averages[good] - stock;
+      let price = current;
+      price += base * (1 - ratio) * 0.1;
+      price += (deficit / baseStock) * base * 0.05;
+      price += (base - current) * 0.05;
+      metadata.prices[good] = Math.max(1, Math.round(price));
     });
   }
   processPriceEvents();
@@ -267,6 +333,7 @@ function setup(options = {}) {
   cityMetadata = new Map();
   npcShips = [];
   priceEvents = [];
+  seasonalEvents = [];
   npcTypeIndex = 0;
   questManager.active = [];
   questManager.completed = [];
@@ -299,7 +366,13 @@ function setup(options = {}) {
     const name = `Village ${islandId}-${count}`;
     const supplies = GOODS.filter(() => rand() < 0.5);
     const demands = GOODS.filter(g => !supplies.includes(g) && rand() < 0.5);
-    cityConfigs.push({ x, y, name, supplies, demands, islandId });
+    const production = {};
+    const consumption = {};
+    GOODS.forEach(good => {
+      production[good] = supplies.includes(good) ? Math.floor(rand() * 3) + 1 : 0;
+      consumption[good] = demands.includes(good) ? Math.floor(rand() * 3) + 1 : 0;
+    });
+    cityConfigs.push({ x, y, name, supplies, demands, production, consumption, islandId });
   });
 
   // Deterministically shuffle configs for nation assignment
@@ -326,6 +399,8 @@ function setup(options = {}) {
       nation,
       supplies: cfg.supplies,
       demands: cfg.demands,
+      production: cfg.production,
+      consumption: cfg.consumption,
       islandId: cfg.islandId
     });
   });

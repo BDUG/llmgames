@@ -1,7 +1,17 @@
 import { bus } from '../bus.js';
 import { updateHUD } from './hud.js';
 
-export const PRICES = { Sugar: 10, Rum: 12, Tobacco: 15, Cotton: 8 };
+// Base prices for all tradable goods.
+// Expanded to support additional commodities.
+export const PRICES = {
+  Sugar: 10,
+  Rum: 12,
+  Tobacco: 15,
+  Cotton: 8,
+  Spice: 20,
+  Tea: 9,
+  Coffee: 14
+};
 
 function listGoods(metadata) {
   const goods = new Set();
