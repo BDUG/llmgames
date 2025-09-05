@@ -37,6 +37,8 @@ import { initCommandKeys, updateCommandKeys } from './ui/commandKeys.js';
 import { openFleetMenu, closeFleetMenu } from './ui/fleet.js';
 import { openShipyardMenu, closeShipyardMenu } from './ui/shipyard.js';
 import { FleetController } from './fleet.js';
+import { openResearchMenu, closeResearchMenu } from './ui/research.js';
+import { getResearchState, setResearchState } from './research.js';
 
 let worldWidth, worldHeight, gridSize, tileWidth, tileIsoHeight, tileImageHeight;
 const CSS_WIDTH = 800, CSS_HEIGHT = 600;
@@ -320,6 +322,7 @@ function setup(options = {}) {
     npcSpawnFrequency = 30000
   } = options;
   currentSeed = seed;
+  setResearchState();
   const result = generateWorld(worldWidth, worldHeight, gridSize, options);
   tiles = result.tiles;
   worldWidth = result.cols * gridSize;
@@ -566,7 +569,8 @@ function saveGame() {
       upgrades: player.upgrades,
       cargo: player.cargo,
       reputation: player.reputation
-    }
+    },
+    research: getResearchState()
   };
   try {
     localStorage.setItem('pirates-save', JSON.stringify(data));
@@ -593,6 +597,7 @@ function loadGame() {
     player.fleet = [player];
     player.updateCrewStats();
     fleetController = new FleetController(player);
+    setResearchState(data.research);
     bus.emit('log', 'Game loaded');
   } catch (e) {
     console.error('Load failed', e);
@@ -627,8 +632,19 @@ function loop(timestamp) {
     closeGovernorMenu();
     closeTavernMenu();
     closeUpgradeMenu();
+    closeResearchMenu();
     openFleetMenu(player);
     keys['f'] = keys['F'] = false;
+  }
+  if (keys['i'] || keys['I']) {
+    closeTradeMenu();
+    closeGovernorMenu();
+    closeTavernMenu();
+    closeUpgradeMenu();
+    closeFleetMenu();
+    closeShipyardMenu();
+    openResearchMenu();
+    keys['i'] = keys['I'] = false;
   }
 
   if (paused) {
@@ -779,6 +795,7 @@ function loop(timestamp) {
       closeUpgradeMenu();
       closeFleetMenu();
       closeShipyardMenu();
+      closeResearchMenu();
       if (metadata?.tribe) {
         const multiplier = 1 + Math.max(0, -metadata.relation) * 0.1;
         openTradeMenu(player, nearbyCity, metadata, multiplier);
@@ -806,6 +823,7 @@ function loop(timestamp) {
       closeUpgradeMenu();
       closeFleetMenu();
       closeShipyardMenu();
+      closeResearchMenu();
       openGovernorMenu(player, nearbyCity, metadata);
       keys['g'] = keys['G'] = false;
     }
@@ -815,6 +833,7 @@ function loop(timestamp) {
       closeUpgradeMenu();
       closeFleetMenu();
       closeShipyardMenu();
+      closeResearchMenu();
       openTavernMenu(player, nearbyCity);
       keys['v'] = keys['V'] = false;
     }
@@ -824,6 +843,7 @@ function loop(timestamp) {
       closeTavernMenu();
       closeFleetMenu();
       closeShipyardMenu();
+      closeResearchMenu();
       openUpgradeMenu(player, metadata);
       keys['u'] = keys['U'] = false;
     }
@@ -833,6 +853,7 @@ function loop(timestamp) {
       closeTavernMenu();
       closeUpgradeMenu();
       closeFleetMenu();
+      closeResearchMenu();
       if (metadata?.shipyard) {
         openShipyardMenu(player, nearbyCity, metadata);
       } else {
@@ -847,6 +868,7 @@ function loop(timestamp) {
     closeUpgradeMenu();
     closeFleetMenu();
     closeShipyardMenu();
+    closeResearchMenu();
   }
   requestAnimationFrame(loop);
 }

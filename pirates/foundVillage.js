@@ -1,5 +1,6 @@
 import { Terrain } from './world.js';
 import { City } from './entities/city.js';
+import { bus } from './bus.js';
 
 function isIslandLand(t) {
   return (
@@ -131,5 +132,6 @@ export function foundVillage(
     upgrades: {},
     roads: new Set()
   });
+  bus.emit('village-founded', { city, nation });
   return city;
 }
