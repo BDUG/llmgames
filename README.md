@@ -51,3 +51,11 @@ space with `isoToCart` and uses the resulting offset for the camera.  The
 conversion takes `tileIsoHeight` into account – this value defines the vertical
 size of a tile's diamond, so changing it raises or lowers the computed centre
 point and shifts the camera up or down in world units.
+
+## World generation
+
+The pirate world uses fractal noise to form islands. The `generateWorld` function
+accepts a `frequencyScale` option that multiplies the normalised coordinates
+before sampling noise. Increasing this value raises the noise frequency and
+creates more fragmented terrain. A default of `3` is used to favour small
+islands.

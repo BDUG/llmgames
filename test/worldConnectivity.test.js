@@ -5,7 +5,7 @@ import { generateWorld, Terrain } from '../pirates/world.js';
 // Ensure every island coast is reachable from the player's spawn water tile.
 test('all island coasts touch reachable ocean from spawn', () => {
   const gridSize = 16;
-  const result = generateWorld(160, 160, gridSize, { seed: 5 });
+  const result = generateWorld(160, 160, gridSize, { seed: 5, frequencyScale: 1 });
   const { tiles, islands, missions } = result;
   let spawnR = missions[0].r;
   let spawnC = missions[0].c;
@@ -83,4 +83,18 @@ test('all island coasts touch reachable ocean from spawn', () => {
       `coast of island ${island.id} not reachable from spawn`
     );
   }
+});
+
+// With a high frequencyScale, the noise frequency increases and many small
+// islands appear even when large islands are not eroded.
+test('high frequencyScale yields numerous islands without size capping', () => {
+  const { islands } = generateWorld(640, 640, 16, {
+    seed: 5,
+    frequencyScale: 20,
+    maxIslandSize: Infinity
+  });
+  assert.ok(
+    islands.length > 25,
+    `expected many islands but got ${islands.length}`
+  );
 });
