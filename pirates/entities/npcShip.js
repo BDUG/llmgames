@@ -20,6 +20,7 @@ export class NpcShip extends Ship {
     this.targetCity = null;
     this.loaded = false;
     this.prevState = null;
+    this.home = null;
 
     // firing behavior parameters
     this.cannonRange = difficulty.range;
@@ -169,6 +170,34 @@ export class NpcShip extends Ship {
           }
         } else {
           this.inPort = false;
+        }
+        break;
+
+      case 'europe-trade':
+        if (this.loaded && this.targetCity) {
+          const t = this.targetCity;
+          this.speed = 2;
+          this.angle = Math.atan2(t.y - this.y, t.x - this.x);
+          const d = cartesian(t.x, t.y, this.x, this.y);
+          if (d < gridSize) {
+            const metadata = cityMetadata.get(t);
+            if (metadata) {
+              metadata.inventory = metadata.inventory || {};
+              for (const good of Object.keys(this.cargo)) {
+                metadata.inventory[good] =
+                  (metadata.inventory[good] || 0) + this.cargo[good];
+              }
+            }
+            this.cargo = {};
+            this.loaded = false;
+          }
+        } else if (this.home) {
+          this.speed = 2;
+          this.angle = Math.atan2(this.home.y - this.y, this.home.x - this.x);
+          const d = cartesian(this.home.x, this.home.y, this.x, this.y);
+          if (d < gridSize) {
+            this.sunk = true;
+          }
         }
         break;
 
