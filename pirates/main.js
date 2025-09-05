@@ -25,6 +25,7 @@ import { openTavernMenu, closeTavernMenu } from './ui/tavern.js';
 import { startBoarding } from './boarding.js';
 import { initCommandKeys, updateCommandKeys } from './ui/commandKeys.js';
 import { openFleetMenu, closeFleetMenu } from './ui/fleet.js';
+import { openShipyardMenu, closeShipyardMenu } from './ui/shipyard.js';
 import { FleetController } from './fleet.js';
 
 let worldWidth, worldHeight, gridSize, tileWidth, tileIsoHeight, tileImageHeight;
@@ -407,13 +408,27 @@ function setup(options = {}) {
     }
     const city = new City(cfg.x, cfg.y, cfg.name, nation);
     cities.push(city);
+    let shipyard = null;
+    if (rand() < 0.5) {
+      shipyard = {};
+      Object.entries(Ship.TYPES).forEach(([type, stats]) => {
+        if (rand() < 0.5) {
+          shipyard[type] = {
+            price: stats.cost,
+            stock: Math.floor(rand() * 3) + 1
+          };
+        }
+      });
+      if (!Object.keys(shipyard).length) shipyard = null;
+    }
     cityMetadata.set(city, {
       nation,
       supplies: cfg.supplies,
       demands: cfg.demands,
       production: cfg.production,
       consumption: cfg.consumption,
-      islandId: cfg.islandId
+      islandId: cfg.islandId,
+      shipyard
     });
   });
 
@@ -654,6 +669,7 @@ function loop(timestamp) {
   const TRADE_RANGE = gridSize; // distance at which trade becomes available
   const nearbyCity =
     nearestCityInfo.dist <= TRADE_RANGE ? nearestCityInfo.city : null;
+  let metadata;
   if (nearbyCity) {
     console.log(
       `${nearbyCity.name} is ${nearestCityInfo.dist.toFixed(1)} units away`
@@ -662,18 +678,19 @@ function loop(timestamp) {
       bus.emit('log', `Approaching ${nearbyCity.name}`);
       player.visitPort();
     }
+    metadata = cityMetadata.get(nearbyCity);
   } else {
     player.inPort = false;
   }
-  updateCommandKeys({ nearCity: !!nearbyCity, nearEnemy });
+  updateCommandKeys({ nearCity: !!nearbyCity, nearEnemy, shipyard: !!metadata?.shipyard });
   if (nearbyCity) {
-    const metadata = cityMetadata.get(nearbyCity);
     if (keys['t'] || keys['T']) {
       closeTradeMenu();
       closeGovernorMenu();
       closeTavernMenu();
       closeUpgradeMenu();
       closeFleetMenu();
+      closeShipyardMenu();
       const nation = metadata?.nation;
       const rep = player.reputation?.[nation] || 0;
       if (rep < REP_DENY_THRESHOLD) {
@@ -694,6 +711,7 @@ function loop(timestamp) {
       closeTavernMenu();
       closeUpgradeMenu();
       closeFleetMenu();
+      closeShipyardMenu();
       openGovernorMenu(player, nearbyCity, metadata);
       keys['g'] = keys['G'] = false;
     }
@@ -702,6 +720,7 @@ function loop(timestamp) {
       closeGovernorMenu();
       closeUpgradeMenu();
       closeFleetMenu();
+      closeShipyardMenu();
       openTavernMenu(player, nearbyCity);
       keys['v'] = keys['V'] = false;
     }
@@ -710,8 +729,22 @@ function loop(timestamp) {
       closeGovernorMenu();
       closeTavernMenu();
       closeFleetMenu();
+      closeShipyardMenu();
       openUpgradeMenu(player);
       keys['u'] = keys['U'] = false;
+    }
+    if (keys['y'] || keys['Y']) {
+      closeTradeMenu();
+      closeGovernorMenu();
+      closeTavernMenu();
+      closeUpgradeMenu();
+      closeFleetMenu();
+      if (metadata?.shipyard) {
+        openShipyardMenu(player, nearbyCity, metadata);
+      } else {
+        bus.emit('log', 'No shipyard here');
+      }
+      keys['y'] = keys['Y'] = false;
     }
   } else {
     closeTradeMenu();
@@ -719,6 +752,7 @@ function loop(timestamp) {
     closeTavernMenu();
     closeUpgradeMenu();
     closeFleetMenu();
+    closeShipyardMenu();
   }
   requestAnimationFrame(loop);
 }
