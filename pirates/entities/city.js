@@ -7,6 +7,7 @@ export class City {
     this.y = y;
     this.name = name;
     this.nation = nation;
+    this.roads = new Set();
   }
 
   draw(ctx, offsetX = 0, offsetY = 0, tileWidth, tileIsoHeight, tileImageHeight) {

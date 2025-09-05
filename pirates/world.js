@@ -18,7 +18,8 @@ export const Terrain = {
   RIVER: 5,
   REEF: 6,
   DESERT: 7,
-  FOREST: 8
+  FOREST: 8,
+  ROAD: 9
 };
 
 export function generateWorld(width, height, gridSize, options = {}) {
@@ -89,7 +90,8 @@ export function generateWorld(width, height, gridSize, options = {}) {
     t === Terrain.LAND ||
     t === Terrain.HILL ||
     t === Terrain.DESERT ||
-    t === Terrain.FOREST;
+    t === Terrain.FOREST ||
+    t === Terrain.ROAD;
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       if (!isLand(tiles[r][c])) continue;
@@ -123,7 +125,8 @@ export function generateWorld(width, height, gridSize, options = {}) {
     t === Terrain.HILL ||
     t === Terrain.DESERT ||
     t === Terrain.FOREST ||
-    t === Terrain.COAST;
+    t === Terrain.COAST ||
+    t === Terrain.ROAD;
 
   let islandId = 0;
   for (let r = 0; r < rows; r++) {
@@ -345,6 +348,7 @@ export function drawWorld(ctx, tiles, tileWidth, tileIsoHeight, tileImageHeight,
       if (t === Terrain.WATER || t === Terrain.RIVER) img = assets.tiles?.water;
       else if (t === Terrain.HILL) img = assets.tiles?.hill;
       else if (t === Terrain.VILLAGE) img = assets.tiles?.village;
+      else if (t === Terrain.ROAD) img = assets.tiles?.road || assets.tiles?.land;
       else if (t === Terrain.COAST || t === Terrain.REEF) img = assets.tiles?.coast || assets.tiles?.land;
       else img = assets.tiles?.land;
       if (!img) continue;
