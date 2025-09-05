@@ -501,7 +501,9 @@ function loop(timestamp) {
     },
     { city: null, dist: Infinity }
   );
-  const nearbyCity = nearestCityInfo.dist < 32 ? nearestCityInfo.city : null;
+  const TRADE_RANGE = gridSize; // distance at which trade becomes available
+  const nearbyCity =
+    nearestCityInfo.dist <= TRADE_RANGE ? nearestCityInfo.city : null;
   if (nearbyCity) {
     console.log(
       `${nearbyCity.name} is ${nearestCityInfo.dist.toFixed(1)} units away`
