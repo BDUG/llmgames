@@ -41,3 +41,31 @@ test('NPC nations buy ships, paying gold and stock and spawn adjacent', () => {
   const dist = cartesian(ship.x, ship.y, city.x, city.y);
   assert.ok(dist <= gridSize);
 });
+
+// Ensure spawnNpcFromEconomy respects per-nation target counts so nations can
+// field multiple ships when funds and stock allow.
+test('spawnNpcFromEconomy creates ships up to target count', () => {
+  const nations = ['England'];
+  const city = new City(0, 0, 'London', 'England');
+  const cities = [city];
+  const cityMetadata = new Map();
+  cityMetadata.set(city, {
+    nation: 'England',
+    shipyard: { Sloop: { price: 100, stock: 3 } }
+  });
+  const npcShips = [];
+  const targetCounts = { England: 3 };
+  const gridSize = 10;
+  initEconomy(nations, 500);
+
+  spawnNpcFromEconomy(
+    nations,
+    cities,
+    cityMetadata,
+    npcShips,
+    targetCounts,
+    gridSize
+  );
+
+  assert.equal(npcShips.length, 3);
+});
