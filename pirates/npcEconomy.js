@@ -76,3 +76,8 @@ export function spawnNpcFromEconomy(
     }
   });
 }
+
+export function adjustNativeRelation(metadata, delta) {
+  if (typeof metadata.relation !== 'number') metadata.relation = 0;
+  metadata.relation += delta;
+}

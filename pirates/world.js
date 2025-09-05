@@ -19,7 +19,8 @@ export const Terrain = {
   REEF: 6,
   DESERT: 7,
   FOREST: 8,
-  ROAD: 9
+  ROAD: 9,
+  NATIVE: 10
 };
 
 export function generateWorld(width, height, gridSize, options = {}) {
@@ -91,7 +92,8 @@ export function generateWorld(width, height, gridSize, options = {}) {
     t === Terrain.HILL ||
     t === Terrain.DESERT ||
     t === Terrain.FOREST ||
-    t === Terrain.ROAD;
+    t === Terrain.ROAD ||
+    t === Terrain.NATIVE;
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       if (!isLand(tiles[r][c])) continue;
@@ -126,7 +128,8 @@ export function generateWorld(width, height, gridSize, options = {}) {
     t === Terrain.DESERT ||
     t === Terrain.FOREST ||
     t === Terrain.COAST ||
-    t === Terrain.ROAD;
+    t === Terrain.ROAD ||
+    t === Terrain.NATIVE;
 
   let islandId = 0;
   for (let r = 0; r < rows; r++) {
@@ -167,10 +170,12 @@ export function generateWorld(width, height, gridSize, options = {}) {
 
   const {
     villagesPerIsland = 1,
-    villageDensity
+    villageDensity,
+    nativeDensity = 0.01
   } = options;
 
   const villages = [];
+  const natives = [];
   const hasVillageNearby = (r, c) => {
     for (let dr = -1; dr <= 1; dr++) {
       for (let dc = -1; dc <= 1; dc++) {
@@ -207,7 +212,38 @@ export function generateWorld(width, height, gridSize, options = {}) {
     }
   }
 
-  return { tiles, rows, cols, villages };
+  // Place native settlements after villages.
+  const hasForestOrRiver = (r, c) => {
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        const nr = r + dr;
+        const nc = c + dc;
+        if (
+          nr >= 0 &&
+          nr < rows &&
+          nc >= 0 &&
+          nc < cols &&
+          (tiles[nr][nc] === Terrain.FOREST || tiles[nr][nc] === Terrain.RIVER)
+        ) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (tiles[r][c] !== Terrain.LAND) continue;
+      if (hasForestOrRiver(r, c) && seededRandom(rngSeed++) < nativeDensity) {
+        tiles[r][c] = Terrain.NATIVE;
+        natives.push({ r, c });
+      }
+    }
+  }
+
+  return { tiles, rows, cols, villages, natives };
 }
 
 function seededRandom(seed) {
@@ -348,6 +384,7 @@ export function drawWorld(ctx, tiles, tileWidth, tileIsoHeight, tileImageHeight,
       if (t === Terrain.WATER || t === Terrain.RIVER) img = assets.tiles?.water;
       else if (t === Terrain.HILL) img = assets.tiles?.hill;
       else if (t === Terrain.VILLAGE) img = assets.tiles?.village;
+      else if (t === Terrain.NATIVE) img = assets.tiles?.native || assets.tiles?.village;
       else if (t === Terrain.ROAD) img = assets.tiles?.road || assets.tiles?.land;
       else if (t === Terrain.COAST || t === Terrain.REEF) img = assets.tiles?.coast || assets.tiles?.land;
       else img = assets.tiles?.land;

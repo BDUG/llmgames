@@ -10,6 +10,7 @@ import {
 import { cartesian } from './utils/distance.js';
 import { Ship } from './entities/ship.js';
 import { City } from './entities/city.js';
+import { NativeSettlement } from './entities/nativeSettlement.js';
 import {
   initEconomy,
   earnIncome,
@@ -75,7 +76,7 @@ bus.on('switch-flagship', ({ ship }) => {
 });
 
 // Dynamic game state collections
-let tiles, player, cities, cityMetadata, npcShips, priceEvents = [], seasonalEvents = [];
+let tiles, player, cities, cityMetadata, nativeSettlements, nativeMetadata, npcShips, priceEvents = [], seasonalEvents = [];
 let fleetController;
 let npcSpawnIntervalId, europeTraderIntervalId;
 const keys = {};
@@ -371,6 +372,8 @@ function setup(options = {}) {
   fleetController = new FleetController(player);
   cities = [];
   cityMetadata = new Map();
+  nativeSettlements = [];
+  nativeMetadata = new Map();
   npcShips = [];
   priceEvents = [];
   seasonalEvents = [];
@@ -455,6 +458,17 @@ function setup(options = {}) {
       shipyard,
       upgrades
     });
+  });
+
+  // Instantiate native settlements from world generation metadata
+  result.natives.forEach((n, i) => {
+    const x = n.c * gridSize + gridSize / 2;
+    const y = n.r * gridSize + gridSize / 2;
+    const tribe = `Tribe ${i + 1}`;
+    const settlement = new NativeSettlement(x, y, tribe);
+    nativeSettlements.push(settlement);
+    const supplies = GOODS.filter(() => rand() < 0.3);
+    nativeMetadata.set(settlement, { tribe, supplies, demands: [], relation: 0 });
   });
 
   const worldTiles = result.rows * result.cols;
@@ -629,7 +643,7 @@ function loop(timestamp) {
     n.fireCannons(player);
   });
 
-  const drawables = [...cities, ...npcShips, ...player.fleet];
+  const drawables = [...cities, ...nativeSettlements, ...npcShips, ...player.fleet];
   drawables
     .sort(
       (a, b) =>
@@ -705,7 +719,8 @@ function loop(timestamp) {
   if (showMinimap) {
     drawMinimap(minimapCtx, tiles, player, worldWidth, worldHeight, cities);
   }
-  const nearestCityInfo = cities.reduce(
+  const allSettlements = [...cities, ...nativeSettlements];
+  const nearestCityInfo = allSettlements.reduce(
     (nearest, c) => {
       const dist = cartesian(player.x, player.y, c.x, c.y);
       return dist < nearest.dist ? { city: c, dist } : nearest;
@@ -724,7 +739,7 @@ function loop(timestamp) {
       bus.emit('log', `Approaching ${nearbyCity.name}`);
       player.visitPort();
     }
-    metadata = cityMetadata.get(nearbyCity);
+    metadata = cityMetadata.get(nearbyCity) || nativeMetadata.get(nearbyCity);
   } else {
     player.inPort = false;
   }
@@ -737,22 +752,28 @@ function loop(timestamp) {
       closeUpgradeMenu();
       closeFleetMenu();
       closeShipyardMenu();
-      const nation = metadata?.nation;
-      const rep = player.reputation?.[nation] || 0;
-      if (rep < REP_DENY_THRESHOLD) {
-        bus.emit('log', `${nation} merchants refuse to trade with you.`);
-      } else {
-        let multiplier = 1;
-        if (rep < REP_SURCHARGE_THRESHOLD) {
-          multiplier = REP_SURCHARGE_RATE;
-          bus.emit('log', `${nation} merchants levy a surcharge due to your reputation.`);
-        }
+      if (metadata?.tribe) {
+        const multiplier = 1 + Math.max(0, -metadata.relation) * 0.1;
         openTradeMenu(player, nearbyCity, metadata, multiplier);
-        bus.emit('log', `Opened trade with ${nearbyCity.name}`);
+        bus.emit('log', `Opened trade with ${metadata.tribe}`);
+      } else {
+        const nation = metadata?.nation;
+        const rep = player.reputation?.[nation] || 0;
+        if (rep < REP_DENY_THRESHOLD) {
+          bus.emit('log', `${nation} merchants refuse to trade with you.`);
+        } else {
+          let multiplier = 1;
+          if (rep < REP_SURCHARGE_THRESHOLD) {
+            multiplier = REP_SURCHARGE_RATE;
+            bus.emit('log', `${nation} merchants levy a surcharge due to your reputation.`);
+          }
+          openTradeMenu(player, nearbyCity, metadata, multiplier);
+          bus.emit('log', `Opened trade with ${nearbyCity.name}`);
+        }
       }
       keys['t'] = keys['T'] = false;
     }
-    if (keys['g'] || keys['G']) {
+    if (!metadata?.tribe && (keys['g'] || keys['G'])) {
       closeTradeMenu();
       closeTavernMenu();
       closeUpgradeMenu();
@@ -761,7 +782,7 @@ function loop(timestamp) {
       openGovernorMenu(player, nearbyCity, metadata);
       keys['g'] = keys['G'] = false;
     }
-    if (keys['v'] || keys['V']) {
+    if (!metadata?.tribe && (keys['v'] || keys['V'])) {
       closeTradeMenu();
       closeGovernorMenu();
       closeUpgradeMenu();
@@ -770,7 +791,7 @@ function loop(timestamp) {
       openTavernMenu(player, nearbyCity);
       keys['v'] = keys['V'] = false;
     }
-    if (keys['u'] || keys['U']) {
+    if (!metadata?.tribe && (keys['u'] || keys['U'])) {
       closeTradeMenu();
       closeGovernorMenu();
       closeTavernMenu();
@@ -779,7 +800,7 @@ function loop(timestamp) {
       openUpgradeMenu(player, metadata);
       keys['u'] = keys['U'] = false;
     }
-    if (keys['y'] || keys['Y']) {
+    if (!metadata?.tribe && (keys['y'] || keys['Y'])) {
       closeTradeMenu();
       closeGovernorMenu();
       closeTavernMenu();
