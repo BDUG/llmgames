@@ -24,6 +24,7 @@ export class Ship {
     this.cargoCapacity = stats.cargo;
     this.gold = 100;
     this.crew = stats.crew;
+    this.crewMax = stats.crew;
     this.hullMax = stats.hull;
     this.hull = this.hullMax;
     this.sunk = false;
@@ -141,6 +142,7 @@ export class Ship {
     this.hull = Math.min(this.hull, this.hullMax);
     this.cargoCapacity = stats.cargo;
     this.crew = Math.min(this.crew, stats.crew);
+    this.crewMax = stats.crew;
     let used = Object.values(this.cargo).reduce((a, b) => a + b, 0);
     if (used > this.cargoCapacity) {
       for (const good of Object.keys(this.cargo)) {
