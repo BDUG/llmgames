@@ -17,6 +17,7 @@ import {
   spawnNpcFromEconomy,
   nationEconomy
 } from './npcEconomy.js';
+import { spawnEuropeanTrader, EUROPE_TRADER_INTERVAL } from './europeTraders.js';
 import { foundVillage } from './foundVillage.js';
 import { initHUD, updateHUD } from './ui/hud.js';
 import { initMinimap, drawMinimap } from './ui/minimap.js';
@@ -76,7 +77,7 @@ bus.on('switch-flagship', ({ ship }) => {
 // Dynamic game state collections
 let tiles, player, cities, cityMetadata, npcShips, priceEvents = [], seasonalEvents = [];
 let fleetController;
-let npcSpawnIntervalId;
+let npcSpawnIntervalId, europeTraderIntervalId;
 const keys = {};
 
 bus.on('price-change', ({ city, good, delta }) => {
@@ -479,6 +480,17 @@ function setup(options = {}) {
   spawnNpc();
   if (npcSpawnIntervalId) clearInterval(npcSpawnIntervalId);
   npcSpawnIntervalId = setInterval(spawnNpc, npcSpawnFrequency);
+
+  const spawnEuropean = () => {
+    const trader = spawnEuropeanTrader(worldWidth, worldHeight, cities);
+    if (trader) npcShips.push(trader);
+  };
+  spawnEuropean();
+  if (europeTraderIntervalId) clearInterval(europeTraderIntervalId);
+  europeTraderIntervalId = setInterval(
+    spawnEuropean,
+    EUROPE_TRADER_INTERVAL
+  );
 
   questManager.addQuest(new Quest('capture', 'Capture an enemy ship', 'England', 10));
 
