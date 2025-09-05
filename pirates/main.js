@@ -421,6 +421,14 @@ function setup(options = {}) {
       });
       if (!Object.keys(shipyard).length) shipyard = null;
     }
+    const upgrades = {};
+    ['reinforcedHull', 'improvedSails', 'crewQuarters'].forEach(u => {
+      if (rand() < 0.7) {
+        let mult = 1;
+        if (rand() < 0.3) mult = 0.8;
+        upgrades[u] = mult;
+      }
+    });
     cityMetadata.set(city, {
       nation,
       supplies: cfg.supplies,
@@ -428,7 +436,8 @@ function setup(options = {}) {
       production: cfg.production,
       consumption: cfg.consumption,
       islandId: cfg.islandId,
-      shipyard
+      shipyard,
+      upgrades
     });
   });
 
@@ -478,11 +487,16 @@ function saveGame() {
       angle: player.angle,
       type: player.type,
       maxSpeed: player.maxSpeed,
+      baseMaxSpeed: player.baseMaxSpeed,
       cargoCapacity: player.cargoCapacity,
       gold: player.gold,
       crew: player.crew,
+      crewMax: player.crewMax,
       hull: player.hull,
       hullMax: player.hullMax,
+      baseFireRate: player.baseFireRate,
+      fireRate: player.fireRate,
+      upgrades: player.upgrades,
       cargo: player.cargo,
       reputation: player.reputation
     }
@@ -504,7 +518,13 @@ function loadGame() {
     Object.assign(player, data.player);
     player.cargo = data.player.cargo || {};
     player.reputation = data.player.reputation || {};
+    player.upgrades = data.player.upgrades || {
+      reinforcedHull: 0,
+      improvedSails: 0,
+      crewQuarters: 0
+    };
     player.fleet = [player];
+    player.updateCrewStats();
     fleetController = new FleetController(player);
     bus.emit('log', 'Game loaded');
   } catch (e) {
@@ -730,7 +750,7 @@ function loop(timestamp) {
       closeTavernMenu();
       closeFleetMenu();
       closeShipyardMenu();
-      openUpgradeMenu(player);
+      openUpgradeMenu(player, metadata);
       keys['u'] = keys['U'] = false;
     }
     if (keys['y'] || keys['Y']) {

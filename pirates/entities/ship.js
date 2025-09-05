@@ -33,6 +33,11 @@ export class Ship {
     this.sunk = false;
     this.projectiles = [];
     this.reputation = {};
+    this.upgrades = {
+      reinforcedHull: 0,
+      improvedSails: 0,
+      crewQuarters: 0
+    };
 
     // sail control
     this.sail = 1; // 0 = furled, 1 = full
