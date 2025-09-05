@@ -93,3 +93,27 @@ test('new village joins trade routes and respects diplomacy', () => {
   assert.deepEqual(new Set([route.source, route.dest]), new Set([cityA, cityB]));
   assert.equal(bus.getRelation('England', 'France'), 'peace');
 });
+
+test('cannot found village adjacent to another', () => {
+  const V = Terrain.VILLAGE, C = Terrain.COAST;
+  const tiles = [
+    [C, C, C],
+    [C, V, C],
+    [C, C, C]
+  ];
+  const gridSize = 10;
+  const cities = [];
+  const cityMetadata = new Map();
+  const city = foundVillage(
+    tiles,
+    gridSize,
+    cities,
+    cityMetadata,
+    'England',
+    GOODS,
+    () => 0
+  );
+  assert.equal(city, null);
+  const villageCount = tiles.flat().filter(t => t === Terrain.VILLAGE).length;
+  assert.equal(villageCount, 1);
+});

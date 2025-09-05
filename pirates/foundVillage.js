@@ -69,9 +69,25 @@ export function foundVillage(
   const { islands } = computeIslands(tiles);
   const candidates = islands
     .map(island => {
-      const available = island.coast.filter(
-        ({ r, c }) => tiles[r][c] === Terrain.COAST
-      );
+      const available = island.coast.filter(({ r, c }) => {
+        if (tiles[r][c] !== Terrain.COAST) return false;
+        for (let dr = -1; dr <= 1; dr++) {
+          for (let dc = -1; dc <= 1; dc++) {
+            if (dr === 0 && dc === 0) continue;
+            const nr = r + dr;
+            const nc = c + dc;
+            if (
+              nr >= 0 &&
+              nr < tiles.length &&
+              nc >= 0 &&
+              nc < tiles[0].length &&
+              tiles[nr][nc] === Terrain.VILLAGE
+            )
+              return false;
+          }
+        }
+        return true;
+      });
       if (!available.length) return null;
       const owners = new Set();
       cityMetadata.forEach(meta => {

@@ -168,6 +168,24 @@ export function generateWorld(width, height, gridSize, options = {}) {
   } = options;
 
   const villages = [];
+  const hasVillageNearby = (r, c) => {
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        const nr = r + dr,
+          nc = c + dc;
+        if (
+          nr >= 0 &&
+          nr < rows &&
+          nc >= 0 &&
+          nc < cols &&
+          tiles[nr][nc] === Terrain.VILLAGE
+        )
+          return true;
+      }
+    }
+    return false;
+  };
   for (const island of islands) {
     if (!island.coast.length) continue;
     let count;
@@ -176,11 +194,13 @@ export function generateWorld(width, height, gridSize, options = {}) {
     } else {
       count = Math.min(villagesPerIsland, island.coast.length);
     }
-    for (let i = 0; i < count && island.coast.length; i++) {
+    for (let i = 0; i < count && island.coast.length; ) {
       const idx = Math.floor(seededRandom(rngSeed++) * island.coast.length);
       const { r, c } = island.coast.splice(idx, 1)[0];
+      if (hasVillageNearby(r, c)) continue;
       tiles[r][c] = Terrain.VILLAGE;
       villages.push({ r, c, islandId: island.id });
+      i++;
     }
   }
 
