@@ -82,6 +82,41 @@ function applyResearch() {
     const finished = activeProject.id;
     activeProject = null;
     bus.emit('research-completed', { id: finished });
+
+    if (node.effects) {
+      const player = bus.getPlayer?.();
+      const cityMetadata = bus.getCityMetadata?.();
+      node.effects.forEach(effect => {
+        if (effect.type === 'speed' && player?.fleet) {
+          player.fleet.forEach(ship => {
+            ship.baseMaxSpeed += effect.value;
+            ship.updateCrewStats?.();
+          });
+        } else if (effect.type === 'hull' && player?.fleet) {
+          player.fleet.forEach(ship => {
+            ship.hullMax += effect.value;
+            ship.hull += effect.value;
+          });
+        } else if (effect.type === 'cannon' && player?.fleet) {
+          player.fleet.forEach(ship => {
+            ship.baseFireRate = Math.max(5, ship.baseFireRate - 5 * effect.value);
+            ship.cannonDamage += 5 * effect.value;
+            ship.updateCrewStats?.();
+          });
+        } else if (effect.type === 'production' && cityMetadata) {
+          import('./npcEconomy.js').then(m => {
+            cityMetadata.forEach(meta => {
+              meta.production = m.calculateProduction(meta);
+            });
+          });
+        }
+        bus.emit('research-effect', { id: node.id, effect });
+      });
+      if (player && typeof window !== 'undefined') {
+        import('./ui/hud.js').then(m => m.updateHUD(player));
+      }
+    }
+
     let msg = `${finished} research completed`;
     if (node.effects) {
       node.effects.forEach(effect => {
