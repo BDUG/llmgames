@@ -85,6 +85,8 @@ bus.on('switch-flagship', ({ ship }) => {
 
 // Dynamic game state collections
 let tiles, player, cities, cityMetadata, nativeSettlements, nativeMetadata, npcShips, missions, priceEvents = [], seasonalEvents = [];
+bus.getPlayer = () => player;
+bus.getCityMetadata = () => cityMetadata;
 let storedShip = null;
 let fleetController;
 let npcSpawnIntervalId, europeTraderIntervalId;
