@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { generateWorld, Terrain } from '../pirates/world.js';
 
 test('generateWorld creates at least 10 islands by default', () => {
-  const { islands } = generateWorld(640, 640, 16, { seed: 1 });
+  const { islands } = generateWorld(640, 640, 16, { seed: 1, minIslandSpacing: 0 });
   assert.ok(
     islands.length >= 10,
     `expected at least 10 islands, got ${islands.length}`

@@ -42,7 +42,9 @@ export function generateWorld(width, height, gridSize, options = {}, _attempt = 
     frequencyScale = 3,
     maxRetries = 10,
     // Limit for island size; islands exceeding this will be eroded.
-    maxIslandSize = 400
+    maxIslandSize = 400,
+    // Minimum Chebyshev distance between island coasts.
+    minIslandSpacing = 5
   } = options;
 
   const rows = Math.floor(height / gridSize);
@@ -274,6 +276,45 @@ export function generateWorld(width, height, gridSize, options = {}, _attempt = 
 
   // Recompute islands after erosion to reflect updated tiles.
   ({ islands, islandMap } = buildIslands());
+
+  const enforceIslandSpacing = () => {
+    if (minIslandSpacing <= 0) return;
+    let adjusted = true;
+    while (adjusted) {
+      adjusted = false;
+      outer: for (let i = 0; i < islands.length; i++) {
+        for (let j = i + 1; j < islands.length; j++) {
+          let minDist = Infinity;
+          for (const a of islands[i].coast) {
+            for (const b of islands[j].coast) {
+              const d = Math.max(Math.abs(a.r - b.r), Math.abs(a.c - b.c));
+              if (d < minDist) minDist = d;
+              if (minDist < minIslandSpacing) break;
+            }
+            if (minDist < minIslandSpacing) break;
+          }
+          if (minDist < minIslandSpacing) {
+            const smaller =
+              islands[i].size <= islands[j].size ? islands[i] : islands[j];
+            for (let r = 0; r < rows; r++) {
+              for (let c = 0; c < cols; c++) {
+                if (islandMap[r][c] === smaller.id) {
+                  tiles[r][c] = Terrain.WATER;
+                  oceanMask[r][c] = true;
+                  islandMap[r][c] = -1;
+                }
+              }
+            }
+            ({ islands, islandMap } = buildIslands());
+            adjusted = true;
+            break outer;
+          }
+        }
+      }
+    }
+  };
+
+  enforceIslandSpacing();
 
   const touchesOcean = island => {
     for (const { r, c } of island.coast) {
