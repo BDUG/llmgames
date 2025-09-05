@@ -1,4 +1,4 @@
-import { assets } from '../assets.js';
+import { getFlag, getShipSprite } from '../assets.js';
 import { Terrain, cartToIso, tileAt } from '../world.js';
 import { Projectile } from './projectile.js';
 import { bus } from '../bus.js';
@@ -16,6 +16,7 @@ export class Ship {
     this.y = y;
     this.nation = nation;
     this.type = type;
+    this.updateAppearance();
     const stats = SHIP_TYPES[type] || SHIP_TYPES.Sloop;
     this.speed = 0;
     this.baseMaxSpeed = stats.speed;
@@ -167,6 +168,17 @@ export class Ship {
       }
     }
     this.updateCrewStats();
+    this.updateAppearance();
+  }
+
+  setNation(nation) {
+    this.nation = nation;
+    this.updateAppearance();
+  }
+
+  updateAppearance() {
+    this.img = getShipSprite(this.type, this.nation);
+    this.flag = getFlag(this.nation);
   }
 
   draw(ctx, offsetX = 0, offsetY = 0, tileWidth, tileIsoHeight, tileImageHeight) {
@@ -179,10 +191,8 @@ export class Ship {
     );
 
     if (!this.sunk) {
-      const img =
-        assets.ship?.[this.type]?.[this.nation] ||
-        assets.ship?.[this.type]?.England;
-      const flag = assets.flags?.[this.nation];
+      const img = this.img;
+      const flag = this.flag;
       const { isoX, isoY } = cartToIso(
         this.x,
         this.y,
