@@ -27,7 +27,7 @@ export function updateHUD(player, wind) {
   hudDiv.innerHTML =
     `Ship: (${player.x.toFixed(0)}, ${player.y.toFixed(0)})` +
     `<br>Gold: ${player.gold}` +
-    `<br>Crew: ${player.crew}` +
+    `<br>Crew: ${player.crew}/${player.crewMax}` +
     `<br>Hull: ${player.hull}/${player.hullMax}` +
     `<br><progress value="${player.hull}" max="${player.hullMax}"></progress>` +
     `<br>Morale: ${player.morale.toFixed(0)}` +

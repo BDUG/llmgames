@@ -15,21 +15,47 @@ export function openTavernMenu(player, city) {
   menu.appendChild(goldDiv);
 
   const crewDiv = document.createElement('div');
-  crewDiv.textContent = `Crew: ${player.crew}`;
+  crewDiv.textContent = `Crew: ${player.crew}/${player.crewMax}`;
   menu.appendChild(crewDiv);
-
+  const hireContainer = document.createElement('div');
+  const hireInput = document.createElement('input');
+  hireInput.type = 'number';
+  hireInput.min = 1;
+  hireInput.value = 1;
   const hireBtn = document.createElement('button');
-  hireBtn.textContent = 'Hire crew (20g)';
+  hireBtn.textContent = 'Hire crew (20g ea)';
+
+  const updateControls = () => {
+    const maxByGold = Math.floor(player.gold / 20);
+    const maxByCapacity = player.crewMax - player.crew;
+    const max = Math.min(maxByGold, maxByCapacity);
+    hireInput.max = max;
+    if (parseInt(hireInput.value, 10) > max) hireInput.value = max;
+    hireBtn.disabled = max <= 0 || parseInt(hireInput.value, 10) <= 0;
+  };
+
+  hireInput.oninput = updateControls;
+
   hireBtn.onclick = () => {
-    if (player.gold >= 20) {
-      player.gold -= 20;
-      player.crew += 1;
-      bus.emit('log', 'Hired 1 crew member for 20g');
+    const qty = parseInt(hireInput.value, 10) || 0;
+    const cost = qty * 20;
+    if (qty > 0 && player.gold >= cost && player.crew + qty <= player.crewMax) {
+      player.gold -= cost;
+      player.crew += qty;
+      bus.emit(
+        'log',
+        `Hired ${qty} crew member${qty !== 1 ? 's' : ''} for ${cost}g`
+      );
       updateHUD(player);
       openTavernMenu(player, city);
     }
   };
-  menu.appendChild(hireBtn);
+
+  updateControls();
+
+  hireContainer.appendChild(hireInput);
+  hireContainer.appendChild(hireBtn);
+  menu.appendChild(hireContainer);
 
   const closeBtn = document.createElement('button');
   closeBtn.textContent = 'Close';
