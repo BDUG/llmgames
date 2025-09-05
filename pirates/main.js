@@ -40,6 +40,7 @@ import { openShipyardMenu, closeShipyardMenu } from './ui/shipyard.js';
 import { FleetController } from './fleet.js';
 import { openResearchMenu, closeResearchMenu } from './ui/research.js';
 import { getResearchState, setResearchState } from './research.js';
+import { findSpawnPoint } from './spawn.js';
 
 let worldWidth, worldHeight, gridSize, tileWidth, tileIsoHeight, tileImageHeight;
 const CSS_WIDTH = 800, CSS_HEIGHT = 600;
@@ -321,7 +322,8 @@ function setup(options = {}) {
   const {
     seed = currentSeed,
     difficulty = 1,
-    npcSpawnFrequency = 30000
+    npcSpawnFrequency = 30000,
+    playerNation = NATIONS[0]
   } = options;
   currentSeed = seed;
   setResearchState();
@@ -329,60 +331,6 @@ function setup(options = {}) {
   tiles = result.tiles;
   worldWidth = result.cols * gridSize;
   worldHeight = result.rows * gridSize;
-  // Spawn at mission coordinates if available, otherwise centre of the map.
-  let spawnX, spawnY;
-  if (result.missions && result.missions.length) {
-    spawnX = result.missions[0].c * gridSize + gridSize / 2;
-    spawnY = result.missions[0].r * gridSize + gridSize / 2;
-  } else {
-    spawnX = worldWidth / 2;
-    spawnY = worldHeight / 2;
-  }
-
-  // Ensure the spawn point is on water; if not, search outward for the nearest
-  // water tile using a simple breadth-first search.
-  const isWater = t =>
-    t === Terrain.WATER || t === Terrain.RIVER || t === Terrain.REEF;
-  if (!isWater(tileAt(tiles, spawnX, spawnY, gridSize))) {
-    const startR = Math.floor(spawnY / gridSize);
-    const startC = Math.floor(spawnX / gridSize);
-    const queue = [{ r: startR, c: startC }];
-    const visited = new Set([`${startR},${startC}`]);
-    const dirs = [
-      [1, 0],
-      [-1, 0],
-      [0, 1],
-      [0, -1]
-    ];
-
-    while (queue.length) {
-      const { r, c } = queue.shift();
-      if (isWater(tiles[r]?.[c])) {
-        spawnX = c * gridSize + gridSize / 2;
-        spawnY = r * gridSize + gridSize / 2;
-        break;
-      }
-      for (const [dr, dc] of dirs) {
-        const nr = r + dr;
-        const nc = c + dc;
-        if (
-          nr >= 0 &&
-          nr < tiles.length &&
-          nc >= 0 &&
-          nc < tiles[0].length &&
-          !visited.has(`${nr},${nc}`)
-        ) {
-          visited.add(`${nr},${nc}`);
-          queue.push({ r: nr, c: nc });
-        }
-      }
-    }
-  }
-
-  player = new Ship(spawnX, spawnY, 'Pirate');
-  player.fleet = [player];
-  fleetController = new FleetController(player);
-  storedShip = null;
   cities = [];
   cityMetadata = new Map();
   nativeSettlements = [];
@@ -393,8 +341,9 @@ function setup(options = {}) {
   questManager.active = [];
   questManager.completed = [];
   bus.emit('quest-updated');
-
   missions = [];
+  storedShip = null;
+
   if (result.missions && result.missions.length) {
     const m = result.missions[0];
     const mx = m.c * gridSize + gridSize / 2;
@@ -503,6 +452,59 @@ function setup(options = {}) {
     const supplies = GOODS.filter(() => rand() < 0.3);
     nativeMetadata.set(settlement, { tribe, supplies, demands: [], relation: 0 });
   });
+
+  const spawn = findSpawnPoint(cityMetadata, tiles, gridSize, playerNation);
+  let spawnX, spawnY;
+  if (spawn) {
+    spawnX = spawn.x;
+    spawnY = spawn.y;
+  } else if (result.missions && result.missions.length) {
+    spawnX = result.missions[0].c * gridSize + gridSize / 2;
+    spawnY = result.missions[0].r * gridSize + gridSize / 2;
+  } else {
+    spawnX = worldWidth / 2;
+    spawnY = worldHeight / 2;
+  }
+  const isWater = t =>
+    t === Terrain.WATER || t === Terrain.RIVER || t === Terrain.REEF;
+  if (!isWater(tileAt(tiles, spawnX, spawnY, gridSize))) {
+    const startR = Math.floor(spawnY / gridSize);
+    const startC = Math.floor(spawnX / gridSize);
+    const queue = [{ r: startR, c: startC }];
+    const visited = new Set([`${startR},${startC}`]);
+    const dirs = [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1]
+    ];
+    while (queue.length) {
+      const { r, c } = queue.shift();
+      if (isWater(tiles[r]?.[c])) {
+        spawnX = c * gridSize + gridSize / 2;
+        spawnY = r * gridSize + gridSize / 2;
+        break;
+      }
+      for (const [dr, dc] of dirs) {
+        const nr = r + dr;
+        const nc = c + dc;
+        if (
+          nr >= 0 &&
+          nr < tiles.length &&
+          nc >= 0 &&
+          nc < tiles[0].length &&
+          !visited.has(`${nr},${nc}`)
+        ) {
+          visited.add(`${nr},${nc}`);
+          queue.push({ r: nr, c: nc });
+        }
+      }
+    }
+  }
+
+  player = new Ship(spawnX, spawnY, playerNation);
+  player.fleet = [player];
+  fleetController = new FleetController(player);
 
   const worldTiles = result.rows * result.cols;
   const perNation = Math.max(1, Math.floor((worldTiles / 5000) * difficulty));
@@ -1014,11 +1016,13 @@ if (startBtn) {
     const octavesVal = parseInt(document.getElementById('octavesInput').value);
     const tempVal = parseFloat(document.getElementById('tempInput').value);
     const moistVal = parseFloat(document.getElementById('moistInput').value);
+    const nationVal = document.getElementById('nationSelect')?.value;
     const options = {
       seed: isNaN(seedVal) ? Math.random() : seedVal,
       octaves: isNaN(octavesVal) ? undefined : octavesVal,
       temperatureScale: isNaN(tempVal) ? undefined : tempVal,
-      moistureScale: isNaN(moistVal) ? undefined : moistVal
+      moistureScale: isNaN(moistVal) ? undefined : moistVal,
+      playerNation: nationVal
     };
     startGame(options);
   });
