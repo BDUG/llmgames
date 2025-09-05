@@ -24,6 +24,12 @@ export function updateHUD(player, wind) {
   const w = wind || Ship.wind || { speed: 0, angle: 0 };
   const windDir = (w.angle * 180 / Math.PI).toFixed(0);
   const windSpd = w.speed.toFixed(1);
+  const fleetInfo =
+    player.fleet
+      ?.map(s =>
+        `${s === player ? '*' : ''}${s.type} ${s.hull}/${s.hullMax}`
+      )
+      .join(', ') || 'None';
   hudDiv.innerHTML =
     `Ship: (${player.x.toFixed(0)}, ${player.y.toFixed(0)})` +
     `<br>Gold: ${player.gold}` +
@@ -35,5 +41,6 @@ export function updateHUD(player, wind) {
     `<br>Cargo: ${cargoSummary(player)}` +
     `<br>Sails: ${(player.sail * 100).toFixed(0)}%` +
     `<br>Wind: ${windSpd} @ ${windDir}&deg;` +
-    `<br>Quests: ${quests}`;
+    `<br>Quests: ${quests}` +
+    `<br>Fleet: ${fleetInfo}`;
 }
