@@ -12,6 +12,7 @@ export class LandUnit {
     this.cargo = {};
     this.cargoCapacity = 20;
     this.gold = 100;
+    this.reputation = {};
     this.inPort = false;
   }
 

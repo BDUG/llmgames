@@ -37,7 +37,8 @@ export function priceFor(good, metadata, multiplier = 1) {
 }
 
 function cargoUsed(player) {
-  return Object.values(player.cargo).reduce((a, b) => a + b, 0);
+  if (typeof player.cargoUsed === 'function') return player.cargoUsed();
+  return Object.values(player.cargo || {}).reduce((a, b) => a + b, 0);
 }
 
 export function closeTradeMenu() {
@@ -48,6 +49,7 @@ export function closeTradeMenu() {
 export function openTradeMenu(player, city, metadata, priceMultiplier = 1) {
   const menu = document.getElementById('tradeMenu');
   if (!menu || !player) return;
+  player.cargo = player.cargo || {};
 
   if (!metadata?.nation && !metadata?.tribe) {
     bus.emit('log', `Cannot open trade menu for ${city?.name || 'unknown location'}: faction unknown`);
@@ -65,7 +67,8 @@ export function openTradeMenu(player, city, metadata, priceMultiplier = 1) {
   menu.appendChild(goldDiv);
 
   const capacityDiv = document.createElement('div');
-  capacityDiv.textContent = `Cargo: ${cargoUsed(player)}/${player.cargoCapacity}`;
+  const capacity = player.cargoCapacity ?? cargoUsed(player);
+  capacityDiv.textContent = `Cargo: ${cargoUsed(player)}/${capacity}`;
   menu.appendChild(capacityDiv);
 
   const table = document.createElement('table');

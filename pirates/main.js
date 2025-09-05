@@ -902,14 +902,18 @@ function loop(timestamp) {
   } else {
     player.inPort = false;
   }
+  const canLandUnitTrade =
+    player instanceof LandUnit &&
+    (metadata?.tribe || metadata?.nation === player.nation);
+  const canTrade = !!nearbyCity && (player instanceof Ship || canLandUnitTrade);
   updateCommandKeys({
-    nearCity: !!nearbyCity,
+    nearCity: canTrade,
     nearEnemy,
     shipyard: !!metadata?.shipyard,
     nearLand,
     canBuildVillage
   });
-  if (nearbyCity) {
+  if (canTrade) {
     if (keys['t'] || keys['T']) {
       closeTradeMenu();
       closeGovernorMenu();

@@ -10,7 +10,7 @@ export function initCommandKeys() {
     <div data-cmd="pause">P: Pause/Unpause</div>
     <div data-cmd="minimap">M: Toggle minimap</div>
     <div data-cmd="sails">1/2/3: Set sails (none/half/full)</div>
-    <div data-cmd="trade" style="display:none">T: Trade (if near a city)</div>
+    <div data-cmd="trade" style="display:none">T: Trade (if near a settlement)</div>
     <div data-cmd="governor" style="display:none">G: Visit governor</div>
     <div data-cmd="tavern" style="display:none">V: Visit tavern</div>
     <div data-cmd="upgrade" style="display:none">U: Shipwright</div>
