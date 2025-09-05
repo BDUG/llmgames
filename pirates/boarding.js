@@ -1,5 +1,6 @@
 import { bus } from './bus.js';
 import { updateHUD } from './ui/hud.js';
+import { Ship } from './entities/ship.js';
 
 // Attempt to start a duel-based boarding sequence. If the duel UI fails to
 // load or throws an error, fall back to the original random resolution.
@@ -75,13 +76,15 @@ function randomBoarding(player, enemy) {
         player.adjustReputation(enemy.nation, -5);
         logs.push(`Reputation with ${enemy.nation} decreased`);
         flushLogs();
-        if (confirm(`Take the captured ${enemy.type || 'ship'}?`)) {
-          player.changeType(enemy.type);
-          player.hull = Math.min(enemy.hull, player.hullMax);
-          logs.push(`You now command the ${enemy.type}`);
-        } else {
-          logs.push('You keep your current ship.');
-        }
+
+        const captured = new Ship(enemy.x, enemy.y, 'Pirate', enemy.type);
+        captured.hull = Math.min(enemy.hull, captured.hullMax);
+        captured.cargo = { ...enemy.cargo };
+        captured.gold = 0;
+        captured.crew = 0;
+        captured.fleet = player.fleet || (player.fleet = [player]);
+        player.fleet.push(captured);
+        logs.push(`Captured ${enemy.type} added to fleet.`);
 
         enemy.sunk = true;
       } else {
