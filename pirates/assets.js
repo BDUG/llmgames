@@ -6,12 +6,22 @@ export const assets = {
 };
 let gridSize = 16;
 
+const FLAG_COLORS = {
+  Pirate: '#000',
+  England: '#c00',
+  France: '#00c',
+  Spain: '#c90',
+  Netherlands: '#f60',
+};
+let shipPlaceholder = null;
+
 export async function loadAssets(tileSize){
   if (typeof tileSize === 'number') gridSize = tileSize;
   try {
     const response = await fetch('/pirates/assets.json');
     const data = await response.json();
     await loadNested(data, assets);
+    ensureFlags();
     const sampleTile = assets.tiles && Object.values(assets.tiles)[0];
     const tileWidth = sampleTile?.tileWidth || sampleTile?.width || gridSize;
     const tileImageHeight = sampleTile?.tileImageHeight || sampleTile?.height || gridSize;
@@ -70,5 +80,60 @@ function loadImage(url, isTile = false){
     };
     img.src = url;
   });
+}
+
+function ensureFlags() {
+  Object.keys(FLAG_COLORS).forEach(n => {
+    if (!assets.flags[n]) {
+      assets.flags[n] = createFlagPlaceholder(n);
+      console.warn(`Missing flag asset for ${n}`);
+    }
+  });
+  if (!assets.flags.Unknown) {
+    assets.flags.Unknown = createFlagPlaceholder();
+  }
+}
+
+export function getFlag(nation) {
+  return assets.flags[nation] || assets.flags.Unknown || createFlagPlaceholder();
+}
+
+function createFlagPlaceholder(nation){
+  if (typeof document === 'undefined') {
+    return { width: gridSize, height: gridSize };
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = gridSize;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = FLAG_COLORS[nation] || '#888';
+  ctx.fillRect(0, 0, gridSize, gridSize);
+  ctx.fillStyle = '#fff';
+  ctx.font = `${gridSize * 0.6}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(nation ? nation[0] : '?', gridSize / 2, gridSize / 2 + 1);
+  return canvas;
+}
+
+function createShipPlaceholder(){
+  if (typeof document === 'undefined') {
+    return { width: gridSize, height: gridSize };
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = gridSize;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#999';
+  ctx.fillRect(0,0,gridSize,gridSize);
+  return canvas;
+}
+
+export function getShipSprite(type, nation){
+  const byType = assets.ship?.[type] || {};
+  return (
+    byType[nation] ||
+    byType.Pirate ||
+    Object.values(byType)[0] ||
+    (shipPlaceholder ||= createShipPlaceholder())
+  );
 }
 

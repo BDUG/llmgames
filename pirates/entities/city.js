@@ -1,4 +1,4 @@
-import { assets } from '../assets.js';
+import { assets, getFlag } from '../assets.js';
 import { cartToIso } from '../world.js';
 
 export class City {
@@ -20,7 +20,7 @@ export class City {
 
     const { isoX, isoY } = cartToIso(this.x, this.y, tileWidth, tileIsoHeight, tileImageHeight);
     const img = assets.tiles.village;
-    const flag = assets.flags?.[this.nation];
+    const flag = getFlag(this.nation);
     if (img) {
       ctx.save();
       ctx.translate(isoX - offX, isoY - offY);
