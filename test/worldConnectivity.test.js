@@ -91,7 +91,8 @@ test('high frequencyScale yields numerous islands without size capping', () => {
   const { islands } = generateWorld(640, 640, 16, {
     seed: 5,
     frequencyScale: 20,
-    maxIslandSize: Infinity
+    maxIslandSize: Infinity,
+    minIslandSpacing: 0
   });
   assert.ok(
     islands.length > 25,

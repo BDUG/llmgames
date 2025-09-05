@@ -58,4 +58,6 @@ The pirate world uses fractal noise to form islands. The `generateWorld` functio
 accepts a `frequencyScale` option that multiplies the normalised coordinates
 before sampling noise. Increasing this value raises the noise frequency and
 creates more fragmented terrain. A default of `3` is used to favour small
-islands.
+islands. The `minIslandSpacing` option enforces a minimum Chebyshev distance
+between island coasts, eroding the smaller island when the spacing is not met.
+By default this distance is `5` tiles.
