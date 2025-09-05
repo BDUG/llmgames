@@ -9,6 +9,7 @@ import {
 } from './world.js';
 import { cartesian } from './utils/distance.js';
 import { Ship } from './entities/ship.js';
+import { NpcShip } from './entities/npcShip.js';
 import { City } from './entities/city.js';
 import { NativeSettlement } from './entities/nativeSettlement.js';
 import { Mission } from './entities/mission.js';
@@ -85,6 +86,7 @@ let tiles, player, cities, cityMetadata, nativeSettlements, nativeMetadata, npcS
 let storedShip = null;
 let fleetController;
 let npcSpawnIntervalId, europeTraderIntervalId;
+let villageFoundedListener;
 const keys = {};
 
 bus.on('price-change', ({ city, good, delta }) => {
@@ -318,6 +320,11 @@ function attemptFoundVillages() {
   });
 }
 
+function spawnVillageNpcShip(city, nation, npcShips, targetCounts) {
+  npcShips.push(new NpcShip(city.x + gridSize, city.y, nation));
+  targetCounts[nation] = (targetCounts[nation] || 0) + 1;
+}
+
 function setup(options = {}) {
   const {
     seed = currentSeed,
@@ -515,6 +522,12 @@ function setup(options = {}) {
   );
   const targetCounts = {};
   NATIONS.forEach(n => (targetCounts[n] = perNation));
+
+  if (villageFoundedListener)
+    bus.off('village-founded', villageFoundedListener);
+  villageFoundedListener = ({ city, nation }) =>
+    spawnVillageNpcShip(city, nation, npcShips, targetCounts);
+  bus.on('village-founded', villageFoundedListener);
 
   initEconomy(NATIONS);
 
