@@ -17,6 +17,7 @@ export function initCommandKeys() {
     <div data-cmd="shipyard" style="display:none">Y: Shipyard</div>
     <div data-cmd="board" style="display:none">B: Board enemy ship</div>
     <div data-cmd="capture" style="display:none">C: Capture enemy ship</div>
+    <div data-cmd="land" style="display:none">Q: Disembark/Board</div>
     <div data-cmd="fleet">F: Manage fleet</div>
     <div data-cmd="research">I: Research</div>
     <div data-cmd="save">S: Save game</div>
@@ -24,7 +25,12 @@ export function initCommandKeys() {
   `;
 }
 
-export function updateCommandKeys({ nearCity = false, nearEnemy = false, shipyard = false }) {
+export function updateCommandKeys({
+  nearCity = false,
+  nearEnemy = false,
+  shipyard = false,
+  nearLand = false
+}) {
   const div = document.getElementById('commandKeys');
   if (!div) return;
   toggle(div.querySelector('[data-cmd="trade"]'), nearCity);
@@ -34,6 +40,7 @@ export function updateCommandKeys({ nearCity = false, nearEnemy = false, shipyar
   toggle(div.querySelector('[data-cmd="shipyard"]'), shipyard);
   toggle(div.querySelector('[data-cmd="board"]'), nearEnemy);
   toggle(div.querySelector('[data-cmd="capture"]'), nearEnemy);
+  toggle(div.querySelector('[data-cmd="land"]'), nearLand);
 }
 
 function toggle(el, show) {
