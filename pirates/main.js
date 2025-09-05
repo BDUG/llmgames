@@ -521,6 +521,14 @@ function loop(timestamp) {
   if (keys['2']) { player.setSail(0.5); keys['2'] = false; }
   if (keys['3']) { player.setSail(1); keys['3'] = false; }
   if (keys[' ']) player.fireCannons();
+  if (keys['r'] || keys['R']) {
+    npcShips.forEach(n => {
+      if (cartesian(player.x, player.y, n.x, n.y) < 20) {
+        player.ram(n);
+      }
+    });
+    keys['r'] = keys['R'] = false;
+  }
   // Update the player and clamp to the generated world's size
   player.update(dt, tiles, gridSize, worldWidth, worldHeight);
 
@@ -553,9 +561,10 @@ function loop(timestamp) {
   npcShips.forEach(n => {
     player.projectiles.forEach(p => {
       if (!n.sunk && cartesian(p.x, p.y, n.x, n.y) < 20) {
-        n.takeDamage(25);
-        p.life = 0;
-        bus.emit('log', `Hit ${n.nation} ship for 25 damage`);
+        const damage = Math.max(0, p.damage * (1 - p.traveled / p.range));
+        n.takeDamage(damage);
+        p.traveled = p.range;
+        bus.emit('log', `Hit ${n.nation} ship for ${damage.toFixed(0)} damage`);
         if (n.sunk) {
           bus.emit('log', `${n.nation} ship sank!`);
           player.distributeLoot();
@@ -564,15 +573,16 @@ function loop(timestamp) {
     });
     n.projectiles.forEach(p => {
       if (!player.sunk && cartesian(p.x, p.y, player.x, player.y) < 20) {
-        player.takeDamage(25);
-        p.life = 0;
+        const damage = Math.max(0, p.damage * (1 - p.traveled / p.range));
+        player.takeDamage(damage);
+        p.traveled = p.range;
         bus.emit('log', `Hit by ${n.nation} ship!`);
         if (player.sunk) bus.emit('log', 'You sank!');
       }
     });
-    n.projectiles = n.projectiles.filter(p => p.life > 0);
+    n.projectiles = n.projectiles.filter(p => p.traveled < p.range);
   });
-  player.projectiles = player.projectiles.filter(p => p.life > 0);
+  player.projectiles = player.projectiles.filter(p => p.traveled < p.range);
   npcShips = npcShips.filter(n => !n.sunk);
 
   // boarding and capturing

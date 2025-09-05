@@ -22,7 +22,7 @@ export class NpcShip extends Ship {
     this.prevState = null;
 
     // firing behavior parameters
-    this.fireRange = difficulty.range;
+    this.cannonRange = difficulty.range;
     this.accuracy = difficulty.accuracy;
   }
 
@@ -121,6 +121,7 @@ export class NpcShip extends Ship {
       }
     }
 
+    const wind = Ship.wind || { speed: 0, angle: 0 };
     switch (this.state) {
       case 'patrol':
         this.speed = 1.5;
@@ -174,6 +175,10 @@ export class NpcShip extends Ship {
       case 'pursue':
         this.speed = 2.5;
         this.angle = Math.atan2(player.y - this.y, player.x - this.x);
+        // tack slightly toward the wind to maintain speed when sailing upwind
+        if (Math.cos(wind.angle - this.angle) < 0) {
+          this.angle += 0.02 * Math.sign(Math.sin(wind.angle - this.angle));
+        }
         if (relation !== 'war' || dist > this.detectRadius * 1.5) {
           this.state = this.prevState || 'patrol';
         }
@@ -190,6 +195,10 @@ export class NpcShip extends Ship {
       case 'avoid':
         this.speed = 3;
         this.angle = Math.atan2(this.y - player.y, this.x - player.x);
+        // favor sailing with the wind when fleeing
+        if (Math.cos(wind.angle - this.angle) < 0) {
+          this.angle += 0.02 * Math.sign(Math.sin(wind.angle - this.angle));
+        }
         if (relation !== 'peace' || dist > this.detectRadius) {
           this.state = this.prevState || 'patrol';
         }
@@ -197,6 +206,9 @@ export class NpcShip extends Ship {
     }
 
     super.update(dt, tiles, gridSize, worldWidth, worldHeight);
+    if (this.state === 'pursue') {
+      this.ram(player);
+    }
   }
 
   fireCannons(target) {
@@ -208,7 +220,7 @@ export class NpcShip extends Ship {
     if (relation !== 'war') return;
 
     const dist = cartesian(target.x, target.y, this.x, this.y);
-    if (dist > this.fireRange) return;
+    if (dist > this.cannonRange) return;
 
     // predict target movement to lead shots
     const projectileSpeed = 6; // matches Projectile default speed
@@ -226,7 +238,15 @@ export class NpcShip extends Ship {
     );
     if (Math.abs(angleDiff) > this.accuracy) return;
 
-    this.projectiles.push(new Projectile(this.x, this.y, aimAngle));
+    this.projectiles.push(
+      new Projectile(
+        this.x,
+        this.y,
+        aimAngle,
+        this.cannonDamage,
+        this.cannonRange
+      )
+    );
     this.fireCooldown = this.fireRate;
   }
 }
