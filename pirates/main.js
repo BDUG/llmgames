@@ -283,13 +283,16 @@ function setup(options = {}) {
 
   // Prepare city metadata for all village tiles provided by generateWorld.
   const cityConfigs = [];
-  result.villages.forEach(({ r, c }, i) => {
+  const islandVillageCounts = new Map();
+  result.villages.forEach(({ r, c, islandId }) => {
     const x = c * gridSize + gridSize / 2;
     const y = r * gridSize + gridSize / 2;
-    const name = `Village ${i + 1}`;
+    const count = (islandVillageCounts.get(islandId) || 0) + 1;
+    islandVillageCounts.set(islandId, count);
+    const name = `Village ${islandId}-${count}`;
     const supplies = GOODS.filter(() => rand() < 0.5);
     const demands = GOODS.filter(g => !supplies.includes(g) && rand() < 0.5);
-    cityConfigs.push({ x, y, name, supplies, demands });
+    cityConfigs.push({ x, y, name, supplies, demands, islandId });
   });
 
   // Deterministically shuffle configs for nation assignment
@@ -312,7 +315,12 @@ function setup(options = {}) {
     }
     const city = new City(cfg.x, cfg.y, cfg.name, nation);
     cities.push(city);
-    cityMetadata.set(city, { nation, supplies: cfg.supplies, demands: cfg.demands });
+    cityMetadata.set(city, {
+      nation,
+      supplies: cfg.supplies,
+      demands: cfg.demands,
+      islandId: cfg.islandId
+    });
   });
 
   const numNpcs = 3;
@@ -495,7 +503,7 @@ function loop(timestamp) {
   }
   updateHUD(player, wind);
   if (showMinimap) {
-    drawMinimap(minimapCtx, tiles, player, worldWidth, worldHeight);
+    drawMinimap(minimapCtx, tiles, player, worldWidth, worldHeight, cities);
   }
   const nearestCityInfo = cities.reduce(
     (nearest, c) => {

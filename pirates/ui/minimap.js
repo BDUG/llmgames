@@ -4,7 +4,14 @@ export function initMinimap() {
   // nothing needed for now
 }
 
-export function drawMinimap(ctx, tiles, player, worldWidth, worldHeight) {
+export function drawMinimap(
+  ctx,
+  tiles,
+  player,
+  worldWidth,
+  worldHeight,
+  cities = []
+) {
   if (!ctx || !tiles) return;
   const width = ctx.canvas.width;
   const height = ctx.canvas.height;
@@ -23,10 +30,17 @@ export function drawMinimap(ctx, tiles, player, worldWidth, worldHeight) {
       }
     }
   }
+  // Draw city markers
+  ctx.fillStyle = '#ff0';
+  cities.forEach(city => {
+    const x = (city.x / worldWidth) * width;
+    const y = (city.y / worldHeight) * height;
+    ctx.fillRect(x - 1, y - 1, 2, 2);
+  });
   if (player) {
     ctx.fillStyle = '#f00';
-    const x = player.x / worldWidth * width;
-    const y = player.y / worldHeight * height;
+    const x = (player.x / worldWidth) * width;
+    const y = (player.y / worldHeight) * height;
     ctx.fillRect(x - 2, y - 2, 4, 4);
   }
 }

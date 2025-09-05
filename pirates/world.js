@@ -115,21 +115,73 @@ export function generateWorld(width, height, gridSize, options = {}) {
     }
   }
 
-  // Randomly place villages along the coast.
-  const coastTiles = [];
+  // Identify islands (contiguous land/coast masses) and place villages per island.
+  const islandMap = Array.from({ length: rows }, () => Array(cols).fill(-1));
+  const islands = [];
+  const isIslandLand = t =>
+    t === Terrain.LAND ||
+    t === Terrain.HILL ||
+    t === Terrain.DESERT ||
+    t === Terrain.FOREST ||
+    t === Terrain.COAST;
+
+  let islandId = 0;
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      if (tiles[r][c] === Terrain.COAST) coastTiles.push({ r, c });
+      if (islandMap[r][c] !== -1 || !isIslandLand(tiles[r][c])) continue;
+      const queue = [{ r, c }];
+      islandMap[r][c] = islandId;
+      const coast = [];
+      while (queue.length) {
+        const { r: qr, c: qc } = queue.shift();
+        if (tiles[qr][qc] === Terrain.COAST) coast.push({ r: qr, c: qc });
+        const dirs = [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1]
+        ];
+        for (const [dr, dc] of dirs) {
+          const nr = qr + dr,
+            nc = qc + dc;
+          if (
+            nr < 0 ||
+            nr >= rows ||
+            nc < 0 ||
+            nc >= cols ||
+            islandMap[nr][nc] !== -1 ||
+            !isIslandLand(tiles[nr][nc])
+          )
+            continue;
+          islandMap[nr][nc] = islandId;
+          queue.push({ r: nr, c: nc });
+        }
+      }
+      islands.push({ id: islandId, coast });
+      islandId++;
     }
   }
 
+  const {
+    villagesPerIsland = 1,
+    villageDensity
+  } = options;
+
   const villages = [];
-  const villageCount = Math.min(3, coastTiles.length);
-  for (let i = 0; i < villageCount; i++) {
-    const idx = Math.floor(seededRandom(rngSeed++) * coastTiles.length);
-    const { r, c } = coastTiles.splice(idx, 1)[0];
-    tiles[r][c] = Terrain.VILLAGE;
-    villages.push({ r, c });
+  for (const island of islands) {
+    if (!island.coast.length) continue;
+    let count;
+    if (typeof villageDensity === 'number') {
+      count = Math.max(1, Math.round(island.coast.length * villageDensity));
+    } else {
+      count = Math.min(villagesPerIsland, island.coast.length);
+    }
+    for (let i = 0; i < count && island.coast.length; i++) {
+      const idx = Math.floor(seededRandom(rngSeed++) * island.coast.length);
+      const { r, c } = island.coast.splice(idx, 1)[0];
+      tiles[r][c] = Terrain.VILLAGE;
+      villages.push({ r, c, islandId: island.id });
+    }
   }
 
   return { tiles, rows, cols, villages };
