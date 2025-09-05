@@ -57,6 +57,8 @@ bus.on('npc-flee', ({ npc }) => {
 });
 
 let tiles, player, cities, cityMetadata, npcShips, priceEvents = [];
+let npcSpawnIntervalId;
+let npcTypeIndex = 0;
 const keys = {};
 
 bus.on('price-change', ({ city, good, delta }) => {
@@ -206,7 +208,11 @@ function updateMarkets() {
 }
 
 function setup(options = {}) {
-  const { seed = currentSeed } = options;
+  const {
+    seed = currentSeed,
+    difficulty = 1,
+    npcSpawnFrequency = 30000
+  } = options;
   currentSeed = seed;
   const result = generateWorld(worldWidth, worldHeight, gridSize, options);
   tiles = result.tiles;
@@ -261,6 +267,7 @@ function setup(options = {}) {
   cityMetadata = new Map();
   npcShips = [];
   priceEvents = [];
+  npcTypeIndex = 0;
   questManager.active = [];
   questManager.completed = [];
   bus.emit('quest-updated');
@@ -323,18 +330,30 @@ function setup(options = {}) {
     });
   });
 
-  const numNpcs = 3;
-  for (let i = 0; i < numNpcs && waterTiles.length; i++) {
-    const idx = Math.floor(rand() * waterTiles.length);
-    const { r, c } = waterTiles[idx];
-    const x = c * gridSize + gridSize / 2;
-    const y = r * gridSize + gridSize / 2;
-    const typeNames = Object.keys(Ship.TYPES);
-    const type = typeNames[Math.floor(rand() * typeNames.length)];
-    npcShips.push(
-      new NpcShip(x, y, NATIONS[Math.floor(rand() * NATIONS.length)], type)
-    );
-  }
+  const worldTiles = result.rows * result.cols;
+  const perNation = Math.max(1, Math.floor((worldTiles / 5000) * difficulty));
+  const targetCounts = {};
+  NATIONS.forEach(n => (targetCounts[n] = perNation));
+
+  const typeNames = Object.keys(Ship.TYPES);
+
+  const spawnNpc = () => {
+    NATIONS.forEach(nation => {
+      let count = npcShips.filter(s => s.nation === nation).length;
+      while (count < targetCounts[nation] && waterTiles.length) {
+        const { r, c } = waterTiles[Math.floor(rand() * waterTiles.length)];
+        const x = c * gridSize + gridSize / 2;
+        const y = r * gridSize + gridSize / 2;
+        const type = typeNames[npcTypeIndex++ % typeNames.length];
+        npcShips.push(new NpcShip(x, y, nation, type));
+        count++;
+      }
+    });
+  };
+
+  spawnNpc();
+  if (npcSpawnIntervalId) clearInterval(npcSpawnIntervalId);
+  npcSpawnIntervalId = setInterval(spawnNpc, npcSpawnFrequency);
 
   questManager.addQuest(new Quest('capture', 'Capture an enemy ship', 'England', 10));
 
