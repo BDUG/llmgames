@@ -14,8 +14,10 @@ import {
   initEconomy,
   earnIncome,
   restockShipyards,
-  spawnNpcFromEconomy
+  spawnNpcFromEconomy,
+  nationEconomy
 } from './npcEconomy.js';
+import { foundVillage } from './foundVillage.js';
 import { initHUD, updateHUD } from './ui/hud.js';
 import { initMinimap, drawMinimap } from './ui/minimap.js';
 import { initLog } from './ui/log.js';
@@ -286,6 +288,26 @@ function updateMarkets() {
     });
   }
   processPriceEvents();
+  attemptFoundVillages();
+}
+
+function attemptFoundVillages() {
+  if (!tiles) return;
+  NATIONS.forEach(nation => {
+    const econ = nationEconomy.get(nation);
+    if (!econ || econ.gold < 500) return;
+    const city = foundVillage(
+      tiles,
+      gridSize,
+      cities,
+      cityMetadata,
+      nation,
+      GOODS
+    );
+    if (city) {
+      econ.gold -= 500;
+    }
+  });
 }
 
 function setup(options = {}) {
