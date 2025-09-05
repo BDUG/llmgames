@@ -2,7 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Terrain } from '../pirates/world.js';
 import { drawMinimap } from '../pirates/ui/minimap.js';
-import { foundVillage, computeIslands } from '../pirates/foundVillage.js';
+import {
+  foundVillage,
+  computeIslands,
+  foundVillageAt
+} from '../pirates/foundVillage.js';
 import { City } from '../pirates/entities/city.js';
 import { NpcShip } from '../pirates/entities/npcShip.js';
 import { bus } from '../pirates/bus.js';
@@ -116,4 +120,55 @@ test('cannot found village adjacent to another', () => {
   assert.equal(city, null);
   const villageCount = tiles.flat().filter(t => t === Terrain.VILLAGE).length;
   assert.equal(villageCount, 1);
+});
+
+test('foundVillageAt builds at specified coordinates when valid', () => {
+  const W = Terrain.WATER,
+    C = Terrain.COAST,
+    L = Terrain.LAND;
+  const tiles = [
+    [W, C, W],
+    [W, L, W],
+    [W, C, W]
+  ];
+  const gridSize = 10;
+  const cities = [];
+  const cityMetadata = new Map();
+  const city = foundVillageAt(
+    tiles,
+    gridSize,
+    cities,
+    cityMetadata,
+    'England',
+    GOODS,
+    { r: 0, c: 1 },
+    () => 0
+  );
+  assert.ok(city);
+  assert.equal(tiles[0][1], Terrain.VILLAGE);
+});
+
+test('foundVillageAt rejects invalid site', () => {
+  const V = Terrain.VILLAGE,
+    C = Terrain.COAST,
+    W = Terrain.WATER;
+  const tiles = [
+    [W, V, W],
+    [W, C, W],
+    [W, W, W]
+  ];
+  const gridSize = 10;
+  const cities = [];
+  const cityMetadata = new Map();
+  const city = foundVillageAt(
+    tiles,
+    gridSize,
+    cities,
+    cityMetadata,
+    'England',
+    GOODS,
+    { r: 1, c: 1 },
+    () => 0
+  );
+  assert.equal(city, null);
 });

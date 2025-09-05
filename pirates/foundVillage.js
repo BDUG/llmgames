@@ -67,51 +67,62 @@ export function foundVillage(
   cityMetadata,
   nation,
   goods = [],
-  rng = Math.random
+  rng = Math.random,
+  target = null
 ) {
   if (!tiles || !tiles.length) return null;
-  const { islands } = computeIslands(tiles);
-  const candidates = islands
-    .map(island => {
-      const available = island.coast.filter(({ r, c }) => {
-        if (tiles[r][c] !== Terrain.COAST) return false;
-        for (let dr = -1; dr <= 1; dr++) {
-          for (let dc = -1; dc <= 1; dc++) {
-            if (dr === 0 && dc === 0) continue;
-            const nr = r + dr;
-            const nc = c + dc;
-            if (
-              nr >= 0 &&
-              nr < tiles.length &&
-              nc >= 0 &&
-              nc < tiles[0].length &&
-              tiles[nr][nc] === Terrain.VILLAGE
-            )
-              return false;
+  const { islands, islandMap } = computeIslands(tiles);
+
+  let tile, island;
+  if (target) {
+    const { r, c } = target;
+    island = islands.find(i => i.id === islandMap[r]?.[c]);
+    if (!island) return null;
+    tile = target;
+  } else {
+    const candidates = islands
+      .map(island => {
+        const available = island.coast.filter(({ r, c }) => {
+          if (tiles[r][c] !== Terrain.COAST) return false;
+          for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+              if (dr === 0 && dc === 0) continue;
+              const nr = r + dr;
+              const nc = c + dc;
+              if (
+                nr >= 0 &&
+                nr < tiles.length &&
+                nc >= 0 &&
+                nc < tiles[0].length &&
+                tiles[nr][nc] === Terrain.VILLAGE
+              )
+                return false;
+            }
           }
-        }
-        return true;
-      });
-      if (!available.length) return null;
-      const owners = new Set();
-      cityMetadata.forEach(meta => {
-        if (meta.islandId === island.id) owners.add(meta.nation);
-      });
-      if (owners.size > 1 && !owners.has(nation)) return null;
-      if (owners.size === 1 && !owners.has(nation)) return null;
-      return { island, available };
-    })
-    .filter(Boolean);
-  if (!candidates.length) return null;
-  const choice = candidates[Math.floor(rng() * candidates.length)];
-  const tile = choice.available[Math.floor(rng() * choice.available.length)];
+          return true;
+        });
+        if (!available.length) return null;
+        const owners = new Set();
+        cityMetadata.forEach(meta => {
+          if (meta.islandId === island.id) owners.add(meta.nation);
+        });
+        if (owners.size > 1 && !owners.has(nation)) return null;
+        if (owners.size === 1 && !owners.has(nation)) return null;
+        return { island, available };
+      })
+      .filter(Boolean);
+    if (!candidates.length) return null;
+    const choice = candidates[Math.floor(rng() * candidates.length)];
+    island = choice.island;
+    tile = choice.available[Math.floor(rng() * choice.available.length)];
+  }
+
   tiles[tile.r][tile.c] = Terrain.VILLAGE;
   const x = tile.c * gridSize + gridSize / 2;
   const y = tile.r * gridSize + gridSize / 2;
   const count =
-    [...cityMetadata.values()].filter(m => m.islandId === choice.island.id).length +
-    1;
-  const name = `Village ${choice.island.id}-${count}`;
+    [...cityMetadata.values()].filter(m => m.islandId === island.id).length + 1;
+  const name = `Village ${island.id}-${count}`;
   const supplies = goods.filter(() => rng() < 0.5);
   const demands = goods.filter(g => !supplies.includes(g) && rng() < 0.5);
   const production = {};
@@ -131,11 +142,61 @@ export function foundVillage(
     demands,
     production,
     consumption,
-    islandId: choice.island.id,
+    islandId: island.id,
     shipyard: null,
     upgrades: {},
     roads: new Set()
   });
   bus.emit('village-founded', { city, nation });
   return city;
+}
+
+export function foundVillageAt(
+  tiles,
+  gridSize,
+  cities,
+  cityMetadata,
+  nation,
+  goods = [],
+  target,
+  rng = Math.random
+) {
+  if (!target) return null;
+  const { islands, islandMap } = computeIslands(tiles);
+  const { r, c } = target;
+  if (tiles[r]?.[c] !== Terrain.COAST) return null;
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      const nr = r + dr;
+      const nc = c + dc;
+      if (
+        nr >= 0 &&
+        nr < tiles.length &&
+        nc >= 0 &&
+        nc < tiles[0].length &&
+        tiles[nr][nc] === Terrain.VILLAGE
+      )
+        return null;
+    }
+  }
+  const islandId = islandMap[r]?.[c];
+  const island = islands.find(i => i.id === islandId);
+  if (!island) return null;
+  const owners = new Set();
+  cityMetadata.forEach(meta => {
+    if (meta.islandId === islandId) owners.add(meta.nation);
+  });
+  if (owners.size > 1 && !owners.has(nation)) return null;
+  if (owners.size === 1 && !owners.has(nation)) return null;
+  return foundVillage(
+    tiles,
+    gridSize,
+    cities,
+    cityMetadata,
+    nation,
+    goods,
+    rng,
+    target
+  );
 }
