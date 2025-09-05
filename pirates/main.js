@@ -9,8 +9,13 @@ import {
 } from './world.js';
 import { cartesian } from './utils/distance.js';
 import { Ship } from './entities/ship.js';
-import { NpcShip } from './entities/npcShip.js';
 import { City } from './entities/city.js';
+import {
+  initEconomy,
+  earnIncome,
+  restockShipyards,
+  spawnNpcFromEconomy
+} from './npcEconomy.js';
 import { initHUD, updateHUD } from './ui/hud.js';
 import { initMinimap, drawMinimap } from './ui/minimap.js';
 import { initLog } from './ui/log.js';
@@ -70,7 +75,6 @@ bus.on('switch-flagship', ({ ship }) => {
 let tiles, player, cities, cityMetadata, npcShips, priceEvents = [], seasonalEvents = [];
 let fleetController;
 let npcSpawnIntervalId;
-let npcTypeIndex = 0;
 const keys = {};
 
 bus.on('price-change', ({ city, good, delta }) => {
@@ -347,7 +351,6 @@ function setup(options = {}) {
   npcShips = [];
   priceEvents = [];
   seasonalEvents = [];
-  npcTypeIndex = 0;
   questManager.active = [];
   questManager.completed = [];
   bus.emit('quest-updated');
@@ -357,16 +360,6 @@ function setup(options = {}) {
     const x = Math.sin(rngSeed++) * 10000;
     return x - Math.floor(x);
   };
-
-  // Collect water tiles for NPC spawning.
-  const waterTiles = [];
-  for (let r = 0; r < tiles.length; r++) {
-    for (let c = 0; c < tiles[0].length; c++) {
-      if (tiles[r][c] === Terrain.WATER) {
-        waterTiles.push({ r, c });
-      }
-    }
-  }
 
   // Prepare city metadata for all village tiles provided by generateWorld.
   const cityConfigs = [];
@@ -446,20 +439,19 @@ function setup(options = {}) {
   const targetCounts = {};
   NATIONS.forEach(n => (targetCounts[n] = perNation));
 
-  const typeNames = Object.keys(Ship.TYPES);
+  initEconomy(NATIONS);
 
   const spawnNpc = () => {
-    NATIONS.forEach(nation => {
-      let count = npcShips.filter(s => s.nation === nation).length;
-      while (count < targetCounts[nation] && waterTiles.length) {
-        const { r, c } = waterTiles[Math.floor(rand() * waterTiles.length)];
-        const x = c * gridSize + gridSize / 2;
-        const y = r * gridSize + gridSize / 2;
-        const type = typeNames[npcTypeIndex++ % typeNames.length];
-        npcShips.push(new NpcShip(x, y, nation, type));
-        count++;
-      }
-    });
+    earnIncome();
+    restockShipyards(cityMetadata);
+    spawnNpcFromEconomy(
+      NATIONS,
+      cities,
+      cityMetadata,
+      npcShips,
+      targetCounts,
+      gridSize
+    );
   };
 
   spawnNpc();
