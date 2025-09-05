@@ -19,7 +19,8 @@ import {
   earnIncome,
   restockShipyards,
   spawnNpcFromEconomy,
-  nationEconomy
+  nationEconomy,
+  calculateProduction
 } from './npcEconomy.js';
 import { spawnEuropeanTrader, EUROPE_TRADER_INTERVAL } from './europeTraders.js';
 import { foundVillage, foundVillageAt, computeIslands } from './foundVillage.js';
@@ -42,6 +43,7 @@ import { FleetController } from './fleet.js';
 import { openResearchMenu, closeResearchMenu } from './ui/research.js';
 import { getResearchState, setResearchState } from './research.js';
 import { findSpawnPoint } from './spawn.js';
+import { buildRoad } from './ui/buildRoad.js';
 
 let worldWidth, worldHeight, gridSize, tileWidth, tileIsoHeight, tileImageHeight;
 const CSS_WIDTH = 800, CSS_HEIGHT = 600;
@@ -87,6 +89,7 @@ let storedShip = null;
 let fleetController;
 let npcSpawnIntervalId, europeTraderIntervalId;
 let villageFoundedListener;
+let roadStartCity = null;
 const keys = {};
 
 bus.on('price-change', ({ city, good, delta }) => {
@@ -277,9 +280,10 @@ function updateMarkets() {
   for (const [city, metadata] of cityMetadata.entries()) {
     metadata.prices = metadata.prices || {};
     metadata.inventory = metadata.inventory || {};
+    const production = calculateProduction(metadata);
     GOODS.forEach(good => {
       const baseStock = baseStockFor(good, metadata);
-      const prod = metadata.production?.[good] || 0;
+      const prod = production?.[good] || 0;
       const cons = metadata.consumption?.[good] || 0;
       let stock = metadata.inventory[good];
       stock = stock + prod - cons;
@@ -926,13 +930,35 @@ function loop(timestamp) {
     player instanceof LandUnit &&
     (metadata?.tribe || metadata?.nation === player.nation);
   const canTrade = !!nearbyCity && (player instanceof Ship || canLandUnitTrade);
+  const canBuildRoad = player instanceof LandUnit && !!nearbyCity;
   updateCommandKeys({
     nearCity: canTrade,
     nearEnemy,
     shipyard: !!metadata?.shipyard,
     nearLand,
-    canBuildVillage
+    canBuildVillage,
+    canBuildRoad
   });
+  if (player instanceof LandUnit && (keys['r'] || keys['R'])) {
+    if (nearbyCity) {
+      if (!roadStartCity) {
+        roadStartCity = nearbyCity;
+        bus.emit('log', `Selected ${nearbyCity.name} as road start`);
+      } else if (roadStartCity !== nearbyCity) {
+        const built = buildRoad(tiles, roadStartCity, nearbyCity, cityMetadata, gridSize);
+        if (built) {
+          const metaA = cityMetadata.get(roadStartCity);
+          const metaB = cityMetadata.get(nearbyCity);
+          if (metaA) metaA.production = calculateProduction(metaA);
+          if (metaB) metaB.production = calculateProduction(metaB);
+        }
+        roadStartCity = null;
+      }
+    } else {
+      roadStartCity = null;
+    }
+    keys['r'] = keys['R'] = false;
+  }
   if (canTrade) {
     if (keys['t'] || keys['T']) {
       closeTradeMenu();
