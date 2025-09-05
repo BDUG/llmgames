@@ -2,6 +2,7 @@ import { assets } from '../assets.js';
 import { Terrain, cartToIso, tileAt } from '../world.js';
 import { Projectile } from './projectile.js';
 import { bus } from '../bus.js';
+import { cartesian } from '../utils/distance.js';
 
 export const SHIP_TYPES = {
   Sloop: { speed: 5, hull: 100, cargo: 20, crew: 10, cost: 0 },
@@ -17,6 +18,7 @@ export class Ship {
     this.type = type;
     const stats = SHIP_TYPES[type] || SHIP_TYPES.Sloop;
     this.speed = 0;
+    this.baseMaxSpeed = stats.speed;
     this.maxSpeed = stats.speed;
     this.angle = 0;
     this.turnSpeed = 0.05;
@@ -43,7 +45,14 @@ export class Ship {
 
     // cannon fire control
     this.fireCooldown = 0; // frames until next shot allowed
-    this.fireRate = 30; // cooldown frames between shots
+    this.baseFireRate = 30; // base cooldown frames between shots
+    this.fireRate = this.baseFireRate;
+    this.cannonRange = 300;
+    this.cannonDamage = 25;
+
+    // ramming
+    this.ramCooldown = 0;
+    this.ramRate = 120;
   }
 
   rotate(direction) {
@@ -72,6 +81,9 @@ export class Ship {
 
     if (this.fireCooldown > 0) {
       this.fireCooldown = Math.max(this.fireCooldown - dt, 0);
+    }
+    if (this.ramCooldown > 0) {
+      this.ramCooldown = Math.max(this.ramCooldown - dt, 0);
     }
 
     // time at sea and supplies affect morale
@@ -137,6 +149,7 @@ export class Ship {
     const stats = SHIP_TYPES[type];
     if (!stats) return;
     this.type = type;
+    this.baseMaxSpeed = stats.speed;
     this.maxSpeed = stats.speed;
     this.hullMax = stats.hull;
     this.hull = Math.min(this.hull, this.hullMax);
@@ -153,6 +166,7 @@ export class Ship {
         used -= remove;
       }
     }
+    this.updateCrewStats();
   }
 
   draw(ctx, offsetX = 0, offsetY = 0, tileWidth, tileIsoHeight, tileImageHeight) {
@@ -198,15 +212,40 @@ export class Ship {
 
   fireCannons() {
     if (this.sunk || this.fireCooldown > 0) return;
-    this.projectiles.push(new Projectile(this.x, this.y, this.angle));
+    this.projectiles.push(
+      new Projectile(this.x, this.y, this.angle, this.cannonDamage, this.cannonRange)
+    );
     this.fireCooldown = this.fireRate;
   }
 
   takeDamage(amount) {
     this.hull -= amount;
+    const crewLoss = Math.min(this.crew, Math.floor(amount / 10));
+    if (crewLoss > 0) {
+      this.crew -= crewLoss;
+      this.adjustMorale(-crewLoss * 2);
+      this.updateCrewStats();
+    }
     if (this.hull <= 0) {
       this.sunk = true;
     }
+  }
+
+  ram(target) {
+    if (this.ramCooldown > 0 || !target || this.sunk || target.sunk) return;
+    const dist = cartesian(this.x, this.y, target.x, target.y);
+    if (dist > 20) return;
+    const impact = this.speed * 20;
+    target.takeDamage(impact);
+    this.takeDamage(impact * 0.5);
+    this.speed *= 0.5;
+    this.ramCooldown = this.ramRate;
+  }
+
+  updateCrewStats() {
+    const ratio = Math.max(this.crew / this.crewMax, 0.1);
+    this.fireRate = this.baseFireRate / ratio;
+    this.maxSpeed = this.baseMaxSpeed * ratio;
   }
 
   adjustMorale(amount) {
