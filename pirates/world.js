@@ -24,7 +24,7 @@ export const Terrain = {
   MISSION: 11
 };
 
-export function generateWorld(width, height, gridSize, options = {}) {
+export function generateWorld(width, height, gridSize, options = {}, _attempt = 0) {
   const {
     seed = Math.random(),
     octaves = 4,
@@ -35,7 +35,8 @@ export function generateWorld(width, height, gridSize, options = {}) {
     hillLevel = 0.6,
     riverThreshold = 0.02,
     temperatureScale = 1,
-    moistureScale = 1
+    moistureScale = 1,
+    maxRetries = 10
   } = options;
 
   const rows = Math.floor(height / gridSize);
@@ -171,6 +172,16 @@ export function generateWorld(width, height, gridSize, options = {}) {
     }
   }
 
+  if (islands.length < 10 && _attempt < maxRetries) {
+    return generateWorld(
+      width,
+      height,
+      gridSize,
+      { ...options, seed: seed + 1 },
+      _attempt + 1
+    );
+  }
+
   const {
     villagesPerIsland = 1,
     villageDensity,
@@ -264,7 +275,7 @@ export function generateWorld(width, height, gridSize, options = {}) {
     }
   }
 
-  return { tiles, rows, cols, villages, natives, missions };
+  return { tiles, rows, cols, villages, natives, missions, islands };
 }
 
 function seededRandom(seed) {
