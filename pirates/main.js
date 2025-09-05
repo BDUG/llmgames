@@ -41,7 +41,12 @@ import { openFleetMenu, closeFleetMenu } from './ui/fleet.js';
 import { openShipyardMenu, closeShipyardMenu } from './ui/shipyard.js';
 import { FleetController } from './fleet.js';
 import { openResearchMenu, closeResearchMenu } from './ui/research.js';
-import { getResearchState, setResearchState } from './research.js';
+import {
+  getResearchState,
+  setResearchState,
+  getResearchNodes,
+  completedTech
+} from './research.js';
 import { findSpawnPoint } from './spawn.js';
 import { buildRoad } from './ui/buildRoad.js';
 
@@ -100,6 +105,7 @@ bus.on('price-change', ({ city, good, delta }) => {
 let paused = false;
 let showMinimap = true;
 let currentSeed = Math.random();
+const SAVE_VERSION = 2;
 
 window.addEventListener('keydown', e => {
   if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].includes(e.key)) {
@@ -575,30 +581,103 @@ function toggleMinimap() {
   minimapCanvas.style.display = showMinimap ? 'block' : 'none';
 }
 
+function serializeShip(ship) {
+  return {
+    x: ship.x,
+    y: ship.y,
+    speed: ship.speed,
+    angle: ship.angle,
+    type: ship.type,
+    maxSpeed: ship.maxSpeed,
+    baseMaxSpeed: ship.baseMaxSpeed,
+    cargoCapacity: ship.cargoCapacity,
+    gold: ship.gold,
+    crew: ship.crew,
+    crewMax: ship.crewMax,
+    hull: ship.hull,
+    hullMax: ship.hullMax,
+    baseFireRate: ship.baseFireRate,
+    fireRate: ship.fireRate,
+    upgrades: ship.upgrades,
+    cargo: ship.cargo,
+    reputation: ship.reputation,
+    nation: ship.nation
+  };
+}
+
 function saveGame() {
   if (!player) return;
+
+  const cityData = [];
+  cityMetadata?.forEach((meta, city) => {
+    const roads = meta.roads
+      ? Array.from(meta.roads).map(c => c.name)
+      : [];
+    cityData.push({
+      name: city.name,
+      metadata: {
+        production: meta.production,
+        inventory: meta.inventory,
+        relation: meta.relation,
+        shipyard: meta.shipyard,
+        roads
+      }
+    });
+  });
+
+  const npcData = npcShips?.map(n => ({
+    x: n.x,
+    y: n.y,
+    type: n.type,
+    nation: n.nation,
+    cargo: n.cargo,
+    state: n.state,
+    angle: n.angle,
+    speed: n.speed
+  })) || [];
+
+  const fleetData = player.fleet
+    ? player.fleet.filter(s => s !== player).map(serializeShip)
+    : [];
+
+  const quests = {
+    active: questManager.active.map(q => ({
+      id: q.id,
+      description: q.description,
+      nation: q.nation,
+      reputation: q.reputation
+    })),
+    completed: questManager.completed.map(q => ({
+      id: q.id,
+      description: q.description,
+      nation: q.nation,
+      reputation: q.reputation
+    }))
+  };
+
+  const priceData = priceEvents.map(e => ({
+    origin: e.origin.name,
+    good: e.good,
+    strength: e.strength
+  }));
+  const seasonalData = seasonalEvents.map(e => ({
+    city: e.city.name,
+    good: e.good,
+    effect: e.effect,
+    duration: e.duration
+  }));
+
   const data = {
+    version: SAVE_VERSION,
     seed: currentSeed,
-    player: {
-      x: player.x,
-      y: player.y,
-      speed: player.speed,
-      angle: player.angle,
-      type: player.type,
-      maxSpeed: player.maxSpeed,
-      baseMaxSpeed: player.baseMaxSpeed,
-      cargoCapacity: player.cargoCapacity,
-      gold: player.gold,
-      crew: player.crew,
-      crewMax: player.crewMax,
-      hull: player.hull,
-      hullMax: player.hullMax,
-      baseFireRate: player.baseFireRate,
-      fireRate: player.fireRate,
-      upgrades: player.upgrades,
-      cargo: player.cargo,
-      reputation: player.reputation
-    },
+    player: serializeShip(player),
+    fleet: fleetData,
+    cityMetadata: cityData,
+    npcShips: npcData,
+    nationRelations,
+    quests,
+    priceEvents: priceData,
+    seasonalEvents: seasonalData,
     research: getResearchState()
   };
   try {
@@ -615,6 +694,9 @@ function loadGame() {
     if (!raw) return;
     const data = JSON.parse(raw);
     setup({ seed: data.seed });
+
+    const version = data.version || 1;
+
     Object.assign(player, data.player);
     player.cargo = data.player.cargo || {};
     player.reputation = data.player.reputation || {};
@@ -623,11 +705,119 @@ function loadGame() {
       improvedSails: 0,
       crewQuarters: 0
     };
+
     player.fleet = [player];
+    (data.fleet || []).forEach(s => {
+      const ship = new Ship(s.x, s.y, s.nation || player.nation, s.type);
+      Object.assign(ship, s);
+      ship.cargo = s.cargo || {};
+      ship.reputation = s.reputation || {};
+      player.fleet.push(ship);
+    });
     player.updateCrewStats();
+
+    // Rebuild city metadata
+    if (data.cityMetadata && cityMetadata) {
+      data.cityMetadata.forEach(entry => {
+        const city = cities.find(c => c.name === entry.name);
+        if (!city) return;
+        const meta = cityMetadata.get(city) || {};
+        Object.assign(meta, entry.metadata);
+        if (entry.metadata.roads) {
+          meta.roads = new Set();
+          entry.metadata.roads.forEach(name => {
+            const rc = cities.find(c => c.name === name);
+            if (rc) meta.roads.add(rc);
+          });
+        }
+        cityMetadata.set(city, meta);
+      });
+    }
+
+    // Rebuild NPC ships
+    npcShips = (data.npcShips || []).map(n => {
+      const ship = new NpcShip(n.x, n.y, n.nation || 'Pirate', n.type);
+      ship.state = n.state || 'patrol';
+      ship.cargo = n.cargo || {};
+      ship.angle = n.angle || 0;
+      ship.speed = n.speed || 0;
+      return ship;
+    });
+
+    // Restore relations
+    if (data.nationRelations) {
+      Object.keys(data.nationRelations).forEach(a => {
+        Object.keys(data.nationRelations[a]).forEach(b => {
+          nationRelations[a][b] = data.nationRelations[a][b];
+        });
+      });
+      bus.emit('relations-updated', { map: nationRelations });
+    }
+
+    // Restore quests
+    questManager.active = [];
+    questManager.completed = [];
+    if (data.quests) {
+      data.quests.active.forEach(q => {
+        questManager.active.push(
+          new Quest(q.id, q.description, q.nation, q.reputation)
+        );
+      });
+      data.quests.completed.forEach(q => {
+        const quest = new Quest(q.id, q.description, q.nation, q.reputation);
+        quest.complete();
+        questManager.completed.push(quest);
+      });
+      bus.emit('quest-updated');
+    }
+
+    // Restore events
+    priceEvents = (data.priceEvents || []).map(e => ({
+      origin: cities.find(c => c.name === e.origin),
+      good: e.good,
+      strength: e.strength
+    })).filter(e => e.origin);
+    seasonalEvents = (data.seasonalEvents || []).map(e => ({
+      city: cities.find(c => c.name === e.city),
+      good: e.good,
+      effect: e.effect,
+      duration: e.duration
+    })).filter(e => e.city);
+
     fleetController = new FleetController(player);
+
     setResearchState(data.research);
+    const nodes = getResearchNodes();
+    nodes.forEach(node => {
+      if (completedTech.has(node.id) && node.effects) {
+        node.effects.forEach(effect => {
+          if (effect.type === 'speed' && player?.fleet) {
+            player.fleet.forEach(ship => {
+              ship.baseMaxSpeed += effect.value;
+              ship.updateCrewStats?.();
+            });
+          } else if (effect.type === 'hull' && player?.fleet) {
+            player.fleet.forEach(ship => {
+              ship.hullMax += effect.value;
+              ship.hull += effect.value;
+            });
+          } else if (effect.type === 'cannon' && player?.fleet) {
+            player.fleet.forEach(ship => {
+              ship.baseFireRate = Math.max(5, ship.baseFireRate - 5 * effect.value);
+              ship.cannonDamage += 5 * effect.value;
+              ship.updateCrewStats?.();
+            });
+          } else if (effect.type === 'production' && cityMetadata) {
+            cityMetadata.forEach(meta => {
+              meta.production = calculateProduction(meta);
+            });
+          }
+        });
+      }
+    });
+
     bus.emit('log', 'Game loaded');
+    updateHUD(player, wind);
   } catch (e) {
     console.error('Load failed', e);
   }
