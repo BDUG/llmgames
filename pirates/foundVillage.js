@@ -9,7 +9,8 @@ function isIslandLand(t) {
     t === Terrain.FOREST ||
     t === Terrain.COAST ||
     t === Terrain.VILLAGE ||
-    t === Terrain.ROAD
+    t === Terrain.ROAD ||
+    t === Terrain.NATIVE
   );
 }
 

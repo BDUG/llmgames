@@ -1,4 +1,5 @@
 import { bus } from '../bus.js';
+import { adjustNativeRelation } from '../npcEconomy.js';
 import { updateHUD } from './hud.js';
 
 // Base prices for all tradable goods.
@@ -48,8 +49,8 @@ export function openTradeMenu(player, city, metadata, priceMultiplier = 1) {
   const menu = document.getElementById('tradeMenu');
   if (!menu || !player) return;
 
-  if (!metadata?.nation) {
-    bus.emit('log', `Cannot open trade menu for ${city?.name || 'unknown city'}: nation unknown`);
+  if (!metadata?.nation && !metadata?.tribe) {
+    bus.emit('log', `Cannot open trade menu for ${city?.name || 'unknown location'}: faction unknown`);
     return;
   }
 
@@ -118,6 +119,7 @@ export function openTradeMenu(player, city, metadata, priceMultiplier = 1) {
       metadata.prices[good] = Math.round(oldPrice * 1.1);
       bus.emit('log', `Bought 1 ${good} for ${buyPrice}g`);
       bus.emit('price-change', { city, good, delta: metadata.prices[good] - oldPrice });
+      if (metadata.tribe) adjustNativeRelation(metadata, -1);
       updateHUD(player);
       openTradeMenu(player, city, metadata, priceMultiplier);
     };
@@ -142,6 +144,7 @@ export function openTradeMenu(player, city, metadata, priceMultiplier = 1) {
       metadata.prices[good] = Math.max(1, Math.round(oldPrice * 0.9));
       bus.emit('log', `Sold 1 ${good} for ${sellPrice}g`);
       bus.emit('price-change', { city, good, delta: metadata.prices[good] - oldPrice });
+      if (metadata.tribe) adjustNativeRelation(metadata, 1);
       updateHUD(player);
       openTradeMenu(player, city, metadata, priceMultiplier);
     };
