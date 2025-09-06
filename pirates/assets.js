@@ -133,13 +133,17 @@ function createShipPlaceholder(){
   return canvas;
 }
 
-export function getShipSprite(type, nation){
+export function getShipSprite(type, nation, direction = 'default'){
   const byType = assets.ship?.[type] || {};
-  return (
-    byType[nation] ||
-    byType.Pirate ||
-    Object.values(byType)[0] ||
-    (shipPlaceholder ||= createShipPlaceholder())
-  );
+  const byNation = byType[nation] || byType.Pirate || Object.values(byType)[0];
+  if (byNation && typeof byNation === 'object'){
+    return (
+      byNation[direction] ||
+      byNation.default ||
+      Object.values(byNation)[0] ||
+      (shipPlaceholder ||= createShipPlaceholder())
+    );
+  }
+  return byNation || (shipPlaceholder ||= createShipPlaceholder());
 }
 
