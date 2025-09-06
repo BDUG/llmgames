@@ -25,13 +25,20 @@ export const SHIP_TYPES = {
   }
 };
 
+const DIRS = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'];
+function angleToDirection(angle) {
+  const full = Math.PI * 2;
+  const normalized = ((angle % full) + full) % full; // 0..2π
+  const idx = Math.round(normalized / (Math.PI / 4)) % 8;
+  return DIRS[idx];
+}
+
 export class Ship {
   constructor(x, y, nation = 'Pirate', type = 'Sloop') {
     this.x = x;
     this.y = y;
     this.nation = nation;
     this.type = type;
-    this.updateAppearance();
     const stats = SHIP_TYPES[type] || SHIP_TYPES.Sloop;
     this.speed = 0;
     this.baseMaxSpeed = stats.speed;
@@ -74,10 +81,12 @@ export class Ship {
     // ramming
     this.ramCooldown = 0;
     this.ramRate = 120;
+    this.updateAppearance();
   }
 
   rotate(direction) {
     this.angle += this.turnSpeed * direction;
+    this.updateAppearance();
   }
 
   forward(dt) {
@@ -202,7 +211,8 @@ export class Ship {
   }
 
   updateAppearance() {
-    this.img = getShipSprite(this.type, this.nation);
+    const dir = angleToDirection(this.angle);
+    this.img = getShipSprite(this.type, this.nation, dir);
     this.flag = getFlag(this.nation);
   }
 

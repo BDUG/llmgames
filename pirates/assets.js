@@ -13,7 +13,7 @@ const FLAG_COLORS = {
   Spain: '#c90',
   Netherlands: '#f60',
 };
-let shipPlaceholder = null;
+const shipPlaceholders = {};
 
 export async function loadAssets(tileSize){
   if (typeof tileSize === 'number') gridSize = tileSize;
@@ -38,18 +38,27 @@ export async function loadAssets(tileSize){
   }
 }
 
-async function loadNested(src, target, path = []){
+async function loadNested(src, target, path = []) {
   const entries = Object.entries(src);
-  await Promise.all(entries.map(async ([key, value]) => {
-    if (typeof value === 'string'){
-      const isTile = path[0] === 'tiles';
-      target[key] = await loadImage(value, isTile);
-    } else if (typeof value === 'object' && value !== null){
-      const obj = {};
-      target[key] = obj;
-      await loadNested(value, obj, path.concat(key));
-    }
-  }));
+  await Promise.all(
+    entries.map(async ([key, value]) => {
+      if (typeof value === 'string') {
+        const isTile = path[0] === 'tiles';
+        // When ship assets are provided without a direction layer, treat the
+        // value as the default direction.
+        if (path[0] === 'ship' && path.length === 2) {
+          const img = await loadImage(value, isTile);
+          target[key] = { default: img };
+        } else {
+          target[key] = await loadImage(value, isTile);
+        }
+      } else if (typeof value === 'object' && value !== null) {
+        const obj = {};
+        target[key] = obj;
+        await loadNested(value, obj, path.concat(key));
+      }
+    })
+  );
 }
 
 function loadImage(url, isTile = false){
@@ -121,7 +130,7 @@ function createFlagPlaceholder(nation){
   return canvas;
 }
 
-function createShipPlaceholder(){
+function createShipPlaceholder(direction = 'E') {
   if (typeof document === 'undefined') {
     return { width: gridSize, height: gridSize };
   }
@@ -129,21 +138,43 @@ function createShipPlaceholder(){
   canvas.width = canvas.height = gridSize;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#999';
-  ctx.fillRect(0,0,gridSize,gridSize);
+  ctx.fillRect(0, 0, gridSize, gridSize);
+
+  const angles = {
+    E: 0,
+    SE: Math.PI / 4,
+    S: Math.PI / 2,
+    SW: (3 * Math.PI) / 4,
+    W: Math.PI,
+    NW: (5 * Math.PI) / 4,
+    N: (3 * Math.PI) / 2,
+    NE: (7 * Math.PI) / 4,
+  };
+
+  ctx.save();
+  ctx.translate(gridSize / 2, gridSize / 2);
+  ctx.rotate(angles[direction] || 0);
+  ctx.fillStyle = '#555';
+  ctx.beginPath();
+  ctx.moveTo(gridSize * 0.3, 0);
+  ctx.lineTo(-gridSize * 0.2, -gridSize * 0.2);
+  ctx.lineTo(-gridSize * 0.2, gridSize * 0.2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
   return canvas;
 }
 
-export function getShipSprite(type, nation, direction = 'default'){
+export function getShipSprite(type, nation, direction = 'default') {
   const byType = assets.ship?.[type] || {};
-  const byNation = byType[nation] || byType.Pirate || Object.values(byType)[0];
-  if (byNation && typeof byNation === 'object'){
-    return (
-      byNation[direction] ||
-      byNation.default ||
-      Object.values(byNation)[0] ||
-      (shipPlaceholder ||= createShipPlaceholder())
-    );
-  }
-  return byNation || (shipPlaceholder ||= createShipPlaceholder());
+  const byNation = byType[nation] || byType.default || {};
+  const sprite =
+    byNation[direction] ||
+    byNation.default ||
+    byType.default?.[direction] ||
+    byType.default?.default;
+  if (sprite) return sprite;
+  return (shipPlaceholders[direction] ||= createShipPlaceholder(direction));
 }
 
