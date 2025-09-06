@@ -4,7 +4,14 @@
     "land": "assets/grassTB128.png",
     "village": "assets/villageTB128.png",
     "hill": "assets/hillTB128.png",
-    "mission": "assets/villageTB128.png"
+    "mission": "assets/villageTB128.png",
+    "native": "assets/nativeTB128.png",
+    "road": "assets/roadTB128.png",
+    "coast": "assets/coastTB128.png",
+    "reef": "assets/reefTB128.png",
+    "river": "assets/riverTB128.png",
+    "desert": "assets/desertTB128.png",
+    "forest": "assets/forestTB128.png"
   },
   "ship": {
     "Sloop": {

@@ -27,6 +27,24 @@ export async function loadAssets(tileSize){
     if (!assets.tiles.coast) {
       assets.tiles.coast = assets.tiles.land;
     }
+    if (!assets.tiles.native) {
+      assets.tiles.native = assets.tiles.village;
+    }
+    if (!assets.tiles.road) {
+      assets.tiles.road = assets.tiles.land;
+    }
+    if (!assets.tiles.reef) {
+      assets.tiles.reef = assets.tiles.water;
+    }
+    if (!assets.tiles.river) {
+      assets.tiles.river = assets.tiles.water;
+    }
+    if (!assets.tiles.desert) {
+      assets.tiles.desert = assets.tiles.land;
+    }
+    if (!assets.tiles.forest) {
+      assets.tiles.forest = assets.tiles.land;
+    }
     ensureFlags();
     const sampleTile = assets.tiles && Object.values(assets.tiles)[0];
     const tileWidth = sampleTile?.tileWidth || sampleTile?.width || gridSize;

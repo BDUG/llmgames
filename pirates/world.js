@@ -579,8 +579,11 @@ export function drawWorld(ctx, tiles, tileWidth, tileIsoHeight, tileImageHeight,
     for (let c = firstCol; c <= lastCol; c++) {
       const t = tiles[r][c];
       let img;
-      if (t === Terrain.WATER || t === Terrain.RIVER) img = assets.tiles?.water;
+      if (t === Terrain.WATER) img = assets.tiles?.water;
+      else if (t === Terrain.RIVER) img = assets.tiles?.river || assets.tiles?.water;
       else if (t === Terrain.HILL) img = assets.tiles?.hill;
+      else if (t === Terrain.DESERT) img = assets.tiles?.desert || assets.tiles?.land;
+      else if (t === Terrain.FOREST) img = assets.tiles?.forest || assets.tiles?.land;
       else if (t === Terrain.VILLAGE) img = assets.tiles?.village;
       else if (t === Terrain.MISSION) img = assets.tiles?.mission || assets.tiles?.village;
       else if (t === Terrain.NATIVE) img = assets.tiles?.native || assets.tiles?.village;
