@@ -87,6 +87,7 @@ export class Ship {
     this.ramCooldown = 0;
     this.ramRate = 120;
     this.updateAppearance();
+    this.stormDamageTimer = 0;
   }
 
   get angle() {
@@ -103,7 +104,7 @@ export class Ship {
   }
 
   forward(dt) {
-    const wind = Ship.wind || { speed: 0, angle: 0 };
+    const wind = this.wind || Ship.wind || { speed: 0, angle: 0 };
     const rel = wind.angle - this.angle;
     const windAlong = Math.cos(rel) * wind.speed * this.sail;
     const windSide = Math.sin(rel) * wind.speed * this.sail;
@@ -137,6 +138,20 @@ export class Ship {
     this.adjustMorale(-moraleLoss);
 
     this.checkMutiny();
+
+    if (this.inStorm) {
+      const intensity = this.stormIntensity || 0.5;
+      this.maxSpeed = this.baseMaxSpeed * (1 - intensity * 0.3);
+      this.speed = Math.min(this.speed, this.maxSpeed);
+      this.stormDamageTimer += dt;
+      if (this.stormDamageTimer > 60) {
+        this.takeDamage(5 * intensity);
+        this.stormDamageTimer = 0;
+      }
+    } else {
+      this.maxSpeed = this.baseMaxSpeed;
+      this.stormDamageTimer = 0;
+    }
 
     const { x: dx, y: dy } = this.forward(dt);
     let newX = this.x + dx;
