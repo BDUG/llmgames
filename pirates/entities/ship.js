@@ -158,6 +158,23 @@ export class Ship {
       this.stormDamageTimer = 0;
     }
 
+    if (this.routeTarget) {
+      const desired = Math.atan2(
+        this.routeTarget.y - this.y,
+        this.routeTarget.x - this.x
+      );
+      this.angle = desired;
+      const dist = Math.hypot(
+        this.routeTarget.x - this.x,
+        this.routeTarget.y - this.y
+      );
+      if (dist > 10) {
+        this.speed = Math.min(this.speed + 0.05 * dt, this.maxSpeed);
+      } else {
+        this.speed = Math.max(this.speed - 0.1 * dt, 0);
+      }
+    }
+
     const { x: dx, y: dy } = this.forward(dt);
     let newX = this.x + dx;
     let newY = this.y + dy;

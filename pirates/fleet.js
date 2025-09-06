@@ -1,3 +1,5 @@
+import { getRoute, autoTrade } from './tradeRoutes.js';
+
 export class FleetController {
   constructor(flagship) {
     this.flagship = flagship;
@@ -26,7 +28,15 @@ export class FleetController {
     });
   }
 
-  update(dt, tiles, gridSize, worldWidth, worldHeight) {
+  update(
+    dt,
+    tiles,
+    gridSize,
+    worldWidth,
+    worldHeight,
+    cities = [],
+    cityMetadata = new Map()
+  ) {
     const fleet = this.flagship?.fleet;
     if (!fleet) return;
     if (fleet.length !== this._lastCount) {
@@ -38,6 +48,7 @@ export class FleetController {
     const sin = Math.sin(leader.angle);
     for (let i = 1; i < fleet.length; i++) {
       const ship = fleet[i];
+      if (getRoute(ship)) continue; // routed ships handle their own movement
       const off = ship.formationOffset || { x: 0, y: 0 };
       const targetX = leader.x + cos * off.x - sin * off.y;
       const targetY = leader.y + sin * off.x + cos * off.y;
@@ -50,6 +61,27 @@ export class FleetController {
         ship.speed = Math.max(ship.speed - 0.1 * dt, 0);
       }
     }
-    fleet.forEach(s => s.update(dt, tiles, gridSize, worldWidth, worldHeight));
+
+    fleet.forEach(s => {
+      const route = getRoute(s);
+      if (route && route.cities.length) {
+        const target = route.cities[route.index % route.cities.length];
+        if (target) {
+          s.routeTarget = { x: target.x, y: target.y };
+          const dist = Math.hypot(target.x - s.x, target.y - s.y);
+          if (dist < gridSize) {
+            const metadata = cityMetadata.get(target);
+            if (metadata) autoTrade(s, target, metadata, route);
+            route.index = (route.index + 1) % route.cities.length;
+            const next = route.cities[route.index % route.cities.length];
+            s.routeTarget = next ? { x: next.x, y: next.y } : null;
+            s.visitPort?.();
+          }
+        }
+      } else {
+        s.routeTarget = null;
+      }
+      s.update(dt, tiles, gridSize, worldWidth, worldHeight);
+    });
   }
 }
