@@ -30,7 +30,15 @@ export function openGovernorMenu(player, city, metadata) {
   const missionBtn = document.createElement('button');
   missionBtn.textContent = 'Accept mission';
   missionBtn.onclick = () => {
-    const quest = new Quest('capture', 'Capture an enemy ship', nation, 10);
+    const quest = new Quest(
+      'capture',
+      'Capture an enemy ship',
+      nation,
+      10,
+      'combat',
+      { nation, count: 1 },
+      { gold: 100, reputation: 10 }
+    );
     questManager.addQuest(quest);
     bus.emit('log', 'Accepted mission from governor');
     updateHUD(player);

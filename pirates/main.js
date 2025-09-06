@@ -77,9 +77,6 @@ initLog(bus);
 initQuestLog();
 initCommandKeys();
 bus.on('quest-updated', () => updateQuestLog(questManager));
-bus.on('quest-completed', ({ quest }) => {
-  player.adjustReputation(quest.nation, quest.reputation);
-});
 bus.on('npc-spotted', ({ npc }) => {
   bus.emit('log', `${npc.nation} ship spotted you!`);
 });
@@ -688,7 +685,24 @@ function setup(options = {}) {
 
   const spawnEuropean = () => {
     const trader = spawnEuropeanTrader(worldWidth, worldHeight, cities);
-    if (trader) npcShips.push(trader);
+    if (trader) {
+      npcShips.push(trader);
+      const rep = player.reputation?.[trader.nation] || 0;
+      if (rep >= 0) {
+        const id = `escort-${Date.now()}`;
+        questManager.addQuest(
+          new Quest(
+            id,
+            `Escort ${trader.nation} trader to ${trader.targetCity.name}`,
+            trader.nation,
+            5,
+            'escort',
+            { npc: trader, destination: trader.targetCity, radius: gridSize },
+            { gold: 100, reputation: 5 }
+          )
+        );
+      }
+    }
   };
   spawnEuropean();
   if (europeTraderIntervalId) clearInterval(europeTraderIntervalId);
@@ -697,7 +711,20 @@ function setup(options = {}) {
     EUROPE_TRADER_INTERVAL
   );
 
-  questManager.addQuest(new Quest('capture', 'Capture an enemy ship', 'England', 10));
+  const startCity = cities[0];
+  if (startCity) {
+    questManager.addQuest(
+      new Quest(
+        'explore-start',
+        `Explore ${startCity.name}`,
+        player.nation,
+        0,
+        'explore',
+        { location: { x: startCity.x, y: startCity.y }, radius: gridSize },
+        { gold: 50, reputation: 1 }
+      )
+    );
+  }
 
   bus.emit('log', 'World generated');
 }
@@ -771,13 +798,21 @@ function saveGame() {
       id: q.id,
       description: q.description,
       nation: q.nation,
-      reputation: q.reputation
+      reputation: q.reputation,
+      type: q.type,
+      target: q.target,
+      reward: q.reward,
+      progress: q.progress
     })),
     completed: questManager.completed.map(q => ({
       id: q.id,
       description: q.description,
       nation: q.nation,
-      reputation: q.reputation
+      reputation: q.reputation,
+      type: q.type,
+      target: q.target,
+      reward: q.reward,
+      progress: q.progress
     }))
   };
 
@@ -889,12 +924,29 @@ function loadGame() {
     questManager.completed = [];
     if (data.quests) {
       data.quests.active.forEach(q => {
-        questManager.active.push(
-          new Quest(q.id, q.description, q.nation, q.reputation)
+        const quest = new Quest(
+          q.id,
+          q.description,
+          q.nation,
+          q.reputation,
+          q.type,
+          q.target,
+          q.reward
         );
+        quest.progress = q.progress || 0;
+        questManager.active.push(quest);
       });
       data.quests.completed.forEach(q => {
-        const quest = new Quest(q.id, q.description, q.nation, q.reputation);
+        const quest = new Quest(
+          q.id,
+          q.description,
+          q.nation,
+          q.reputation,
+          q.type,
+          q.target,
+          q.reward
+        );
+        quest.progress = q.progress || quest.target?.quantity || quest.target?.count || 1;
         quest.complete();
         questManager.completed.push(quest);
       });
@@ -1228,6 +1280,7 @@ function loop(timestamp) {
           if (n.sunk) {
             bus.emit('log', `${n.nation} ship sank!`);
             player.distributeLoot();
+            questManager.recordProgress('combat', { nation: n.nation });
           }
         }
       });
@@ -1262,7 +1315,7 @@ function loop(timestamp) {
       bus.emit('log', `Captured ${n.nation} ship!`);
       player.adjustReputation(n.nation, -5);
       player.distributeLoot();
-      questManager.completeQuest('capture');
+      questManager.recordProgress('combat', { nation: n.nation });
       const captured = new Ship(n.x, n.y, 'Pirate', n.type);
       captured.hull = Math.min(n.hull, captured.hullMax);
       captured.cargo = { ...n.cargo };
@@ -1277,6 +1330,7 @@ function loop(timestamp) {
       i--;
     }
   }
+  questManager.update(player, npcShips);
   updateHUD(player, wind);
   if (showMinimap) {
     drawMinimap(minimapCtx, tiles, player, worldWidth, worldHeight, cities);
