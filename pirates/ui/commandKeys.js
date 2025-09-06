@@ -9,6 +9,7 @@ export function initCommandKeys() {
     <div data-cmd="fire">Space: Fire cannon</div>
     <div data-cmd="pause">P: Pause/Unpause</div>
     <div data-cmd="minimap">M: Toggle minimap</div>
+    <div data-cmd="autopilot">X: Autopilot to nearest city</div>
     <div data-cmd="sails">1/2/3: Set sails (none/half/full)</div>
     <div data-cmd="trade" style="display:none">T: Trade (if near a settlement)</div>
     <div data-cmd="governor" style="display:none">G: Visit governor</div>

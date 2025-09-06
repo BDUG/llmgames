@@ -3,6 +3,8 @@ import { bus } from '../bus.js';
 import { Projectile } from './projectile.js';
 import { cartesian } from '../utils/distance.js';
 import { priceFor } from '../ui/trade.js';
+import { findPath } from '../utils/pathfinding.js';
+import { tileAt, Terrain } from '../world.js';
 
 // Tunable difficulty parameters for NPC behavior
 export const npcDifficulty = {
@@ -25,6 +27,13 @@ export class NpcShip extends Ship {
     // firing behavior parameters
     this.cannonRange = difficulty.range;
     this.accuracy = difficulty.accuracy;
+
+    // pathfinding
+    this.path = null;
+    this.pathIndex = 0;
+    this._pathTarget = null;
+    this._pathTargetObj = null;
+    this._repathTimer = 0;
   }
 
   chooseTradeRoute(cityMetadata, fromCity = null) {
@@ -91,6 +100,45 @@ export class NpcShip extends Ship {
     }
   }
 
+  computePath(destX, destY, tiles, gridSize, obj = null) {
+    if (!tiles) {
+      this.path = null;
+      this.pathIndex = 0;
+      this._pathTarget = { x: destX, y: destY };
+      this._pathTargetObj = obj;
+      this._repathTimer = 60;
+      return;
+    }
+    this.path = findPath(this.x, this.y, destX, destY, tiles, gridSize);
+    this.pathIndex = 0;
+    this._pathTarget = { x: destX, y: destY };
+    this._pathTargetObj = obj;
+    this._repathTimer = 120;
+  }
+
+  followPath(gridSize, tiles) {
+    if (!this.path || this.pathIndex >= this.path.length) return false;
+    const waypoint = this.path[this.pathIndex];
+    const tile = tileAt(tiles, waypoint.x, waypoint.y, gridSize);
+    const isBlocked = t =>
+      t === Terrain.LAND ||
+      t === Terrain.COAST ||
+      t === Terrain.HILL ||
+      t === Terrain.VILLAGE;
+    if (isBlocked(tile)) {
+      this.path = null;
+      return false;
+    }
+    const d = cartesian(this.x, this.y, waypoint.x, waypoint.y);
+    if (d < gridSize * 0.5) {
+      this.pathIndex++;
+      if (this.pathIndex >= this.path.length) return false;
+    }
+    const next = this.path[this.pathIndex];
+    this.angle = Math.atan2(next.y - this.y, next.x - this.x);
+    return true;
+  }
+
   update(
     dt,
     tiles,
@@ -104,6 +152,8 @@ export class NpcShip extends Ship {
     const relation = bus.getRelation
       ? bus.getRelation(this.nation, player.nation)
       : 'peace';
+
+    this._repathTimer = Math.max(this._repathTimer - dt, 0);
 
     if (
       this.state !== 'pursue' &&
@@ -138,7 +188,7 @@ export class NpcShip extends Ship {
         }
         break;
 
-      case 'trade':
+      case 'trade': {
         if (!this.tradeRoute || !cityMetadata?.size) {
           this.state = 'patrol';
           break;
@@ -146,7 +196,17 @@ export class NpcShip extends Ship {
         if (!this.targetCity) this.targetCity = this.tradeRoute.source;
         const target = this.targetCity;
         this.speed = 2;
-        this.angle = Math.atan2(target.y - this.y, target.x - this.x);
+        if (
+          !this.path ||
+          this._repathTimer <= 0 ||
+          this._pathTargetObj !== target
+        ) {
+          this.computePath(target.x, target.y, tiles, gridSize, target);
+        }
+        const routed = this.followPath(gridSize, tiles);
+        if (!routed) {
+          this.angle = Math.atan2(target.y - this.y, target.x - this.x);
+        }
         const cityDist = cartesian(target.x, target.y, this.x, this.y);
         if (cityDist < gridSize) {
           this.inPort = true;
@@ -172,12 +232,23 @@ export class NpcShip extends Ship {
           this.inPort = false;
         }
         break;
+      }
 
-      case 'europe-trade':
+      case 'europe-trade': {
         if (this.loaded && this.targetCity) {
           const t = this.targetCity;
           this.speed = 2;
-          this.angle = Math.atan2(t.y - this.y, t.x - this.x);
+          if (
+            !this.path ||
+            this._repathTimer <= 0 ||
+            this._pathTargetObj !== t
+          ) {
+            this.computePath(t.x, t.y, tiles, gridSize, t);
+          }
+          const routed = this.followPath(gridSize, tiles);
+          if (!routed) {
+            this.angle = Math.atan2(t.y - this.y, t.x - this.x);
+          }
           const d = cartesian(t.x, t.y, this.x, this.y);
           if (d < gridSize) {
             const metadata = cityMetadata.get(t);
@@ -193,17 +264,43 @@ export class NpcShip extends Ship {
           }
         } else if (this.home) {
           this.speed = 2;
-          this.angle = Math.atan2(this.home.y - this.y, this.home.x - this.x);
+          if (
+            !this.path ||
+            this._repathTimer <= 0 ||
+            this._pathTargetObj !== this.home
+          ) {
+            this.computePath(this.home.x, this.home.y, tiles, gridSize, this.home);
+          }
+          const routed = this.followPath(gridSize, tiles);
+          if (!routed) {
+            this.angle = Math.atan2(this.home.y - this.y, this.home.x - this.x);
+          }
           const d = cartesian(this.home.x, this.home.y, this.x, this.y);
           if (d < gridSize) {
             this.sunk = true;
           }
         }
         break;
+      }
 
-      case 'pursue':
+      case 'pursue': {
         this.speed = 2.5;
-        this.angle = Math.atan2(player.y - this.y, player.x - this.x);
+        if (
+          !this.path ||
+          this._repathTimer <= 0 ||
+          cartesian(
+            player.x,
+            player.y,
+            this._pathTarget?.x || 0,
+            this._pathTarget?.y || 0
+          ) > gridSize
+        ) {
+          this.computePath(player.x, player.y, tiles, gridSize, player);
+        }
+        const routed = this.followPath(gridSize, tiles);
+        if (!routed) {
+          this.angle = Math.atan2(player.y - this.y, player.x - this.x);
+        }
         // tack slightly toward the wind to maintain speed when sailing upwind
         if (Math.cos(wind.angle - this.angle) < 0) {
           this.angle += 0.02 * Math.sign(Math.sin(wind.angle - this.angle));
@@ -212,18 +309,53 @@ export class NpcShip extends Ship {
           this.state = this.prevState || 'patrol';
         }
         break;
+      }
 
-      case 'escort':
+      case 'escort': {
         this.speed = 2;
-        this.angle = Math.atan2(player.y - this.y, player.x - this.x);
+        if (
+          !this.path ||
+          this._repathTimer <= 0 ||
+          cartesian(
+            player.x,
+            player.y,
+            this._pathTarget?.x || 0,
+            this._pathTarget?.y || 0
+          ) > gridSize
+        ) {
+          this.computePath(player.x, player.y, tiles, gridSize, player);
+        }
+        const routed = this.followPath(gridSize, tiles);
+        if (!routed) {
+          this.angle = Math.atan2(player.y - this.y, player.x - this.x);
+        }
         if (relation !== 'alliance' || dist > this.detectRadius * 1.5) {
           this.state = this.prevState || 'patrol';
         }
         break;
+      }
 
-      case 'avoid':
+      case 'avoid': {
         this.speed = 3;
-        this.angle = Math.atan2(this.y - player.y, this.x - player.x);
+        if (
+          !this.path ||
+          this._repathTimer <= 0 ||
+          cartesian(
+            player.x,
+            player.y,
+            this._pathTarget?.x || 0,
+            this._pathTarget?.y || 0
+          ) > gridSize
+        ) {
+          // move away from player
+          const awayX = this.x + (this.x - player.x);
+          const awayY = this.y + (this.y - player.y);
+          this.computePath(awayX, awayY, tiles, gridSize);
+        }
+        const routed = this.followPath(gridSize, tiles);
+        if (!routed) {
+          this.angle = Math.atan2(this.y - player.y, this.x - player.x);
+        }
         // favor sailing with the wind when fleeing
         if (Math.cos(wind.angle - this.angle) < 0) {
           this.angle += 0.02 * Math.sign(Math.sin(wind.angle - this.angle));
@@ -232,6 +364,7 @@ export class NpcShip extends Ship {
           this.state = this.prevState || 'patrol';
         }
         break;
+      }
     }
 
     super.update(dt, tiles, gridSize, worldWidth, worldHeight);
