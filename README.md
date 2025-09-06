@@ -40,6 +40,18 @@ Node server is included. It serves files without adding any
 node server.js
 ```
 
+## Asset structure and directional sprites
+
+Ship graphics are defined in `pirates/assets.json` under a hierarchy of ship
+`type`, `nation` and compass `direction`. Each nation may provide images for the
+eight directions (`E`, `SE`, `S`, `SW`, `W`, `NW`, `N`, `NE`) as well as a
+`default` sprite. The `getShipSprite` helper resolves a sprite by searching for
+the requested direction first, then falling back to the nation's `default`
+image and finally the type's own `default` entry. When no matching asset is
+found a simple placeholder is generated. A ship's `angle` is normalised to one
+of the eight direction keys, ensuring the correct sprite is selected as it
+turns.
+
 ## Isometric coordinates and camera
 
 The `pirates` demo renders its world using an isometric projection where
