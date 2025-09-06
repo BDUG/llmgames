@@ -8,25 +8,175 @@
   },
   "ship": {
     "Sloop": {
-      "Pirate": "assets/slopTB128.png",
-      "Netherlands": "assets/slopTB128.png",
-      "Spain": "assets/slopTB128.png",
-      "France": "assets/slopTB128.png",
-      "England": "assets/slopTB128.png"
+      "Pirate": {
+        "N": "assets/slopTB128_N.png",
+        "NE": "assets/slopTB128_NE.png",
+        "E": "assets/slopTB128_E.png",
+        "SE": "assets/slopTB128_SE.png",
+        "S": "assets/slopTB128_S.png",
+        "SW": "assets/slopTB128_SW.png",
+        "W": "assets/slopTB128_W.png",
+        "NW": "assets/slopTB128_NW.png",
+        "default": "assets/slopTB128.png"
+      },
+      "Netherlands": {
+        "N": "assets/slopTB128_N.png",
+        "NE": "assets/slopTB128_NE.png",
+        "E": "assets/slopTB128_E.png",
+        "SE": "assets/slopTB128_SE.png",
+        "S": "assets/slopTB128_S.png",
+        "SW": "assets/slopTB128_SW.png",
+        "W": "assets/slopTB128_W.png",
+        "NW": "assets/slopTB128_NW.png",
+        "default": "assets/slopTB128.png"
+      },
+      "Spain": {
+        "N": "assets/slopTB128_N.png",
+        "NE": "assets/slopTB128_NE.png",
+        "E": "assets/slopTB128_E.png",
+        "SE": "assets/slopTB128_SE.png",
+        "S": "assets/slopTB128_S.png",
+        "SW": "assets/slopTB128_SW.png",
+        "W": "assets/slopTB128_W.png",
+        "NW": "assets/slopTB128_NW.png",
+        "default": "assets/slopTB128.png"
+      },
+      "France": {
+        "N": "assets/slopTB128_N.png",
+        "NE": "assets/slopTB128_NE.png",
+        "E": "assets/slopTB128_E.png",
+        "SE": "assets/slopTB128_SE.png",
+        "S": "assets/slopTB128_S.png",
+        "SW": "assets/slopTB128_SW.png",
+        "W": "assets/slopTB128_W.png",
+        "NW": "assets/slopTB128_NW.png",
+        "default": "assets/slopTB128.png"
+      },
+      "England": {
+        "N": "assets/slopTB128_N.png",
+        "NE": "assets/slopTB128_NE.png",
+        "E": "assets/slopTB128_E.png",
+        "SE": "assets/slopTB128_SE.png",
+        "S": "assets/slopTB128_S.png",
+        "SW": "assets/slopTB128_SW.png",
+        "W": "assets/slopTB128_W.png",
+        "NW": "assets/slopTB128_NW.png",
+        "default": "assets/slopTB128.png"
+      }
     },
     "Brig": {
-      "Pirate": "assets/brigTB128.png",
-      "Netherlands":  "assets/brigTB128.png",
-      "Spain": "assets/brigTB128.png",
-      "France": "assets/brigTB128.png",
-      "England": "assets/brigTB128.png"
+      "Pirate": {
+        "N": "assets/brigTB128_N.png",
+        "NE": "assets/brigTB128_NE.png",
+        "E": "assets/brigTB128_E.png",
+        "SE": "assets/brigTB128_SE.png",
+        "S": "assets/brigTB128_S.png",
+        "SW": "assets/brigTB128_SW.png",
+        "W": "assets/brigTB128_W.png",
+        "NW": "assets/brigTB128_NW.png",
+        "default": "assets/brigTB128.png"
+      },
+      "Netherlands": {
+        "N": "assets/brigTB128_N.png",
+        "NE": "assets/brigTB128_NE.png",
+        "E": "assets/brigTB128_E.png",
+        "SE": "assets/brigTB128_SE.png",
+        "S": "assets/brigTB128_S.png",
+        "SW": "assets/brigTB128_SW.png",
+        "W": "assets/brigTB128_W.png",
+        "NW": "assets/brigTB128_NW.png",
+        "default": "assets/brigTB128.png"
+      },
+      "Spain": {
+        "N": "assets/brigTB128_N.png",
+        "NE": "assets/brigTB128_NE.png",
+        "E": "assets/brigTB128_E.png",
+        "SE": "assets/brigTB128_SE.png",
+        "S": "assets/brigTB128_S.png",
+        "SW": "assets/brigTB128_SW.png",
+        "W": "assets/brigTB128_W.png",
+        "NW": "assets/brigTB128_NW.png",
+        "default": "assets/brigTB128.png"
+      },
+      "France": {
+        "N": "assets/brigTB128_N.png",
+        "NE": "assets/brigTB128_NE.png",
+        "E": "assets/brigTB128_E.png",
+        "SE": "assets/brigTB128_SE.png",
+        "S": "assets/brigTB128_S.png",
+        "SW": "assets/brigTB128_SW.png",
+        "W": "assets/brigTB128_W.png",
+        "NW": "assets/brigTB128_NW.png",
+        "default": "assets/brigTB128.png"
+      },
+      "England": {
+        "N": "assets/brigTB128_N.png",
+        "NE": "assets/brigTB128_NE.png",
+        "E": "assets/brigTB128_E.png",
+        "SE": "assets/brigTB128_SE.png",
+        "S": "assets/brigTB128_S.png",
+        "SW": "assets/brigTB128_SW.png",
+        "W": "assets/brigTB128_W.png",
+        "NW": "assets/brigTB128_NW.png",
+        "default": "assets/brigTB128.png"
+      }
     },
     "Galleon": {
-      "Pirate": "assets/galleonTB128.png",
-      "Netherlands": "assets/galleonTB128.png",
-      "Spain": "assets/galleonTB128.png",
-      "France": "assets/galleonTB128.png",
-      "England": "assets/galleonTB128.png"
+      "Pirate": {
+        "N": "assets/galleonTB128_N.png",
+        "NE": "assets/galleonTB128_NE.png",
+        "E": "assets/galleonTB128_E.png",
+        "SE": "assets/galleonTB128_SE.png",
+        "S": "assets/galleonTB128_S.png",
+        "SW": "assets/galleonTB128_SW.png",
+        "W": "assets/galleonTB128_W.png",
+        "NW": "assets/galleonTB128_NW.png",
+        "default": "assets/galleonTB128.png"
+      },
+      "Netherlands": {
+        "N": "assets/galleonTB128_N.png",
+        "NE": "assets/galleonTB128_NE.png",
+        "E": "assets/galleonTB128_E.png",
+        "SE": "assets/galleonTB128_SE.png",
+        "S": "assets/galleonTB128_S.png",
+        "SW": "assets/galleonTB128_SW.png",
+        "W": "assets/galleonTB128_W.png",
+        "NW": "assets/galleonTB128_NW.png",
+        "default": "assets/galleonTB128.png"
+      },
+      "Spain": {
+        "N": "assets/galleonTB128_N.png",
+        "NE": "assets/galleonTB128_NE.png",
+        "E": "assets/galleonTB128_E.png",
+        "SE": "assets/galleonTB128_SE.png",
+        "S": "assets/galleonTB128_S.png",
+        "SW": "assets/galleonTB128_SW.png",
+        "W": "assets/galleonTB128_W.png",
+        "NW": "assets/galleonTB128_NW.png",
+        "default": "assets/galleonTB128.png"
+      },
+      "France": {
+        "N": "assets/galleonTB128_N.png",
+        "NE": "assets/galleonTB128_NE.png",
+        "E": "assets/galleonTB128_E.png",
+        "SE": "assets/galleonTB128_SE.png",
+        "S": "assets/galleonTB128_S.png",
+        "SW": "assets/galleonTB128_SW.png",
+        "W": "assets/galleonTB128_W.png",
+        "NW": "assets/galleonTB128_NW.png",
+        "default": "assets/galleonTB128.png"
+      },
+      "England": {
+        "N": "assets/galleonTB128_N.png",
+        "NE": "assets/galleonTB128_NE.png",
+        "E": "assets/galleonTB128_E.png",
+        "SE": "assets/galleonTB128_SE.png",
+        "S": "assets/galleonTB128_S.png",
+        "SW": "assets/galleonTB128_SW.png",
+        "W": "assets/galleonTB128_W.png",
+        "NW": "assets/galleonTB128_NW.png",
+        "default": "assets/galleonTB128.png"
+      }
     }
   },
   "flags": {}
