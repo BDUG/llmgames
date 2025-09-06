@@ -49,6 +49,10 @@ import {
 } from './research.js';
 import { findSpawnPoint } from './spawn.js';
 import { buildRoad } from './ui/buildRoad.js';
+import {
+  drawWeatherOverlay,
+  drawWeatherMinimap
+} from './ui/weatherOverlay.js';
 
 let worldWidth, worldHeight, gridSize, tileWidth, tileIsoHeight, tileImageHeight;
 const CSS_WIDTH = 800, CSS_HEIGHT = 600;
@@ -79,6 +83,12 @@ bus.on('npc-spotted', ({ npc }) => {
 });
 bus.on('npc-flee', ({ npc }) => {
   bus.emit('log', `${npc.nation} ship fled!`);
+});
+bus.on('storm-start', ({ ship }) => {
+  if (ship === player) bus.emit('log', 'You sail into a storm!');
+});
+bus.on('storm-end', ({ ship }) => {
+  if (ship === player) bus.emit('log', 'The skies clear.');
 });
 bus.on('switch-flagship', ({ ship }) => {
   const fleet = player.fleet;
@@ -167,14 +177,49 @@ const REP_SURCHARGE_RATE = 1.2;
 const DAY_MS = 5000;
 
 let wind = { speed: 0, angle: 0 };
+let storms = [];
+bus.getStorms = () => storms;
+
 function updateWind() {
   wind.speed = 0.5 + Math.random() * 2;
   wind.angle = Math.random() * Math.PI * 2;
+  if (worldWidth && worldHeight) {
+    const count = Math.floor(Math.random() * 3);
+    storms = Array.from({ length: count }, () => ({
+      x: Math.random() * worldWidth,
+      y: Math.random() * worldHeight,
+      radius: 50 + Math.random() * 100,
+      intensity: 0.5 + Math.random() * 0.5
+    }));
+  }
+  Ship.wind = wind;
 }
 setInterval(updateWind, 10000);
 updateWind();
-Ship.wind = wind;
 setInterval(updateMarkets, DAY_MS);
+
+function applyStormEffects(ship) {
+  if (!ship) return;
+  const storm = storms.find(
+    s => cartesian(ship.x, ship.y, s.x, s.y) <= s.radius
+  );
+  const inStorm = !!storm;
+  if (inStorm) {
+    ship.wind = {
+      speed: wind.speed * (1 - storm.intensity),
+      angle: wind.angle
+    };
+    ship.stormIntensity = storm.intensity;
+    ship.visibility = 0.3;
+  } else {
+    ship.wind = null;
+    ship.stormIntensity = 0;
+    ship.visibility = 1;
+  }
+  if (inStorm && !ship.inStorm) bus.emit('storm-start', { ship, storm });
+  if (!inStorm && ship.inStorm) bus.emit('storm-end', { ship });
+  ship.inStorm = inStorm;
+}
 
 function getCameraOffset(player) {
   // Camera math works in cartesian world units, but the canvas is rendered in
@@ -900,6 +945,8 @@ function loop(timestamp) {
     });
     keys['r'] = keys['R'] = false;
   }
+  // Storm effects for player fleet
+  if (player.fleet) player.fleet.forEach(applyStormEffects);
   // Update all player ships via fleet controller
   fleetController.update(dt, tiles, gridSize, worldWidth, worldHeight);
 
@@ -1021,6 +1068,7 @@ function loop(timestamp) {
 
   drawWorld(ctx, tiles, tileWidth, tileIsoHeight, tileImageHeight, assets, offsetX, offsetY);
 
+  npcShips.forEach(applyStormEffects);
   npcShips.forEach(n => {
     n.update(dt, tiles, gridSize, player, worldWidth, worldHeight, cityMetadata);
     n.fireCannons(player);
@@ -1038,6 +1086,17 @@ function loop(timestamp) {
     .forEach(d =>
       d.draw(ctx, offsetX, offsetY, tileWidth, tileIsoHeight, tileImageHeight)
     );
+
+  drawWeatherOverlay(
+    ctx,
+    storms,
+    wind,
+    offsetX,
+    offsetY,
+    tileWidth,
+    tileIsoHeight,
+    tileImageHeight
+  );
 
   // projectile collisions
   npcShips.forEach(n => {
@@ -1103,6 +1162,7 @@ function loop(timestamp) {
   updateHUD(player, wind);
   if (showMinimap) {
     drawMinimap(minimapCtx, tiles, player, worldWidth, worldHeight, cities);
+    drawWeatherMinimap(minimapCtx, storms, wind, worldWidth, worldHeight);
   }
   const allSettlements = [...cities, ...nativeSettlements];
   const nearestCityInfo = allSettlements.reduce(
