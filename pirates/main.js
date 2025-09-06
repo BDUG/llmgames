@@ -8,6 +8,7 @@ import {
   tileAt
 } from './world.js';
 import { cartesian } from './utils/distance.js';
+import { findPath } from './utils/pathfinding.js';
 import { Ship } from './entities/ship.js';
 import { NpcShip } from './entities/npcShip.js';
 import { City } from './entities/city.js';
@@ -108,6 +109,35 @@ let npcSpawnIntervalId, europeTraderIntervalId;
 let villageFoundedListener;
 let roadStartCity = null;
 const keys = {};
+
+function nearestCity(x, y) {
+  if (!cities) return null;
+  let best = null,
+    bestDist = Infinity;
+  for (const c of cities) {
+    const d = cartesian(x, y, c.x, c.y);
+    if (d < bestDist) {
+      best = c;
+      bestDist = d;
+    }
+  }
+  return best;
+}
+
+function startAutopilot(target) {
+  if (!player || !target) return;
+  player.autopilotTarget = target;
+  player.autopilotPath = findPath(
+    player.x,
+    player.y,
+    target.x,
+    target.y,
+    tiles,
+    gridSize
+  );
+  player.autopilotIndex = 0;
+  player.autopilotTimer = 120;
+}
 
 bus.on('price-change', ({ city, good, delta }) => {
   priceEvents.push({ origin: city, good, strength: delta });
@@ -899,6 +929,11 @@ function loop(timestamp) {
   if (keys['m'] || keys['M']) { toggleMinimap(); keys['m'] = keys['M'] = false; }
   if (keys['s'] || keys['S']) { saveGame(); keys['s'] = keys['S'] = false; }
   if (keys['l'] || keys['L']) { loadGame(); keys['l'] = keys['L'] = false; }
+  if (keys['x'] || keys['X']) {
+    const target = nearestCity(player.x, player.y);
+    startAutopilot(target);
+    keys['x'] = keys['X'] = false;
+  }
   if (keys['f'] || keys['F']) {
     closeTradeMenu();
     closeGovernorMenu();
@@ -944,6 +979,34 @@ function loop(timestamp) {
       }
     });
     keys['r'] = keys['R'] = false;
+  }
+  if (
+    player instanceof Ship &&
+    player.autopilotPath &&
+    !(keys['ArrowLeft'] || keys['ArrowRight'] || keys['ArrowUp'] || keys['ArrowDown'])
+  ) {
+    player.autopilotTimer -= dt;
+    if (player.autopilotTimer <= 0 && player.autopilotTarget) {
+      startAutopilot(player.autopilotTarget);
+    }
+    const wp = player.autopilotPath[player.autopilotIndex];
+    if (wp) {
+      const dist = cartesian(player.x, player.y, wp.x, wp.y);
+      if (dist < gridSize * 0.5) {
+        player.autopilotIndex++;
+      }
+      const next = player.autopilotPath[player.autopilotIndex];
+      if (next) {
+        player.angle = Math.atan2(next.y - player.y, next.x - player.x);
+        player.speed = Math.min(player.speed + 0.1 * dt, player.maxSpeed);
+      } else {
+        player.autopilotPath = null;
+      }
+    } else {
+      player.autopilotPath = null;
+    }
+  } else if (player instanceof Ship && player.autopilotPath) {
+    player.autopilotPath = null;
   }
   // Storm effects for player fleet
   if (player.fleet) player.fleet.forEach(applyStormEffects);
