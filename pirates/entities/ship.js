@@ -26,11 +26,15 @@ export const SHIP_TYPES = {
 };
 
 const DIRS = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'];
-function angleToDirection(angle) {
+
+function getDirectionIndex(angle) {
   const full = Math.PI * 2;
   const normalized = ((angle % full) + full) % full; // 0..2π
-  const idx = Math.round(normalized / (Math.PI / 4)) % 8;
-  return DIRS[idx];
+  return Math.round(normalized / (Math.PI / 4)) % 8;
+}
+
+function angleToDirection(angle) {
+  return DIRS[getDirectionIndex(angle)];
 }
 
 export class Ship {
@@ -43,7 +47,8 @@ export class Ship {
     this.speed = 0;
     this.baseMaxSpeed = stats.speed;
     this.maxSpeed = stats.speed;
-    this.angle = 0;
+    this._angle = 0;
+    this.heading = 0;
     this.turnSpeed = 0.05;
     this.cargo = {};
     this.cargoCapacity = stats.cargo;
@@ -84,9 +89,17 @@ export class Ship {
     this.updateAppearance();
   }
 
+  get angle() {
+    return this._angle;
+  }
+
+  set angle(value) {
+    this._angle = value;
+    this.heading = getDirectionIndex(value);
+  }
+
   rotate(direction) {
     this.angle += this.turnSpeed * direction;
-    this.updateAppearance();
   }
 
   forward(dt) {
@@ -211,8 +224,6 @@ export class Ship {
   }
 
   updateAppearance() {
-    const dir = angleToDirection(this.angle);
-    this.img = getShipSprite(this.type, this.nation, dir);
     this.flag = getFlag(this.nation);
   }
 
@@ -226,7 +237,6 @@ export class Ship {
     );
 
     if (!this.sunk) {
-      const img = this.img;
       const flag = this.flag;
       const { isoX, isoY } = cartToIso(
         this.x,
@@ -235,15 +245,17 @@ export class Ship {
         tileIsoHeight,
         tileImageHeight
       );
+      const img = getShipSprite(this.type, this.nation, DIRS[this.heading]);
       if (img) {
-        ctx.save();
-        ctx.translate(isoX - offX, isoY - offY);
-        ctx.rotate(this.angle);
-        ctx.drawImage(img, -img.width / 2, -img.height / 2);
+        const cx = isoX - offX;
+        const cy = isoY - offY;
+        ctx.drawImage(img, cx - img.width / 2, cy - img.height / 2);
         if (flag) {
-          ctx.drawImage(flag, -flag.width / 2, -img.height / 2 - flag.height);
+          const dist = img.height / 2 + flag.height;
+          const fx = (-flag.width / 2) * Math.cos(this.angle) + dist * Math.sin(this.angle);
+          const fy = (-flag.width / 2) * Math.sin(this.angle) - dist * Math.cos(this.angle);
+          ctx.drawImage(flag, cx + fx, cy + fy);
         }
-        ctx.restore();
       } else {
         ctx.fillStyle = 'brown';
         ctx.fillRect(isoX - 5 - offX, isoY - 5 - offY, 10, 10);
