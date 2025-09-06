@@ -2,6 +2,7 @@ import { bus } from '../bus.js';
 import { questManager } from '../questManager.js';
 import { Quest } from '../quest.js';
 import { updateHUD } from './hud.js';
+import { openCrewMenu } from './crew.js';
 
 const NATIONS = ['England', 'France', 'Spain', 'Netherlands'];
 
@@ -36,6 +37,11 @@ export function openGovernorMenu(player, city, metadata) {
     menu.style.display = 'none';
   };
   menu.appendChild(missionBtn);
+
+  const crewBtn = document.createElement('button');
+  crewBtn.textContent = 'Crew';
+  crewBtn.onclick = () => openCrewMenu(player);
+  menu.appendChild(crewBtn);
 
   // diplomacy controls
   const diplomacyDiv = document.createElement('div');

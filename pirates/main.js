@@ -251,7 +251,11 @@ function updateWind() {
 }
 setInterval(updateWind, 10000);
 updateWind();
-setInterval(updateMarkets, DAY_MS);
+function dailyTick() {
+  updateMarkets();
+  runPayroll();
+}
+setInterval(dailyTick, DAY_MS);
 
 function applyStormEffects(ship) {
   if (!ship) return;
@@ -438,6 +442,19 @@ function attemptFoundVillages() {
       econ.gold -= 500;
     }
   });
+}
+
+function runPayroll() {
+  const ships = [];
+  if (player?.fleet) ships.push(...player.fleet);
+  if (npcShips) ships.push(...npcShips);
+  ships.forEach(s => {
+    if (s.processPayroll) {
+      s.processPayroll();
+      if (s.checkMutiny) s.checkMutiny();
+    }
+  });
+  if (player) updateHUD(player, wind);
 }
 
 function spawnVillageNpcShip(city, nation, npcShips, targetCounts) {
