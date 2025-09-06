@@ -122,6 +122,14 @@ window.addEventListener('keyup', e => {
   else keys[e.key] = false;
 });
 
+function haltShip(ship) {
+  if (!ship) return;
+  ship.speed = 0;
+  if (ship.setSail) ship.setSail(0);
+  keys['ArrowUp'] = false;
+  keys['ArrowDown'] = false;
+}
+
 const NATIONS = ['England', 'France', 'Spain', 'Netherlands'];
 // All tradable goods in the world
 const GOODS = ['Sugar', 'Rum', 'Tobacco', 'Cotton', 'Spice', 'Tea', 'Coffee'];
@@ -852,6 +860,7 @@ function loop(timestamp) {
     closeTavernMenu();
     closeUpgradeMenu();
     closeResearchMenu();
+    haltShip(player);
     openFleetMenu(player);
     keys['f'] = keys['F'] = false;
   }
@@ -862,6 +871,7 @@ function loop(timestamp) {
     closeUpgradeMenu();
     closeFleetMenu();
     closeShipyardMenu();
+    haltShip(player);
     openResearchMenu();
     keys['i'] = keys['I'] = false;
   }
@@ -1171,6 +1181,7 @@ function loop(timestamp) {
       closeResearchMenu();
       if (metadata?.tribe) {
         const multiplier = 1 + Math.max(0, -metadata.relation) * 0.1;
+        haltShip(player);
         openTradeMenu(player, nearbyCity, metadata, multiplier);
         bus.emit('log', `Opened trade with ${metadata.tribe}`);
       } else {
@@ -1184,6 +1195,7 @@ function loop(timestamp) {
             multiplier = REP_SURCHARGE_RATE;
             bus.emit('log', `${nation} merchants levy a surcharge due to your reputation.`);
           }
+          haltShip(player);
           openTradeMenu(player, nearbyCity, metadata, multiplier);
           bus.emit('log', `Opened trade with ${nearbyCity.name}`);
         }
@@ -1197,6 +1209,7 @@ function loop(timestamp) {
       closeFleetMenu();
       closeShipyardMenu();
       closeResearchMenu();
+      haltShip(player);
       openGovernorMenu(player, nearbyCity, metadata);
       keys['g'] = keys['G'] = false;
     }
@@ -1207,6 +1220,7 @@ function loop(timestamp) {
       closeFleetMenu();
       closeShipyardMenu();
       closeResearchMenu();
+      haltShip(player);
       openTavernMenu(player, nearbyCity);
       keys['v'] = keys['V'] = false;
     }
@@ -1217,6 +1231,7 @@ function loop(timestamp) {
       closeFleetMenu();
       closeShipyardMenu();
       closeResearchMenu();
+      haltShip(player);
       openUpgradeMenu(player, metadata);
       keys['u'] = keys['U'] = false;
     }
@@ -1228,6 +1243,7 @@ function loop(timestamp) {
       closeFleetMenu();
       closeResearchMenu();
       if (metadata?.shipyard) {
+        haltShip(player);
         openShipyardMenu(player, nearbyCity, metadata);
       } else {
         bus.emit('log', 'No shipyard here');
