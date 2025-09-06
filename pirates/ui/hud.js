@@ -1,9 +1,21 @@
 import { questManager } from '../questManager.js';
 import { Ship } from '../entities/ship.js';
+import { bus } from '../bus.js';
+import { openDiplomacyMenu } from './diplomacy.js';
 
 export function initHUD() {
   const hudDiv = document.getElementById('hud');
-  if (hudDiv) hudDiv.textContent = 'Loading...';
+  if (hudDiv) {
+    hudDiv.textContent = 'Loading...';
+    const dipBtn = document.createElement('button');
+    dipBtn.textContent = 'Diplomacy';
+    dipBtn.onclick = () => {
+      const player = bus.getPlayer ? bus.getPlayer() : null;
+      openDiplomacyMenu(player);
+    };
+    hudDiv.appendChild(document.createElement('br'));
+    hudDiv.appendChild(dipBtn);
+  }
 }
 
 function cargoSummary(player) {

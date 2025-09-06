@@ -1,6 +1,7 @@
 import { NpcShip } from './entities/npcShip.js';
 import { SHIP_TYPES } from './entities/ship.js';
 import { isUnlocked } from './research.js';
+import { bus } from './bus.js';
 
 export const nationEconomy = new Map();
 
@@ -30,6 +31,14 @@ export function restockShipyards(cityMetadata, amount = 1) {
       });
     }
   });
+}
+
+export function canTrade(nationA, nationB) {
+  if (!nationA || !nationB || nationA === nationB) return true;
+  const relation = bus.getRelation
+    ? bus.getRelation(nationA, nationB)
+    : 'peace';
+  return !['war', 'embargo'].includes(relation);
 }
 
 // Calculate effective production for a city, applying a bonus for each road

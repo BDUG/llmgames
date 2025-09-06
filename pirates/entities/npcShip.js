@@ -37,7 +37,14 @@ export class NpcShip extends Ship {
   }
 
   chooseTradeRoute(cityMetadata, fromCity = null) {
-    const cities = Array.from(cityMetadata?.keys?.() || []);
+    const cities = Array.from(cityMetadata?.keys?.() || []).filter(c => {
+      const meta = cityMetadata.get(c);
+      if (!meta?.nation) return true;
+      const relation = bus.getRelation
+        ? bus.getRelation(this.nation, meta.nation)
+        : 'peace';
+      return !['war', 'embargo'].includes(relation);
+    });
     if (cities.length < 2) return null;
     const source = fromCity || cities[Math.floor(Math.random() * cities.length)];
     let dest = source;
@@ -51,6 +58,12 @@ export class NpcShip extends Ship {
 
   loadCargo(city, metadata) {
     if (!metadata) return;
+    if (metadata.nation) {
+      const relation = bus.getRelation
+        ? bus.getRelation(this.nation, metadata.nation)
+        : 'peace';
+      if (['war', 'embargo'].includes(relation)) return;
+    }
     metadata.inventory = metadata.inventory || {};
     const goods = (metadata.supplies || []).filter(
       g => (metadata.inventory[g] || 0) > 0
@@ -78,6 +91,12 @@ export class NpcShip extends Ship {
 
   unloadCargo(city, metadata) {
     if (!metadata) return;
+    if (metadata.nation) {
+      const relation = bus.getRelation
+        ? bus.getRelation(this.nation, metadata.nation)
+        : 'peace';
+      if (['war', 'embargo'].includes(relation)) return;
+    }
     metadata.inventory = metadata.inventory || {};
     for (const good of Object.keys(this.cargo)) {
       while (this.cargo[good] > 0) {
@@ -360,7 +379,10 @@ export class NpcShip extends Ship {
         if (Math.cos(wind.angle - this.angle) < 0) {
           this.angle += 0.02 * Math.sign(Math.sin(wind.angle - this.angle));
         }
-        if (relation !== 'peace' || dist > this.detectRadius) {
+        if (
+          !['peace', 'truce', 'embargo'].includes(relation) ||
+          dist > this.detectRadius
+        ) {
           this.state = this.prevState || 'patrol';
         }
         break;
