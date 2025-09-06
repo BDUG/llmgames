@@ -1,14 +1,13 @@
 import { bus } from '../bus.js';
 import { updateHUD } from './hud.js';
-import { openCrewMenu } from './crew.js';
 
-export function openTavernMenu(player, city) {
-  const menu = document.getElementById('tavernMenu');
+export function openCrewMenu(player) {
+  const menu = document.getElementById('crewMenu');
   if (!menu) return;
   menu.innerHTML = '';
 
   const title = document.createElement('div');
-  title.textContent = city?.name ? `Tavern in ${city.name}` : 'Tavern';
+  title.textContent = 'Crew Management';
   menu.appendChild(title);
 
   const goldDiv = document.createElement('div');
@@ -18,13 +17,40 @@ export function openTavernMenu(player, city) {
   const crewDiv = document.createElement('div');
   crewDiv.textContent = `Crew: ${player.crew}/${player.crewMax}`;
   menu.appendChild(crewDiv);
+
+  const wageDiv = document.createElement('div');
+  wageDiv.textContent = `Wage Rate: ${player.wageRate}g/day`;
+  menu.appendChild(wageDiv);
+
+  const unpaidDiv = document.createElement('div');
+  unpaidDiv.textContent = `Unpaid Wages: ${player.unpaidWages}`;
+  menu.appendChild(unpaidDiv);
+
+  const wageContainer = document.createElement('div');
+  const wageInput = document.createElement('input');
+  wageInput.type = 'number';
+  wageInput.min = 0;
+  wageInput.value = player.wageRate;
+  const wageBtn = document.createElement('button');
+  wageBtn.textContent = 'Set Wage Rate';
+  wageBtn.onclick = () => {
+    const rate = parseFloat(wageInput.value);
+    if (!isNaN(rate) && rate >= 0) {
+      player.wageRate = rate;
+      openCrewMenu(player);
+    }
+  };
+  wageContainer.appendChild(wageInput);
+  wageContainer.appendChild(wageBtn);
+  menu.appendChild(wageContainer);
+
   const hireContainer = document.createElement('div');
   const hireInput = document.createElement('input');
   hireInput.type = 'number';
   hireInput.min = 1;
   hireInput.value = 1;
   const hireBtn = document.createElement('button');
-  hireBtn.textContent = 'Hire crew (20g ea)';
+  hireBtn.textContent = 'Hire (20g ea)';
 
   const updateControls = () => {
     const maxByGold = Math.floor(player.gold / 20);
@@ -44,37 +70,27 @@ export function openTavernMenu(player, city) {
       player.gold -= cost;
       player.crew += qty;
       player.updateCrewStats && player.updateCrewStats();
-      bus.emit(
-        'log',
-        `Hired ${qty} crew member${qty !== 1 ? 's' : ''} for ${cost}g`
-      );
+      bus.emit('log', `Hired ${qty} crew for ${cost}g`);
       updateHUD(player);
-      openTavernMenu(player, city);
+      openCrewMenu(player);
     }
   };
 
   updateControls();
-
   hireContainer.appendChild(hireInput);
   hireContainer.appendChild(hireBtn);
   menu.appendChild(hireContainer);
 
-  const manageBtn = document.createElement('button');
-  manageBtn.textContent = 'Manage Crew';
-  manageBtn.onclick = () => openCrewMenu(player);
-  menu.appendChild(manageBtn);
-
   const closeBtn = document.createElement('button');
   closeBtn.textContent = 'Close';
-  closeBtn.onclick = () => {
-    menu.style.display = 'none';
-  };
+  closeBtn.onclick = closeCrewMenu;
   menu.appendChild(closeBtn);
 
   menu.style.display = 'block';
 }
 
-export function closeTavernMenu() {
-  const menu = document.getElementById('tavernMenu');
+export function closeCrewMenu() {
+  const menu = document.getElementById('crewMenu');
   if (menu) menu.style.display = 'none';
 }
+

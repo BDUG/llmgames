@@ -76,6 +76,11 @@ export class Ship {
     this.inPort = false;
     this.mutinied = false;
 
+    // wages
+    this.wageRate = 1; // gold per crew per day
+    this.unpaidWages = 0;
+    this.lastPaid = Date.now();
+
     // cannon fire control
     this.fireCooldown = 0; // frames until next shot allowed
     this.baseFireRate = 30; // base cooldown frames between shots
@@ -350,6 +355,21 @@ export class Ship {
     if (this.crew <= 0 && !this.mutinied) {
       this.mutinied = true;
       bus.emit('log', 'Your crew has taken the ship! Game over.');
+    }
+  }
+
+  processPayroll() {
+    const due = this.crew * this.wageRate;
+    if (due <= 0) return;
+    if (this.gold >= due) {
+      this.gold -= due;
+      this.unpaidWages = 0;
+      this.lastPaid = Date.now();
+    } else {
+      const deficit = due - this.gold;
+      this.gold = 0;
+      this.unpaidWages += deficit;
+      this.adjustMorale(-5);
     }
   }
 
