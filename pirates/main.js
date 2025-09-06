@@ -174,9 +174,18 @@ const NATIONS = ['England', 'France', 'Spain', 'Netherlands'];
 // All tradable goods in the world
 const GOODS = ['Sugar', 'Rum', 'Tobacco', 'Cotton', 'Spice', 'Tea', 'Coffee'];
 
-// Relationship map between nations. By default everyone is at peace.
+// Relationship map between nations using enumerated states.
+const RELATION_STATES = ['war', 'truce', 'peace', 'alliance', 'embargo'];
+const DECAY_ORDER = {
+  war: 'truce',
+  truce: 'peace',
+  alliance: 'peace',
+  embargo: 'peace'
+};
+const DEFAULT_TREATY_MS = 60000;
 const ALL_NATIONS = [...NATIONS, 'Pirate'];
 const nationRelations = {};
+const relationTimers = {};
 ALL_NATIONS.forEach(a => {
   nationRelations[a] = {};
   ALL_NATIONS.forEach(b => {
@@ -184,9 +193,22 @@ ALL_NATIONS.forEach(a => {
   });
 });
 
-function setRelation(a, b, status) {
+function relationKey(a, b) {
+  return [a, b].sort().join('-');
+}
+
+function setRelation(a, b, status, duration = DEFAULT_TREATY_MS) {
+  if (!RELATION_STATES.includes(status)) status = 'peace';
   nationRelations[a][b] = status;
   nationRelations[b][a] = status;
+  const key = relationKey(a, b);
+  clearTimeout(relationTimers[key]);
+  if (status !== 'peace') {
+    relationTimers[key] = setTimeout(() => {
+      const next = DECAY_ORDER[status] || 'peace';
+      setRelation(a, b, next);
+    }, duration);
+  }
   bus.emit('relations-updated', { from: a, to: b, status, map: nationRelations });
 }
 
@@ -195,9 +217,12 @@ function getRelation(a, b) {
 }
 
 // expose through bus
+bus.relationStates = RELATION_STATES;
 bus.nationRelations = nationRelations;
 bus.getRelation = getRelation;
-bus.on('relation-change', ({ from, to, status }) => setRelation(from, to, status));
+bus.on('relation-change', ({ from, to, status, duration }) =>
+  setRelation(from, to, status, duration)
+);
 bus.emit('relations-updated', { map: nationRelations });
 
 const REP_SURCHARGE_THRESHOLD = 0;

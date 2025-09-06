@@ -1,5 +1,5 @@
 import { bus } from '../bus.js';
-import { adjustNativeRelation } from '../npcEconomy.js';
+import { adjustNativeRelation, canTrade } from '../npcEconomy.js';
 import { updateHUD } from './hud.js';
 
 // Base prices for all tradable goods.
@@ -53,6 +53,14 @@ export function openTradeMenu(player, city, metadata, priceMultiplier = 1) {
 
   if (!metadata?.nation && !metadata?.tribe) {
     bus.emit('log', `Cannot open trade menu for ${city?.name || 'unknown location'}: faction unknown`);
+    return;
+  }
+
+  if (
+    metadata.nation &&
+    !canTrade(player.nation, metadata.nation)
+  ) {
+    bus.emit('log', `${metadata.nation} refuses to trade with ${player.nation}`);
     return;
   }
 
