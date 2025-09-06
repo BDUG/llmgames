@@ -54,6 +54,7 @@ import {
   drawWeatherOverlay,
   drawWeatherMinimap
 } from './ui/weatherOverlay.js';
+import { serializeRoutes, deserializeRoutes } from './tradeRoutes.js';
 
 let worldWidth, worldHeight, gridSize, tileWidth, tileIsoHeight, tileImageHeight;
 const CSS_WIDTH = 800, CSS_HEIGHT = 600;
@@ -791,6 +792,7 @@ function saveGame() {
     effect: e.effect,
     duration: e.duration
   }));
+  const routeData = serializeRoutes(player.fleet || []);
 
   const data = {
     version: SAVE_VERSION,
@@ -803,7 +805,8 @@ function saveGame() {
     quests,
     priceEvents: priceData,
     seasonalEvents: seasonalData,
-    research: getResearchState()
+    research: getResearchState(),
+    tradeRoutes: routeData
   };
   try {
     localStorage.setItem('pirates-save', JSON.stringify(data));
@@ -858,6 +861,8 @@ function loadGame() {
         cityMetadata.set(city, meta);
       });
     }
+
+    deserializeRoutes(data.tradeRoutes || [], player.fleet, cities);
 
     // Rebuild NPC ships
     npcShips = (data.npcShips || []).map(n => {
@@ -1053,7 +1058,15 @@ function loop(timestamp) {
   // Storm effects for player fleet
   if (player.fleet) player.fleet.forEach(applyStormEffects);
   // Update all player ships via fleet controller
-  fleetController.update(dt, tiles, gridSize, worldWidth, worldHeight);
+  fleetController.update(
+    dt,
+    tiles,
+    gridSize,
+    worldWidth,
+    worldHeight,
+    cities,
+    cityMetadata
+  );
 
   if (!(player instanceof Ship)) {
     player.update(dt, tiles, gridSize, worldWidth, worldHeight);
