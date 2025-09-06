@@ -29,11 +29,17 @@ function cargoSummary(player) {
 export function updateHUD(player, wind) {
   const hudDiv = document.getElementById('hud');
   if (!hudDiv || !player) return;
-  const quests =
+  const questsHtml =
     questManager
       .getActive()
-      .map(q => q.description)
-      .join('; ') || 'None';
+      .map(q => {
+        const max = q.target?.quantity || q.target?.count || 1;
+        return (
+          `${q.description} [${q.type}]<br>` +
+          `<progress value="${q.progress}" max="${max}"></progress>`
+        );
+      })
+      .join('<br>') || 'None';
   const w = wind || Ship.wind || { speed: 0, angle: 0 };
   const windDir = (w.angle * 180 / Math.PI).toFixed(0);
   const windSpd = w.speed.toFixed(1);
@@ -58,7 +64,7 @@ export function updateHUD(player, wind) {
 
   html +=
     `<br>Wind: ${windSpd} @ ${windDir}&deg;` +
-    `<br>Quests: ${quests}` +
+    `<br>Quests:<br>${questsHtml}` +
     `<br>Fleet: ${fleetInfo}`;
 
   hudDiv.innerHTML = html;

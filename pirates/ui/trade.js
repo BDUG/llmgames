@@ -130,6 +130,7 @@ export function openTradeMenu(player, city, metadata, priceMultiplier = 1) {
       metadata.prices[good] = Math.round(oldPrice * 1.1);
       bus.emit('log', `Bought 1 ${good} for ${buyPrice}g`);
       bus.emit('price-change', { city, good, delta: metadata.prices[good] - oldPrice });
+      bus.emit('trade', { type: 'buy', good, quantity: 1, city });
       if (metadata.tribe) adjustNativeRelation(metadata, -1);
       updateHUD(player);
       openTradeMenu(player, city, metadata, priceMultiplier);
@@ -155,6 +156,7 @@ export function openTradeMenu(player, city, metadata, priceMultiplier = 1) {
       metadata.prices[good] = Math.max(1, Math.round(oldPrice * 0.9));
       bus.emit('log', `Sold 1 ${good} for ${sellPrice}g`);
       bus.emit('price-change', { city, good, delta: metadata.prices[good] - oldPrice });
+      bus.emit('trade', { type: 'sell', good, quantity: 1, city });
       if (metadata.tribe) adjustNativeRelation(metadata, 1);
       updateHUD(player);
       openTradeMenu(player, city, metadata, priceMultiplier);
