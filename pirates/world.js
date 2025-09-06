@@ -9,7 +9,7 @@ try {
   ({ createNoise2D } = await import('https://cdn.skypack.dev/simplex-noise'));
 }
 
-export const Terrain = {
+const Terrain = {
   WATER: 0,
   LAND: 1,
   HILL: 2,
@@ -501,7 +501,7 @@ export function screenToTile(
   };
 }
 
-export { iso };
+export { iso, Terrain };
 
 // Backward compatibility: accept cartesian offsets and convert internally.
 export function screenToTileWithOffset(
