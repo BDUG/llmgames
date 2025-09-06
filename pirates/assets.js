@@ -24,6 +24,9 @@ export async function loadAssets(tileSize){
     if (!assets.tiles.mission) {
       assets.tiles.mission = assets.tiles.village;
     }
+    if (!assets.tiles.coast) {
+      assets.tiles.coast = assets.tiles.land;
+    }
     ensureFlags();
     const sampleTile = assets.tiles && Object.values(assets.tiles)[0];
     const tileWidth = sampleTile?.tileWidth || sampleTile?.width || gridSize;

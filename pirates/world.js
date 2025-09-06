@@ -585,7 +585,8 @@ export function drawWorld(ctx, tiles, tileWidth, tileIsoHeight, tileImageHeight,
       else if (t === Terrain.MISSION) img = assets.tiles?.mission || assets.tiles?.village;
       else if (t === Terrain.NATIVE) img = assets.tiles?.native || assets.tiles?.village;
       else if (t === Terrain.ROAD) img = assets.tiles?.road || assets.tiles?.land;
-      else if (t === Terrain.COAST || t === Terrain.REEF) img = assets.tiles?.coast || assets.tiles?.land;
+      else if (t === Terrain.COAST) img = assets.tiles?.coast || assets.tiles?.land;
+      else if (t === Terrain.REEF) img = assets.tiles?.reef || assets.tiles?.water;
       else img = assets.tiles?.land;
       if (!img) continue;
       const { x, y } = worldToIso(r, c, tileWidth, tileIsoHeight, tileImageHeight, isoX, isoY);
