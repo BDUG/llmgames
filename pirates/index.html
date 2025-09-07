@@ -17,11 +17,18 @@
       display: block;
       margin: 0 auto;
     }
-    /* Minimap container in upper-right */
-    #minimapContainer {
+    /* Right-side panel containing minimap, quest log, and command keys */
+    #rightPanel {
       position: absolute;
       top: 10px;
       right: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Minimap container in upper-right */
+    #minimapContainer {
       border: 1px solid #000;
       background: rgba(255,255,255,0.7);
       width: 200px;
@@ -41,11 +48,8 @@
       width: 100px;
       height: 10px;
     }
-    /* Quest log panel positioned below the minimap */
+    /* Quest log panel */
     #questLog {
-      position: absolute;
-      top: 220px; /* 10px (minimap top) + 200px (minimap height) + 10px margin */
-      right: 10px;
       background: rgba(0,0,0,0.7);
       color: #fff;
       padding: 5px;
@@ -54,11 +58,8 @@
       overflow-y: auto;
       width: 200px;
     }
-    /* Command keys panel positioned below the quest log */
+    /* Command keys panel */
     #commandKeys {
-      position: absolute;
-      top: 430px; /* questLog top (220) + questLog height (200) + 10px margin */
-      right: 10px;
       background: rgba(0,0,0,0.7);
       color: #fff;
       padding: 5px;
@@ -133,16 +134,19 @@
 <body>
   <!-- Main game canvas (fills window) -->
   <canvas id="gameCanvas" width="800" height="600"></canvas>
-  <!-- Minimap container -->
-  <div id="minimapContainer">
-    <canvas id="minimap" width="200" height="200"></canvas>
-  </div>
   <!-- HUD (player info) -->
   <div id="hud"></div>
-  <!-- Quest Log (active quests, below minimap) -->
-  <div id="questLog"></div>
-  <!-- Command Keys panel (below quest log) -->
-  <div id="commandKeys"></div>
+  <!-- Right-side panel containing minimap, quest log, and command keys -->
+  <div id="rightPanel">
+    <!-- Minimap container -->
+    <div id="minimapContainer">
+      <canvas id="minimap" width="200" height="200"></canvas>
+    </div>
+    <!-- Quest Log (active quests) -->
+    <div id="questLog"></div>
+    <!-- Command Keys panel -->
+    <div id="commandKeys"></div>
+  </div>
   <!-- Seed controls to allow starting world with a specific seed -->
   <div id="seedControls" style="position:absolute; top:590px; right:10px; background:rgba(0,0,0,0.7); color:#fff; padding:5px;">
     Seed: <input id="seedInput" type="number" style="width:80px;">

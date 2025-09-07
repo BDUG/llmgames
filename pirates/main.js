@@ -77,6 +77,7 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
+const minimapContainer = document.getElementById('minimapContainer');
 const minimapCanvas = document.getElementById('minimap');
 const minimapCtx = minimapCanvas.getContext('2d');
 
@@ -740,7 +741,7 @@ function setup(options = {}) {
 
 function toggleMinimap() {
   showMinimap = !showMinimap;
-  minimapCanvas.style.display = showMinimap ? 'block' : 'none';
+  if (minimapContainer) minimapContainer.style.display = showMinimap ? 'block' : 'none';
 }
 
 function serializeShip(ship) {
