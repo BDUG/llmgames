@@ -57,16 +57,25 @@ import {
 import { serializeRoutes, deserializeRoutes } from './tradeRoutes.js';
 
 let worldWidth, worldHeight, gridSize, tileWidth, tileIsoHeight, tileImageHeight;
-const CSS_WIDTH = 800, CSS_HEIGHT = 600;
+let cssWidth = window.innerWidth, cssHeight = window.innerHeight;
 
 const canvas = document.getElementById('gameCanvas');
-const dpr = window.devicePixelRatio || 1;
-canvas.style.width = CSS_WIDTH + 'px';
-canvas.style.height = CSS_HEIGHT + 'px';
-canvas.width = CSS_WIDTH * dpr;
-canvas.height = CSS_HEIGHT * dpr;
+let dpr = window.devicePixelRatio || 1;
 const ctx = canvas.getContext('2d');
-ctx.scale(dpr, dpr);
+
+function resizeCanvas() {
+  cssWidth = window.innerWidth;
+  cssHeight = window.innerHeight;
+  dpr = window.devicePixelRatio || 1;
+  canvas.style.width = cssWidth + 'px';
+  canvas.style.height = cssHeight + 'px';
+  canvas.width = cssWidth * dpr;
+  canvas.height = cssHeight * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
 
 const minimapCanvas = document.getElementById('minimap');
 const minimapCtx = minimapCanvas.getContext('2d');
@@ -287,8 +296,8 @@ function getCameraOffset(player) {
   // calculated centre further down, changing the vertical offset of the camera.
   const origin = isoToCart(0, 0, tileWidth, tileIsoHeight, tileImageHeight);
   const center = isoToCart(
-    CSS_WIDTH / 2,
-    CSS_HEIGHT / 2,
+    cssWidth / 2,
+    cssHeight / 2,
     tileWidth,
     tileIsoHeight,
     tileImageHeight
@@ -1062,7 +1071,7 @@ function loop(timestamp) {
 
   let nearLand = false,
     canBuildVillage = false;
-  ctx.clearRect(0, 0, CSS_WIDTH, CSS_HEIGHT);
+  ctx.clearRect(0, 0, cssWidth, cssHeight);
   if (keys['ArrowLeft']) player.rotate(-dt);
   if (keys['ArrowRight']) player.rotate(dt);
   if (keys['ArrowUp']) player.speed = Math.min(player.speed + 0.1 * dt, player.maxSpeed);
